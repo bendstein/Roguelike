@@ -1,8 +1,8 @@
-package creature.ai.monster;
+package creatureitem.ai.monster;
 
-import creature.Creature;
-import creature.generation.CreatureFactory;
-import creature.ai.CreatureAi;
+import creatureitem.Creature;
+import creatureitem.ai.CreatureAi;
+import creatureitem.generation.CreatureItemFactory;
 
 public class FungusAi extends CreatureAi {
 
@@ -11,7 +11,7 @@ public class FungusAi extends CreatureAi {
     /**
      * Factory for creating more fungi
      */
-    private CreatureFactory factory;
+    private CreatureItemFactory factory;
 
     /**
      * Number of spreads this fungus has done
@@ -29,7 +29,7 @@ public class FungusAi extends CreatureAi {
     private final int MAX_SPREAD = 3;
     //</editor-fold>
 
-    public FungusAi(Creature creature, CreatureFactory factory) {
+    public FungusAi(Creature creature, CreatureItemFactory factory) {
         super(creature);
         this.factory = factory;
         spread = 0;
@@ -68,7 +68,7 @@ public class FungusAi extends CreatureAi {
             return;
 
         Creature child = factory.newFungus();
-        creature.getWorld().addCreatureAt(child, x, y);
+        creature.getWorld().addAt(x, y, child);
         spread++;
 
         creature.doAction("spread to a nearby tile!");

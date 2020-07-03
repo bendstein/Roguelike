@@ -1,11 +1,12 @@
-package creature;
+package creatureitem;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import creature.ai.CreatureAi;
+import creatureitem.ai.CreatureAi;
+import creatureitem.item.Inventory;
+import creatureitem.item.Item;
 import utility.Utility;
-import world.Tile;
 import world.World;
 
 import java.util.Locale;
@@ -41,7 +42,7 @@ public class Creature {
     /**
      * The behaviors the creature follows
      */
-    protected CreatureAi ai;
+    protected creatureitem.ai.CreatureAi ai;
 
     /**
      * The creature's max HP
@@ -93,6 +94,8 @@ public class Creature {
      */
     protected int visionRadius;
 
+    protected Inventory inventory;
+
     //</editor-fold>
 
     public Creature(World world, String texturePath, String name, int team, int maxHP, int evasion, int defense, int attack, int visionRadius) {
@@ -108,6 +111,7 @@ public class Creature {
         lastMovedTime = 0L;
         moveDirection = -1;
         actor = null;
+        inventory = new Inventory();
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -131,7 +135,7 @@ public class Creature {
         this.y = y;
     }
 
-    public CreatureAi getAi() {
+    public creatureitem.ai.CreatureAi getAi() {
         return ai;
     }
 
@@ -344,7 +348,7 @@ public class Creature {
      */
     public static boolean canEnter(int x, int y, World world) {
         return (world.getTileAt(x, y).isGround() &&
-                world.getCreatureAt(x, y) == null);
+                world.getCreatureAt(x, y) == null && !world.queuedCreatureAt(x, y));
     }
 
     public boolean canSee(int x, int y) {
@@ -363,6 +367,45 @@ public class Creature {
      */
     public void notify(String message, Object ... params) {
         ai.onNotify(String.format(message, params));
+    }
+
+    public void pickUp() {
+        Item item = world.getItemAt(x, y);
+
+        if(item == null)
+            doAction("grab at the ground.");
+        else {
+            doAction("pickup the %s.", item.getName());
+            inventory.add(world.removeItemAt(x, y));
+        }
+
+    }
+
+    public void drop(Item item) {
+        inventory.remove(item);
+
+        for(int i = 0; i <= 3; i++) {
+            for(int j = 0; j <= 3; j++) {
+                if(world.addAt(x + i, y + j, item)) {
+                    doAction("drop the %s.", item.getName());
+                    return;
+                }
+                else if(world.addAt(x + i, y - j, item)) {
+                    doAction("drop the %s.", item.getName());
+                    return;
+                }
+                else if(world.addAt(x - i, y + j, item)) {
+                    doAction("drop the %s.", item.getName());
+                    return;
+                }
+                else if(world.addAt(x - i, y - j, item)) {
+                    doAction("drop the %s.", item.getName());
+                    return;
+                }
+            }
+        }
+
+        doAction("drop the %s into the void.", item.getName());
     }
 
 }

@@ -3,7 +3,7 @@ package actors.creatures;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import game.ApplicationMain;
-import creature.Creature;
+import creatureitem.Creature;
 
 public class PlayerActor extends CreatureActor {
 

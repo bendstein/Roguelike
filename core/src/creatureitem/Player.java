@@ -1,8 +1,8 @@
-package creature;
+package creatureitem;
 
 import world.World;
 
-public class Player extends Creature {
+public class Player extends creatureitem.Creature {
 
 
     //<editor-fold desc="Instance Variables">

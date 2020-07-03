@@ -4,11 +4,10 @@ import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import creature.generation.CreatureFactory;
-import creature.Player;
+import creatureitem.generation.CreatureItemFactory;
+import creatureitem.Player;
 import screens.MainMenu;
 import screens.PlayScreen;
-import world.Tile;
 import world.World;
 import world.generation.WorldBuilder;
 
@@ -24,11 +23,11 @@ public class ApplicationMain extends Game {
 
     private World world;
     private WorldBuilder builder;
-    private CreatureFactory factory;
+    private CreatureItemFactory factory;
     private Player player;
     private ArrayList<String> messages;
 
-    private static final int TILE_SIZE = 32;
+    private static final int TILE_SIZE = 16;
 
     @Override
     public void create() {
@@ -79,11 +78,11 @@ public class ApplicationMain extends Game {
         this.builder = builder;
     }
 
-    public CreatureFactory getFactory() {
+    public CreatureItemFactory getFactory() {
         return factory;
     }
 
-    public void setFactory(CreatureFactory factory) {
+    public void setFactory(CreatureItemFactory factory) {
         this.factory = factory;
     }
 
@@ -128,10 +127,10 @@ public class ApplicationMain extends Game {
     public void start() {
         //Create the level
         builder = new WorldBuilder(50, 50);
-        world = builder.makeCaves().build();
+        world = builder.makeBSPRooms().build();
 
         //Create the player
-        factory = new CreatureFactory(world);
+        factory = new CreatureItemFactory(world);
         messages = new ArrayList<>();
         player = factory.newPlayer(messages);
         world.addAtEmptyLocation(player);
@@ -140,6 +139,9 @@ public class ApplicationMain extends Game {
         for(int i = 0; i < 11; i++) world.addAtEmptyLocation(factory.newFungus());
 
         for(int i = 0; i < 6; i++) world.addAtEmptyLocation(factory.newBat());
+
+        //Create items
+        for(int i = 0; i < 11; i++) world.addAtEmptyLocation(factory.newRock());
     }
 
 }

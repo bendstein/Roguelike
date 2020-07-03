@@ -1,6 +1,6 @@
-package creature.ai;
+package creatureitem.ai;
 
-import creature.Creature;
+import creatureitem.Creature;
 import world.Tile;
 import world.geometry.Line;
 import world.geometry.Point;
@@ -35,6 +35,9 @@ public class CreatureAi {
 
         if(Creature.canEnter(x, y, creature.getWorld())) {
             creature.setCoordinates(x, y);
+            if(creature.getWorld().getItemAt(x, y) != null) {
+                creature.doAction("step on %s.", creature.getWorld().getItemAt(x, y).getName());
+            }
         }
     }
 

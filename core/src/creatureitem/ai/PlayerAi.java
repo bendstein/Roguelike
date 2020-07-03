@@ -1,11 +1,10 @@
-package creature.ai;
+package creatureitem.ai;
 
-import creature.Creature;
-import creature.Player;
+import creatureitem.Creature;
+import creatureitem.Player;
 import world.Tile;
 
 import java.util.ArrayList;
-import java.util.Locale;
 
 public class PlayerAi extends CreatureAi {
 
@@ -31,7 +30,13 @@ public class PlayerAi extends CreatureAi {
     public void onEnter(int x, int y, Tile tile) {
         if(Creature.canEnter(x, y, creature.getWorld())) {
             creature.setCoordinates(x, y);
+
+            if(creature.getWorld().getItemAt(x, y) != null) {
+                creature.doAction("step on %s.", creature.getWorld().getItemAt(x, y).getName());
+            }
         }
+
+
         /*
         else if(creature.getWorld().getTileAt(x, y).isDiggable() || creature.getWorld().getTileAt(x, y) == Tile.BOUNDS) {
             creature.setCoordinates(x, y);

@@ -1,20 +1,26 @@
 package screens;
 
+import actors.UI;
 import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.*;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import game.ApplicationMain;
-import creature.Creature;
 import world.geometry.floatPoint;
+
+import java.util.Locale;
 
 public class PlayScreen extends ScreenAdapter {
 
     private ApplicationMain game;
+
+    private InputMultiplexer mux;
 
     //Game stage
     private Stage stage;
@@ -23,16 +29,28 @@ public class PlayScreen extends ScreenAdapter {
     private Camera camera;
 
     //UI
+    UI ui;
+    /*
     private Stage uiStage;
     private Table uiRoot;
     private final Skin skin = new Skin(Gdx.files.internal("skin/glassy-ui.json"));
+
+    private Viewport uiViewport;
+    private Camera uiCamera;
 
     private ScrollPane log;
     private Table logTable;
     private Table outerLogTable;
 
+    private Label hp;
+
+     */
+
     public PlayScreen(ApplicationMain game) {
         this.game = game;
+
+        ui = new UI(game);
+        ui.init();
 
         //Set up game stage
         camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -43,86 +61,66 @@ public class PlayScreen extends ScreenAdapter {
         root.setFillParent(true);
         stage.addActor(root);
 
-        //Create ui
-        uiStage = new Stage(viewport, game.getBatch());
-        uiRoot = new Table();
-        uiStage.addActor(uiRoot);
-        uiRoot.setSize(viewport.getScreenWidth(), viewport.getScreenHeight()/5f);
-        uiRoot.bottom().right();
-
-        outerLogTable = new Table();
-        outerLogTable.pad(15).defaults().space(4);
-        outerLogTable.setSize(viewport.getScreenWidth()/5f, viewport.getScreenHeight()/5f);
-        outerLogTable.layout();
-
-        uiRoot.add(outerLogTable);
-
-        logTable = new Table();
-        logTable.setSize(viewport.getScreenWidth()/5f, viewport.getScreenHeight()/5f);
-        logTable.top().left();
-        logTable.layout();
-
-        log = new ScrollPane(logTable, skin);
-        outerLogTable.add(log);
-
-        stage.addListener(new InputListener()  {
+        stage.addListener(new InputListener() {
             @Override
             public boolean keyDown(InputEvent event, int keycode) {
                 switch (keycode) {
                     case Input.Keys.NUMPAD_7: {
                         game.getPlayer().moveBy(-1, 1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_8: {
                         game.getPlayer().moveBy(0, 1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_9: {
                         game.getPlayer().moveBy(1, 1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_4: {
                         game.getPlayer().moveBy(-1, 0);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_5: {
                         game.getPlayer().moveBy(0, 0);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_6: {
                         game.getPlayer().moveBy(1, 0);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_1: {
                         game.getPlayer().moveBy(-1, -1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_2: {
                         game.getPlayer().moveBy(0, -1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.NUMPAD_3: {
                         game.getPlayer().moveBy(1, -1);
                         game.getPlayer().setMoveDirection(keycode);
-                        break;
+                        return true;
                     }
                     case Input.Keys.ESCAPE: {
                         game.setScreen(game.getMainMenu());
-                        break;
+                        return true;
+                    }
+                    case Input.Keys.COMMA: {
+                        game.getPlayer().pickUp();
+                        return true;
                     }
                     default:
                         return false;
                 }
-
-                return true;
             }
 
             @Override
@@ -138,33 +136,32 @@ public class PlayScreen extends ScreenAdapter {
                     case Input.Keys.NUMPAD_2:
                     case Input.Keys.NUMPAD_3: {
                         game.getPlayer().setMoveDirection(0);
-                        break;
+                        return true;
                     }
                     default:
                         return false;
                 }
 
-                return true;
             }
-
+        });
+        ui.getStage().addListener(new InputListener() {
             @Override
             public boolean scrolled(InputEvent event, float x, float y, int amount) {
-                if(y >= 4f * uiStage.getHeight()/5f && x >= 4f * uiStage.getWidth()/5f) {
-                    if(amount == 1) {
-                        log.setScrollY(log.getScrollY() + 20);
-                        return true;
-                    }
-                    else if(amount == -1) {
-                        log.setScrollY(log.getScrollY() - 20);
-                        return true;
-                    }
-
+                System.out.println(amount);
+                if(amount == 1) {
+                    ui.getLog().setScrollY(ui.getLog().getScrollY() + 20);
+                    return true;
+                }
+                else if(amount == -1) {
+                    ui.getLog().setScrollY(ui.getLog().getScrollY() - 20);
+                    return true;
                 }
 
                 return false;
             }
-
         });
+
+        mux = new InputMultiplexer(ui.getStage(), stage);
 
         start();
 
@@ -177,24 +174,8 @@ public class PlayScreen extends ScreenAdapter {
         //Add actors to stage
         root.add(game.getWorld().getActor()).width(stage.getWidth()).height(game.getWorld().getHeight() * ApplicationMain.getTILE_SIZE());
 
-        //for(Creature c : game.getWorld().getCreatures())
-            //root.add(c.getActor());
+        ui.getHp().setText(String.format(Locale.getDefault(), "%d/%d", game.getPlayer().getHP(), game.getPlayer().getMaxHP()));
 
-    }
-
-    public void displayOutput() {
-
-        for(String s : game.getPlayer().getAi().getMessages()) {
-            System.out.println(s);
-            Label l = new Label(s, skin);
-            l.setWrap(true);
-            l.pack();
-            logTable.add(l).width(viewport.getScreenWidth()/5f);
-            logTable.row();
-            log.setScrollY(log.getMaxY());
-            logTable.pack();
-        }
-        game.getPlayer().getAi().getMessages().clear();
     }
 
     @Override
@@ -205,9 +186,7 @@ public class PlayScreen extends ScreenAdapter {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         stage.act(Gdx.graphics.getDeltaTime());
-        uiStage.act(Gdx.graphics.getDeltaTime());
-
-        displayOutput();
+        ui.act(Gdx.graphics.getDeltaTime());
 
         if(game.getPlayer().isDead()) game.setScreen(new MainMenu(game));
 
@@ -216,16 +195,12 @@ public class PlayScreen extends ScreenAdapter {
         stage.getCamera().position.set(cameraLocation.getX() * ApplicationMain.getTILE_SIZE(), (cameraLocation.getY() * ApplicationMain.getTILE_SIZE()), 0);
         stage.getCamera().update();
 
-        //Keep the UI at the top of the screen
-
-        float menux = camera.position.x - viewport.getScreenWidth()/2f;
-        float menuy = camera.position.y + (2f * viewport.getScreenHeight()/5f) - 2.5f * ApplicationMain.getTILE_SIZE();
-
-        uiRoot.setPosition(menux, menuy);
-
-        //Draw the game, then the UI
+        game.getBatch().setProjectionMatrix(camera.combined);
         stage.draw();
-        uiStage.draw();
+
+        game.getBatch().setProjectionMatrix(ui.getViewport().getCamera().combined);
+
+        ui.getStage().draw();
     }
 
     @Override
@@ -236,7 +211,7 @@ public class PlayScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-        Gdx.input.setInputProcessor(stage);
+        Gdx.input.setInputProcessor(mux);
     }
 
     @Override

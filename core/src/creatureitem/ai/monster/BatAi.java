@@ -1,7 +1,7 @@
-package creature.ai.monster;
+package creatureitem.ai.monster;
 
-import creature.Creature;
-import creature.ai.CreatureAi;
+import creatureitem.Creature;
+import creatureitem.ai.CreatureAi;
 import world.Tile;
 
 public class BatAi extends CreatureAi {
@@ -11,7 +11,7 @@ public class BatAi extends CreatureAi {
      *
      * @param creature The creature following this behavior set
      */
-    public BatAi(Creature creature) {
+    public BatAi(creatureitem.Creature creature) {
         super(creature);
     }
 
@@ -29,7 +29,7 @@ public class BatAi extends CreatureAi {
      */
     public void onEnter(int x, int y, Tile tile) {
 
-        if(Creature.canEnter(x, y, creature.getWorld()) || creature.getWorld().getTileAt(x, y) == Tile.BOUNDS) {
+        if(Creature.canEnter(x, y, creature.getWorld())) {
             creature.setCoordinates(x, y);
         }
     }

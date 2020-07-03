@@ -1,79 +1,53 @@
 package world.room;
 
-import world.geometry.Point;
+import world.Level;
 import world.Tile;
 
-/**
- * Abstract class representing a Room object
- */
-public abstract class Room {
+public abstract class Room extends Level {
 
     /**
-     * 2D array of the tiles in the room
+     * The level this room belongs to
      */
-    protected Tile[][] tiles;
+    protected Level parent;
 
     /**
-     * Coordinates for bottom left corner
+     * The x coordinate of the bottom left corner of the room in the parent's coordinate system.
      */
-    protected Point p;
-
-    //<editor-fold desc="Getters and Setters">
-    public abstract int getHeight();
-
-    public abstract int getWidth();
-
-    public abstract Tile[][] getTiles();
-
-    public abstract Point getP();
-
-    public abstract void setP(Point p);
+    protected int x;
 
     /**
-     * @param xc The x coordinate
-     * @param yc The y coordinate
-     * @return The tile at tiles[xc - x][yc - y]
+     * The y coordinate of the bottom left corner of the room in the parent's coordinate system.
      */
-    public Tile getTileAt(int xc, int yc) {
-        return tiles[xc - p.getX()][yc - p.getY()];
+    protected int y;
+
+    public Room(Tile[][] tiles) {
+        super(tiles);
+        x = y = 0;
+    }
+
+    public Room(int x, int y, Tile[][] tiles) {
+        super(tiles);
+        this.x = x;
+        this.y = y;
     }
 
     /**
-     * @param xc The x coordinate
-     * @param yc The y coordinate
-     * @return The tile at tiles[x + xc][y + yc]
+     * @param xp X coordinate
+     * @param yp Y coordinate
+     * @return The tile at (xp, yp) in the parent's coordinate system
      */
-    public Tile getTileAtAdjusted(int xc, int yc) {
-        return tiles[p.getX() + xc][p.getY() + yc];
+    public Tile getTileAtParent(int xp, int yp) {
+        return tiles[xp - x][yp - y];
     }
 
-    public void setTileAt(int xc, int yc, Tile t) {
-        if(xc >= getWidth() || yc >= getHeight())
-            System.out.println();
-        tiles[xc][yc] = t;
+    /**
+     * Set the tile at (xp, yp) in the parent's coordinate system to be x
+     * @param xp X coordinate
+     * @param yp Y coordinate
+     * @param t The tile
+     */
+    public void setTileAtParent(int xp, int yp, Tile t) {
+        tiles[xp - x][yp - y] = t;
     }
-
-    public void setTileAtAdjusted(int xc, int yc, Tile t) {
-        tiles[p.getX() + xc][p.getY() + yc] = t;
-    }
-    //</editor-fold>
-
-    /**
-     * @param r Room to compare with
-     * @return true if this is overlapping with r
-     */
-    public abstract boolean overlap(Room r);
-
-    /**
-     * @param r Room to compare with
-     * @return The distance r must be shifted horizontally so that it doesn't overlap anymore
-     */
-    public abstract int xOverlap(Room r);
-
-    /**
-     * @param r Room to compare with
-     * @return The distance r must be shifted vertically so that it doesn't overlap anymore
-     */
-    public abstract int yOverlap(Room r);
 
 }

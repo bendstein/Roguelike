@@ -5,8 +5,8 @@ import world.Tile;
 import world.World;
 import world.geometry.Point;
 import world.room.Room;
-import world.room.rectRoom;
-import world.room.tiledRoom;
+import world.room.RectRoom;
+import world.room.TiledRoom;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -108,66 +108,6 @@ public class WorldBuilder {
         return this;
     }
 
-    public WorldBuilder makeRooms() {
-
-        rectRoom r;
-        int x, y, w, h;
-
-        //First, make everything impassible
-        for(int i = 0; i < tiles.length; i++)
-            for(int j = 0; j < tiles[0].length; j++)
-                tiles[i][j] = Tile.BOUNDS;
-
-        /*
-         * Generate random rooms. If it overlaps with an existing one, try to move it out of the way.
-         * If it still overlaps after that, delete it.
-         */
-        for(int i = 0; i < 15; i++) {
-            w = random.nextInt(18) + 9;
-            h = random.nextInt(18) + 9;
-
-            x = random.nextInt(width - w - 3) + 4;
-            y = random.nextInt(height - h - 3) + 4;
-
-            r = new rectRoom(w, h, x, y);
-
-            boolean overlap = false;
-            for (int t = 0; t < 2; ) {
-                for (Room room : rooms) {
-                    if (room.overlap(r)) {
-
-                        if (t == 0) {
-                            int overlapX = room.xOverlap(r);
-                            int overlapY = room.yOverlap(r);
-
-                            r.getP().setX(r.getP().getX() + overlapX);
-                            r.getP().setY(r.getP().getY() + overlapY);
-                        }
-
-                        overlap = true;
-                        t++;
-                        break;
-                    }
-                    else overlap = false;
-                }
-
-                if(!overlap) break;
-            }
-
-            if(!overlap) rooms.add(r);
-        }
-
-        for(Room room : rooms) {
-            for(int i = room.getP().getX(); i < room.getP().getX() + room.getWidth() - 1; i++) {
-                for(int j = room.getP().getY(); j < room.getP().getY() + room.getHeight() - 1; j++) {
-                    if(room.getTileAt(i, j) != null) tiles[i][j] = room.getTileAt(i, j);
-                }
-            }
-        }
-
-        return this;
-    }
-
     public WorldBuilder makeBSPRooms() {
 
         Tile[][] roomTiles = new Tile[width][height];
@@ -178,7 +118,7 @@ public class WorldBuilder {
             }
         }
 
-        tiledRoom w = new tiledRoom(roomTiles, new Point(0, 0));
+        TiledRoom w = new TiledRoom(0, 0, roomTiles);
 
         this.tiles = new BSPNode(w, true, 0, 0.66, 0.4, random).getRoom().getTiles();
         return this;

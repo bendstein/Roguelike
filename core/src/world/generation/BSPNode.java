@@ -4,7 +4,7 @@ import world.Tile;
 import world.geometry.Line;
 import world.geometry.Point;
 import world.room.Room;
-import world.room.tiledRoom;
+import world.room.TiledRoom;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -14,7 +14,7 @@ public class BSPNode {
     /**
      * The room corresponding to this node
      */
-    tiledRoom room;
+    TiledRoom room;
 
     /**
      * Child node. Left node if vertical split, bottom node if horizontal.
@@ -58,7 +58,7 @@ public class BSPNode {
 
     private final int MIN_DIM_TO_SPLIT = 14;
 
-    public BSPNode(tiledRoom room, boolean split, int depth, double probFactor, double minRatio, Random random) {
+    public BSPNode(TiledRoom room, boolean split, int depth, double probFactor, double minRatio, Random random) {
         this.room = room;
         this.depth = depth;
         this.probFactor = probFactor;
@@ -144,8 +144,8 @@ public class BSPNode {
         boolean leftSplit = random.nextInt(1000)/1000d < Math.pow(probFactor, depth);
         boolean rightSplit = random.nextInt(1000)/1000d < Math.pow(probFactor, depth);
 
-        this.left = new BSPNode(new tiledRoom(leftTiles, new Point(0, 0)), leftSplit, depth + 1, probFactor, minRatio, random);
-        this.right = new BSPNode(new tiledRoom(rightTiles, new Point(0, 0)), rightSplit, depth + 1, probFactor, minRatio, random);
+        this.left = new BSPNode(new TiledRoom(0, 0, leftTiles), leftSplit, depth + 1, probFactor, minRatio, random);
+        this.right = new BSPNode(new TiledRoom(0, 0, rightTiles), rightSplit, depth + 1, probFactor, minRatio, random);
     }
 
     /**
@@ -153,8 +153,9 @@ public class BSPNode {
      */
     public void combine() {
 
-        int x0 = 0, x = 0, y0 = 0, y = 0;
+        int x0 = 0, x = 0, x1 = 0, y0 = 0, y = 0, y1 = 0;
 
+        /*
         //In each room, punch a hole in the wall for a door
         if(random.nextBoolean()) {
             if(random.nextBoolean()) {
@@ -211,7 +212,6 @@ public class BSPNode {
 
         left.room.getTiles()[x][y] = Tile.DOOR;
 
-        int x1 = 0, y1 = 0;
         //In each room, punch a hole in the wall for a door
         if(random.nextBoolean()) {
             if(random.nextBoolean()) {
@@ -268,6 +268,8 @@ public class BSPNode {
 
         right.room.getTiles()[x1][y1] = Tile.DOOR;
 
+         */
+
         //If split is horizontal
         if(direction == -1) {
 
@@ -280,6 +282,7 @@ public class BSPNode {
                 }
             }
 
+            /*
             for(int i = 0; i < room.getWidth(); i++) {
                 for(int j = location; j >= 0; j--) {
                     if(room.getTiles()[i][j] == Tile.WALL) {
@@ -306,7 +309,10 @@ public class BSPNode {
                 x0 = random.nextInt(room.getWidth());
             } while (room.getTiles()[x0][y0] != Tile.WALL);
 
+             */
+
         }
+
 
         //If split is vertical
         else {
@@ -320,6 +326,7 @@ public class BSPNode {
                 }
             }
 
+            /*
             for(int i = location - 1; i >= 0; i--) {
                 for(int j = 0; j < room.getHeight(); j++) {
                     if(room.getTiles()[i][j] == Tile.WALL) {
@@ -347,8 +354,11 @@ public class BSPNode {
             } while (room.getTiles()[x0][y0] != Tile.WALL);
 
 
+
+             */
         }
 
+        /*
         Line l = new Line(x0, x1, y0, y1);
         Point prev = null;
 
@@ -369,6 +379,8 @@ public class BSPNode {
                 }
                 prev = p;
             }
+
+         */
 
 
 
@@ -418,11 +430,11 @@ public class BSPNode {
     }
 
     //<editor-fold desc="Getters and Setters">
-    public tiledRoom getRoom() {
+    public TiledRoom getRoom() {
         return room;
     }
 
-    public void setRoom(tiledRoom room) {
+    public void setRoom(TiledRoom room) {
         this.room = room;
     }
 

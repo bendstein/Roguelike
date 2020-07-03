@@ -1,17 +1,18 @@
-package creature.generation;
+package creatureitem.generation;
 
 import actors.creatures.CreatureActor;
 import actors.creatures.PlayerActor;
-import creature.Creature;
-import creature.Player;
-import creature.ai.PlayerAi;
-import creature.ai.monster.BatAi;
-import creature.ai.monster.FungusAi;
+import creatureitem.Creature;
+import creatureitem.item.Item;
+import creatureitem.Player;
+import creatureitem.ai.monster.BatAi;
+import creatureitem.ai.monster.FungusAi;
+import creatureitem.ai.PlayerAi;
 import world.World;
 
 import java.util.ArrayList;
 
-public class CreatureFactory {
+public class CreatureItemFactory {
 
 
     //<editor-fold desc="Instance Variables">
@@ -21,7 +22,7 @@ public class CreatureFactory {
     private World world;
     //</editor-fold>
 
-    public CreatureFactory(World world) {
+    public CreatureItemFactory(World world) {
         this.world = world;
     }
 
@@ -31,7 +32,7 @@ public class CreatureFactory {
     public Player newPlayer(ArrayList<String> messageQueue) {
         Player player = new Player(world, "data/Player.png", "Player", 0, 6, 0, 1, 3, 9);
         world.setPlayer(player);
-        new PlayerAi(player, messageQueue);
+        new creatureitem.ai.PlayerAi(player, messageQueue);
         new PlayerActor(player);
         ((PlayerAi)player.getAi()).seenAll();
         return player;
@@ -52,5 +53,11 @@ public class CreatureFactory {
         new BatAi(bat);
         new CreatureActor(bat);
         return bat;
+    }
+
+    public Item newRock() {
+        Item rock = new Item(',', "data/Rock.png", "Rock");
+        world.addAtEmptyLocation(rock);
+        return rock;
     }
 }

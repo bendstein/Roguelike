@@ -4,7 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import creature.Creature;
+import creatureitem.Creature;
 import game.ApplicationMain;
 import world.World;
 
@@ -30,10 +30,8 @@ public class WorldActor extends Actor {
         super.act(delta);
         ArrayList<Creature> creatureQueue = world.addCreatureQueue();
 
-        for(Creature c : creatureQueue) {
-            System.out.println(c.getName());
+        for(Creature c : creatureQueue)
             getParent().addActor(c.getActor());
-        }
 
         world.clearCreatureQueue();
     }
@@ -44,6 +42,7 @@ public class WorldActor extends Actor {
             for(int j = 0; j < world.getHeight(); j++) {
                 if(world.getPlayer().canSee(i, j)) {
                     batch.draw(world.getTileAt(i, j).getTexture(), i * ApplicationMain.getTILE_SIZE(), j * ApplicationMain.getTILE_SIZE());
+                    if(world.getItemAt(i, j) != null) batch.draw(world.getItemAt(i, j).getTexture(), i * ApplicationMain.getTILE_SIZE(), j * ApplicationMain.getTILE_SIZE());
                     world.getPlayer().setSeen(i, j);
                 }
                 else if(world.getPlayer().getSeen(i, j)) {

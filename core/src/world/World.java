@@ -1,30 +1,16 @@
 package world;
 
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import creature.Creature;
-import creature.Player;
+import creatureitem.Creature;
+import creatureitem.Player;
+import creatureitem.item.Item;
 
 import java.util.ArrayList;
 import java.util.Random;
 
-public class World {
+public class World extends Level {
 
-    /**
-     * A 2D array of tiles making up the world
-     */
-    private Tile[][] tiles;
-
-    /**
-     * The width of the map
-     */
-    private int width;
-
-    /**
-     * The height of the map
-     */
-    private int height;
-
+    //<editor-fold desc="Instance Variables">
     /**
      * List of all creatures on the map
      */
@@ -40,44 +26,36 @@ public class World {
      */
     private Actor actor;
 
+    /**
+     * Queue of creatures to add to the world
+     */
     private ArrayList<Creature> creatureQueue;
+
+    /**
+     * 2d array of items in the world
+     */
+    private Item[][] items;
 
     /**
      * prng
      */
     private Random random;
+    //</editor-fold>
 
     public World(Tile[][] tiles) {
-        this.tiles = tiles;
-        this.width = tiles.length;
-        this.height = tiles[0].length;
+        super(tiles);
         random = new Random(System.currentTimeMillis());
         creatures = new ArrayList<>();
         creatureQueue = new ArrayList<>();
+        items = new Item[getWidth()][getHeight()];
     }
 
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public ArrayList<Creature> getCreatures() {
-        return creatures;
-    }
-
-    /**
-     * @param x The x coord of the tile
-     * @param y The y coord of the tile
-     * @return The type of tile at (x, y)
-     */
-    public Tile getTileAt(int x, int y) {
-        if (x < 0 || x >= width || y < 0 || y >= height)
-            return Tile.BOUNDS;
-        else
-            return tiles[x][y];
+    public World(Tile[][] tiles, Random random) {
+        super(tiles);
+        this.random = random;
+        creatures = new ArrayList<>();
+        creatureQueue = new ArrayList<>();
+        items = new Item[getWidth()][getHeight()];
     }
 
     /**
@@ -90,40 +68,160 @@ public class World {
         return null;
     }
 
-    public Tile[][] getTiles() {
-        return tiles;
+    /**
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @return The item at (x, y)
+     */
+    public Item getItemAt(int x, int y) {
+        return items[x][y];
     }
 
-    public void setTiles(Tile[][] tiles) {
-        this.tiles = tiles;
+    /**
+     * Add creature c at (x, y)
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @param c The Creature
+     * @return true if the creature was successfully added at (x, y)
+     */
+    public boolean addAt(int x, int y, Creature c) {
+        if(Creature.canEnter(x, y, this)) {
+            c.setCoordinates(x, y);
+            creatureQueue.add(c);
+            return true;
+        }
+
+        return false;
     }
 
-    public void setWidth(int width) {
-        this.width = width;
+    /**
+     * Add creature c at a random unoccupied location
+     * @param c The creature
+     */
+    public void addAtEmptyLocation(Creature c) {
+
+        boolean placed = false;
+        int x = 0, y = 0;
+
+        while(!placed) {
+            x = random.nextInt(getWidth() - 1);
+            y = random.nextInt(getHeight() - 1);
+            placed = addAt(x, y, c);
+        }
     }
 
-    public void setHeight(int height) {
-        this.height = height;
+    /**
+     * Add item i at a random unoccupied location
+     * @param i The item
+     */
+    public void addAtEmptyLocation(Item i) {
+
+        boolean placed = false;
+        int x = 0, y = 0;
+
+        while(!placed) {
+            x = random.nextInt(getWidth() - 1);
+            y = random.nextInt(getHeight() - 1);
+            placed = addAt(x, y, i);
+        }
+    }
+
+    /**
+     * Add item i at (x, y)
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @param i The item
+     * @return true if the item was successfully added at (x, y)
+     */
+    public boolean addAt(int x, int y, Item i) {
+        if(!tiles[x][y].isGround() || items[x][y] != null)
+            return false;
+
+        items[x][y] = i;
+        return true;
+    }
+
+    /**
+     * @param x X coordinate
+     * @param y Y Coordinate
+     * @return true if there is a creature queued to be placed at (x, y)
+     */
+    public boolean queuedCreatureAt(int x, int y) {
+        for(Creature c : creatureQueue)
+            if(c.getX() == x && c.getY() == y) return true;
+        return false;
+    }
+
+    /**
+     * Add all creatures in the queue to the world
+     * @return The creature queue
+     */
+    public ArrayList<Creature> addCreatureQueue() {
+        creatures.addAll(creatureQueue);
+        return creatureQueue;
+    }
+
+    /**
+     * Empty the creature queue
+     */
+    public void clearCreatureQueue() {
+        creatureQueue.clear();
+    }
+
+    /**
+     * Remove a creature from the world
+     * @param creature The creature
+     */
+    public void remove(Creature creature) {
+        creatures.remove(creature);
+        creature.getActor().remove();
+        creature.setAttack(0);
+    }
+
+    /**
+     * Remove an item from the world
+     * @param item The item
+     */
+    public void remove(Item item) {
+        for(int i = 0; i < items.length; i++) {
+            for(int j = 0; j < items[0].length; j++) {
+                if(items[i][j] == item) {
+                    items[i][j] = null;
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove an item at (x, y) from the world
+     * @param x X coord
+     * @param y Y coord
+     * @return The item that was at (x, y)
+     */
+    public Item removeItemAt(int x, int y) {
+        Item i = items[x][y];
+        items[x][y] = null;
+        return i;
+    }
+
+    /**
+     * Let all creatures do their turn
+     */
+    public void update() {
+        ArrayList<Creature> toUpdate = new ArrayList<>(creatures);
+        for(Creature c : toUpdate)
+            c.update();
+    }
+
+    //<editor-fold desc="Getters and Setters">
+
+    public ArrayList<Creature> getCreatures() {
+        return creatures;
     }
 
     public void setCreatures(ArrayList<Creature> creatures) {
         this.creatures = creatures;
-    }
-
-    public Actor getActor() {
-        return actor;
-    }
-
-    public void setActor(Actor actor) {
-        this.actor = actor;
-    }
-
-    public Random getRandom() {
-        return random;
-    }
-
-    public void setRandom(Random random) {
-        this.random = random;
     }
 
     public Player getPlayer() {
@@ -134,6 +232,14 @@ public class World {
         this.player = player;
     }
 
+    public Actor getActor() {
+        return actor;
+    }
+
+    public void setActor(Actor actor) {
+        this.actor = actor;
+    }
+
     public ArrayList<Creature> getCreatureQueue() {
         return creatureQueue;
     }
@@ -142,72 +248,20 @@ public class World {
         this.creatureQueue = creatureQueue;
     }
 
-    public Tile[][] getAdjacentTiles(int x, int y) {
-        Tile[][] adj = new Tile[3][3];
-
-        for(int i = -1; i <= 1; i++) {
-            for(int j = -1; j <= 1; j++) {
-                adj[i + 1][j + 1] = getTileAt(x + i, y + j);
-            }
-        }
-
-        return adj;
+    public Item[][] getItems() {
+        return items;
     }
 
-    public void dig(int x, int y) {
-        if(getTileAt(x, y).isDiggable())
-            tiles[x][y] = Tile.FLOOR;
+    public void setItems(Item[][] items) {
+        this.items = items;
     }
 
-    /**
-     * Place a creature at a random, unoccupied floor tile
-     * @param creature The creature to place
-     */
-    public void addAtEmptyLocation(Creature creature) {
-        int x, y;
-
-        do {
-            x = random.nextInt(width - 1);
-            y = random.nextInt(height - 1);
-
-        } while (!Creature.canEnter(x, y, this));
-
-        creature.setCoordinates(x, y);
-
-        creatureQueue.add(creature);
+    public Random getRandom() {
+        return random;
     }
 
-    public void addCreatureAt(Creature creature, int x, int y) {
-        creature.setCoordinates(x, y);
-        creatureQueue.add(creature);
+    public void setRandom(Random random) {
+        this.random = random;
     }
-
-    public ArrayList<Creature> addCreatureQueue() {
-        creatures.addAll(creatureQueue);
-        return creatureQueue;
-    }
-
-    public void clearCreatureQueue() {
-        creatureQueue.clear();
-    }
-
-    /**
-     * Remove a creature from the world
-     * @param creature The creature to remove
-     */
-    public void remove(Creature creature) {
-        creatures.remove(creature);
-        creature.getActor().remove();
-        creature.setAttack(0);
-    }
-
-    /**
-     * Do everyone else's turn
-     */
-    public void update() {
-        ArrayList<Creature> toUpdate = new ArrayList<>(creatures);
-        for(Creature c : toUpdate)
-            c.update();
-    }
-
+    //</editor-fold>
 }
