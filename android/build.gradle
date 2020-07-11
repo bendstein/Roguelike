@@ -18,7 +18,7 @@ android {
     }
     defaultConfig {
         applicationId "com.mygdx.game"
-        minSdkVersion 14
+        minSdkVersion 25
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -29,9 +29,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    productFlavors {
+    }
 }
-
-
 // called every time gradle gets executed, takes the native dependencies of
 // the natives configuration, and extracts them to the proper libs/ folders
 // so they get packed with the APK.
@@ -47,10 +47,10 @@ task copyAndroidNatives {
             def outputDir = null
             if (jar.name.endsWith("natives-arm64-v8a.jar")) outputDir = file("libs/arm64-v8a")
             if (jar.name.endsWith("natives-armeabi-v7a.jar")) outputDir = file("libs/armeabi-v7a")
-            if(jar.name.endsWith("natives-armeabi.jar")) outputDir = file("libs/armeabi")
-            if(jar.name.endsWith("natives-x86_64.jar")) outputDir = file("libs/x86_64")
-            if(jar.name.endsWith("natives-x86.jar")) outputDir = file("libs/x86")
-            if(outputDir != null) {
+            if (jar.name.endsWith("natives-armeabi.jar")) outputDir = file("libs/armeabi")
+            if (jar.name.endsWith("natives-x86_64.jar")) outputDir = file("libs/x86_64")
+            if (jar.name.endsWith("natives-x86.jar")) outputDir = file("libs/x86")
+            if (outputDir != null) {
                 copy {
                     from zipTree(jar)
                     into outputDir
@@ -60,13 +60,11 @@ task copyAndroidNatives {
         }
     }
 }
-
 tasks.whenTaskAdded { packageTask ->
     if (packageTask.name.contains("package")) {
         packageTask.dependsOn 'copyAndroidNatives'
     }
 }
-
 task run(type: Exec) {
     def path
     def localProperties = project.file("../local.properties")
@@ -88,5 +86,7 @@ task run(type: Exec) {
     def adb = path + "/platform-tools/adb"
     commandLine "$adb", 'shell', 'am', 'start', '-n', 'com.mygdx.game/com.mygdx.game.AndroidLauncher'
 }
-
 eclipse.project.name = appName + "-android"
+
+dependencies {
+}

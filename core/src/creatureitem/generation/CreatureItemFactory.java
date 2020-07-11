@@ -7,8 +7,8 @@ import creatureitem.item.Item;
 import creatureitem.Player;
 import creatureitem.ai.monster.BatAi;
 import creatureitem.ai.monster.FungusAi;
-import creatureitem.ai.PlayerAi;
-import world.World;
+import world.Dungeon;
+import world.Level;
 
 import java.util.ArrayList;
 
@@ -17,24 +17,31 @@ public class CreatureItemFactory {
 
     //<editor-fold desc="Instance Variables">
     /**
-     * Reference to world we're making creatures in
+     * Reference to level we're making creatures in
      */
-    private World world;
+    private Level level;
     //</editor-fold>
 
-    public CreatureItemFactory(World world) {
-        this.world = world;
+
+    //<editor-fold desc="Getters and Setters">
+    public Level getLevel() {
+        return level;
     }
+
+    public void setLevel(Level level) {
+        this.level = level;
+    }
+    //</editor-fold>
 
     /**
      * @return A new player character
      */
     public Player newPlayer(ArrayList<String> messageQueue) {
-        Player player = new Player(world, "data/Player.png", "Player", 0, 6, 0, 1, 3, 9);
-        world.setPlayer(player);
+        Player player = new Player(level, "data/Player.png", "Player", '@', 0, 6, 0, 1, 3, 9);
+        level.setPlayer(player);
         new creatureitem.ai.PlayerAi(player, messageQueue);
         new PlayerActor(player);
-        ((PlayerAi)player.getAi()).seenAll();
+        //((PlayerAi)player.getAi()).seenAll();
         return player;
     }
 
@@ -42,14 +49,14 @@ public class CreatureItemFactory {
      * @return A new fungus monster
      */
     public Creature newFungus() {
-        Creature fungus = new Creature(world, "data/Fungus.png", "Fungus", 1, 1, 0, 1, 2, 1);
+        Creature fungus = new Creature(level, "data/Fungus.png", "Fungus", 'f', 1, 1, 0, 1, 1, 1);
         new FungusAi(fungus, this);
         new CreatureActor(fungus);
         return fungus;
     }
 
     public Creature newBat() {
-        Creature bat = new Creature(world, "data/Bat.png", "Bat", 2, 2, 0, 0, 1, 9);
+        Creature bat = new Creature(level, "data/Bat.png", "Bat", 'b', 2, 2, 0, 0, 1, 9);
         new BatAi(bat);
         new CreatureActor(bat);
         return bat;
@@ -57,7 +64,7 @@ public class CreatureItemFactory {
 
     public Item newRock() {
         Item rock = new Item(',', "data/Rock.png", "Rock");
-        world.addAtEmptyLocation(rock);
+        level.addAtEmptyLocation(rock);
         return rock;
     }
 }

@@ -1,6 +1,6 @@
 package creatureitem;
 
-import world.World;
+import world.Level;
 
 public class Player extends creatureitem.Creature {
 
@@ -10,17 +10,11 @@ public class Player extends creatureitem.Creature {
      * True if player died
      */
     private boolean isDead;
-
-    /**
-     * True if the player has seen the tile at this location
-     */
-    private boolean[][] seenTiles;
     //</editor-fold>
 
-    public Player(World world, String texturePath, String name, int team, int maxHP, int evasion, int defense, int attack, int visionRadius) {
-        super(world, texturePath, name, team, maxHP, evasion, defense, attack, visionRadius);
+    public Player(Level level, String texturePath, String name, char glyph, int team, int maxHP, int evasion, int defense, int attack, int visionRadius) {
+        super(level, texturePath, name, glyph, team, maxHP, evasion, defense, attack, visionRadius);
         isDead = false;
-        seenTiles = new boolean[world.getWidth()][world.getHeight()];
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -33,19 +27,25 @@ public class Player extends creatureitem.Creature {
     }
 
     public boolean[][] getSeenTiles() {
-        return seenTiles;
+        return level.getSeen();
     }
 
     public void setSeenTiles(boolean[][] seenTiles) {
-        this.seenTiles = seenTiles;
+        level.setSeen(seenTiles);
     }
 
     public void setSeen(int i, int j) {
-        seenTiles[i][j] = true;
+        level.setSeen(i, j);
     }
 
     public boolean getSeen(int i, int j) {
-        return seenTiles[i][j];
+        return level.getSeen(i, j);
+    }
+
+    @Override
+    public void setLevel(Level level) {
+        super.setLevel(level);
+        if(level != null) level.setPlayer(this);
     }
 
     //</editor-fold>
@@ -58,7 +58,7 @@ public class Player extends creatureitem.Creature {
     @Override
     public boolean modifyHP(int mod) {
         if(HP + mod <= 0) {
-            world.remove(this);
+            level.remove(this);
             isDead = true;
             return true;
         }
@@ -76,7 +76,7 @@ public class Player extends creatureitem.Creature {
     @Override
     public boolean modifyMaxHp(int mod) {
         if(maxHP + mod <= 0) {
-            world.remove(this);
+            level.remove(this);
             isDead = true;
             return true;
         }
@@ -86,14 +86,21 @@ public class Player extends creatureitem.Creature {
         }
     }
 
+    /**
+     * Move the player by <mx, my>
+     * @param mx X distance
+     * @param my Y distance
+     */
     public void moveBy(int mx, int my) {
-        Creature foe = world.getCreatureAt(x + mx, y + my);
+        if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
+
+        Creature foe = level.getCreatureAt(x + mx, y + my);
         if(foe == null)
-            ai.onEnter(x + mx, y + my, world.getTileAt(x + mx, y + my));
+            ai.onEnter(x + mx, y + my, level.getTileAt(x + mx, y + my));
         else if(foe.team != team)
             attack(foe);
         lastMovedTime = System.currentTimeMillis();
-        world.update();
+        level.update();
     }
 
 }

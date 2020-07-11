@@ -1,9 +1,10 @@
 package utility;
 
-import world.World;
+import world.Tile;
+import world.geometry.AStarPoint;
 import world.geometry.Point;
 
-import java.util.ArrayList;
+import java.util.*;
 
 public class Utility {
 
@@ -21,142 +22,117 @@ public class Utility {
         return builder.toString().trim();
     }
 
-    /*
-    public static ArrayList<Point> dijkstra(World world, Point p0, Point p1) {
+    /**
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @return A 2d array of tiles who are adjacent to (x, y) in the level's coordinate system.
+     */
+    public static Tile[][] getAdjacentTiles(Tile[][] tiles, int x, int y) {
+        Tile[][] adj = new Tile[3][3];
 
-        class Node {
-
-            Point p;
-
-            Node nw, n, ne, w, e, sw, s, se;
-
-            public Node(Point p) {
-                this.p = p;
-                nw = n = ne = w = e = sw = s = se = null;
-            }
-
-            public Node(Node parent, int position) {
-                nw = n = ne = w = e = sw = s = se = null;
-                int x, y;
-
-                switch (position) {
-                    case 7: {
-                        nw = parent;
-                        parent.se = this;
-                        x = parent.p.getX() - 1;
-                        y = parent.p.getY() + 1;
-                        break;
-                    }
-                    case 8: {
-                        n = parent;
-                        parent.s = this;
-                        x = parent.p.getX();
-                        y = parent.p.getY() + 1;
-                        break;
-                    }
-                    case 9: {
-                        ne = parent;
-                        parent.sw = this;
-                        x = parent.p.getX() + 1;
-                        y = parent.p.getY() + 1;
-                        break;
-                    }
-                    case 4: {
-                        e = parent;
-                        parent.w = this;
-                        x = parent.p.getX() - 1;
-                        y = parent.p.getY();
-                        break;
-                    }
-                    case 6: {
-                        w = parent;
-                        parent.e = this;
-                        x = parent.p.getX() + 1;
-                        y = parent.p.getY();
-                        break;
-                    }
-                    case 1: {
-                        sw = parent;
-                        parent.ne = this;
-                        x = parent.p.getX() - 1;
-                        y = parent.p.getY() - 1;
-                        break;
-                    }
-                    case 2: {
-                        s = parent;
-                        parent.n = this;
-                        x = parent.p.getX();
-                        y = parent.p.getY() - 1;
-                        break;
-                    }
-                    case 3: {
-                        se = parent;
-                        parent.nw = this;
-                        x = parent.p.getX() + 1;
-                        y = parent.p.getY() - 1;
-                        break;
-                    }
-                    default:
-                        x = y = 0;
-                }
-
-                p = new Point(x, y);
-            }
-
-            public void setAtPosition(Node node, int position) {
-                switch (position) {
-                    case 7: {
-                        nw = node;
-                        if(node != null) node.sw = this;
-                        break;
-                    }
-                    case 8: {
-                        n = node;
-                        if(node != null) node.s = this;
-                        break;
-                    }
-                    case 9: {
-                        ne = node;
-                        if(node != null) node.sw = this;
-                        break;
-                    }
-                    case 4: {
-                        e = node;
-                        if(node != null) node.w = this;
-                        break;
-                    }
-                    case 6: {
-                        w = node;
-                        if(node != null) node.e = this;
-                        break;
-                    }
-                    case 1: {
-                        sw = node;
-                        if(node != null) node.ne = this;
-                        break;
-                    }
-                    case 2: {
-                        s = node;
-                        if(node != null) node.n = this;
-                        break;
-                    }
-                    case 3: {
-                        se = node;
-                        if(node != null) node.nw = this;
-                        break;
-                    }
-                }
-            }
-
-            public void addChild(int position) {
-                Node child = new Node(this, position);
+        for(int i = -1; i <= 1; i++) {
+            for(int j = -1; j <= 1; j++) {
+                if(x + i > 0 && x + i < tiles.length && y + j > 0 && y + j < tiles[0].length)
+                    adj[i + 1][j + 1] = tiles[x + i][y + j];
+                else
+                    adj[i + 1][j + 1] = null;
             }
         }
 
-        Node initial = new Node(p0);
+        return adj;
+    }
 
+    public static int isAdjacentTo(Tile[][] tiles, Tile t, int x, int y, boolean four) {
+        Tile[][] adj = getAdjacentTiles(tiles, x, y);
+
+        int count = 0;
+
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+                if(i == 1 && j == 1) continue;
+
+                if(four) {
+                    if((i == 0 && j == 0) || (i == 0 && j == 2) || (i == 2 && j == 0) || (i == 2 && j == 2)) continue;
+                }
+
+                else if(adj[i][j] == t) count++;
+            }
+        }
+
+        return count;
+    }
+
+    /**
+     * @param tileCosts 2d array of tiles, in terms of their costs
+     * @param p0 Origin point
+     * @param p1 Destination point
+     * @return A list of points making up the shortest path form p0 to p1
+     */
+    public static Stack<AStarPoint> aStar(int[][] tileCosts, Point p0, Point p1) {
+
+        AStarPoint initial = new AStarPoint(p0.getX(), p0.getY());
+        AStarPoint destination = new AStarPoint(p1.getX(), p1.getY());
+
+        //Map from each point to the point preceding it
+        HashMap<AStarPoint, AStarPoint> cameFrom = new HashMap<>();
+        cameFrom.put(initial, null);
+
+        //Map from each point to the cost it took to get there
+        HashMap<AStarPoint, Integer> costSoFar = new HashMap<>();
+        costSoFar.put(initial, 0);
+
+        //Points to visit
+        PriorityQueue<AStarPoint> heap = new PriorityQueue<>();
+        heap.add(initial);
+
+        AStarPoint current = null, next;
+        int newCost;
+        while (!heap.isEmpty()) {
+            current = heap.remove();
+
+            if (current.equals(destination)) break;
+
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    int x = current.getX() + i;
+                    int y = current.getY() + j;
+                    if (x < 0 || x >= tileCosts.length || y < 0 || y >= tileCosts[0].length)
+                        continue;
+                    if (tileCosts[x][y] < 0)
+                        continue;
+
+                    next = new AStarPoint(x, y);
+                    newCost = costSoFar.get(current) + tileCosts[x][y];
+
+                    if (!costSoFar.containsKey(next) || newCost < costSoFar.get(next)) {
+                        costSoFar.put(next, newCost);
+                        next.setPriority(newCost + (Math.abs(next.getX() - destination.getX()) + Math.abs(next.getY() - destination.getY())));
+                        heap.add(next);
+                        cameFrom.put(next, current);
+                    }
+                }
+            }
+        }
+
+        Stack<AStarPoint> points = new Stack<>();
+        while(current != null) {
+            points.push(current);
+            current = cameFrom.get(current);
+        }
+
+        return points;
 
     }
 
-     */
+    public static int[][] toCostArray(Tile[][] tiles) {
+        int[][] costs = new int[tiles.length][tiles[0].length];
+        for(int i = 0; i < tiles.length; i++) {
+            for(int j = 0; j < tiles[0].length; j++) {
+                if(tiles[i][j] == Tile.FLOOR || tiles[i][j] == Tile.DOOR) costs[i][j] = 1;
+                else costs[i][j] = -1;
+            }
+        }
+
+        return costs;
+    }
 }

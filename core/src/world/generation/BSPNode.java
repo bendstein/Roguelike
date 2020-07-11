@@ -1,497 +1,277 @@
 package world.generation;
 
-import world.Tile;
-import world.geometry.Line;
-import world.geometry.Point;
+import world.room.RectRoom;
 import world.room.Room;
 import world.room.TiledRoom;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Random;
 
 public class BSPNode {
 
     /**
-     * The room corresponding to this node
+     * Rooms that this node contains
      */
-    TiledRoom room;
+    private ArrayList<Room> rooms;
 
     /**
-     * Child node. Left node if vertical split, bottom node if horizontal.
+     * Left/bottom child and right/top child
      */
-    BSPNode left;
+    private BSPNode lc, rc;
 
     /**
-     * Child node. Right node if vertical split, top node if horizontal.
+     * What iteration of generation we're on
      */
-    BSPNode right;
+    private int iteration;
 
     /**
-     * -1 - Horizontal, 0 - No split, 1 - Vertical
+     * Probability of split
      */
-    int direction;
+    private float p;
 
     /**
-     * The location of the split. If horizontal, y-coord. If vertical, x-coord.
+     * Dimensions for room
      */
-    int location;
+    private int w, h;
 
     /**
-     * What level this node is on
+     * Minimum dimensions for a room to split
      */
-    int depth;
+    private int w_min, h_min;
 
     /**
-     * Factor applied to split probability each level
+     * Minimum dimensions for a generated room
      */
-    double probFactor;
+    private final int widthMin = 5, heightMin = 5;
 
     /**
-     * The minimum ratio between the size of either partition and the whole
+     * X and y coordinates for bottom left corner of the room,
      */
-    double minRatio;
+    private int x, y;
 
     /**
-     * Prng
+     * prng
      */
-    Random random;
+    private Random random;
 
-    private final int MIN_DIM_TO_SPLIT = 14;
+    /**
+     * Whether or not to split the room
+     */
+    boolean split;
 
-    public BSPNode(TiledRoom room, boolean split, int depth, double probFactor, double minRatio, Random random) {
-        this.room = room;
-        this.depth = depth;
-        this.probFactor = probFactor;
-        this.minRatio = minRatio;
+    /**
+     * Whether the split horizontal or vertical
+     */
+    boolean horizontal;
+
+    public BSPNode(int iteration, float p, int w, int w_min, int h, int h_min, int x, int y, Random random) {
+        this.iteration = iteration;
+        this.p = p;
+        this.w = w;
+        this.w_min = w_min;
+        this.h = h;
+        this.h_min = h_min;
+        this.x = x;
+        this.y = y;
         this.random = random;
+        rooms = new ArrayList<>();
 
-        if(room.getWidth() <= MIN_DIM_TO_SPLIT && room.getHeight() <= MIN_DIM_TO_SPLIT) split = false;
+        //Start the splitting process
+        start();
 
-        //If we're not splitting, create a rectangular room
+        if(lc != null) rooms.addAll(lc.rooms);
+        if(rc != null) rooms.addAll(rc.rooms);
+
+    }
+
+    public void start() {
+        split = true;
+        horizontal = false;
+
+        //Decide whether or not to split, and if so, what direction
+        if(random.nextFloat() >= Math.pow(p, iteration))
+            split = false;
+        else if(.25 * w > w_min && .25 * h > h_min)
+            horizontal = random.nextBoolean();
+        else if(.25 * w > w_min)
+            horizontal = false;
+        else if (.25 * h > h_min)
+            horizontal = true;
+        else
+            split = false;
+
+        //If we're not splitting, generate a room within the bounds
         if(!split) {
-            direction = location = 0;
-            generateRect();
+            generateRoom();
+            return;
         }
 
-        //Otherwise split and recursively create children
-        else {
-            if(room.getWidth() >= MIN_DIM_TO_SPLIT && room.getHeight() >= MIN_DIM_TO_SPLIT)
-                direction = random.nextInt(2) == 0 ? -1 : 1;
-            else if(room.getWidth() >= MIN_DIM_TO_SPLIT)
-                direction = 1;
-            else
-                direction = -1;
+        //Otherwise, split the room along the axis perpendicular to the one chosen
+        float ratio = (random.nextFloat() * .5f) + .25f;
 
-            if(direction == 1) {
-                location = random.nextInt((int)(Math.ceil(minRatio * room.getWidth()))) + (int)(Math.floor((1 - minRatio) * room.getWidth()));
-            }
-
-            else {
-                location = random.nextInt((int)(Math.ceil(minRatio * room.getHeight()))) + (int)(Math.floor((1 - minRatio) * room.getHeight()));
-            }
-
-            split();
-            combine();
-        }
-    }
-
-    /**
-     * Split the room in 2 and recursively create children
-     */
-    public void split() {
-
-        Tile[][] leftTiles;
-        Tile[][] rightTiles;
-
-        //If split is horizontal
-        if(direction == -1) {
-
-            if(location < minRatio * room.getHeight() || (room.getHeight() - location) < minRatio * room.getHeight())
-                location = (int) (minRatio * room.getHeight());
-
-            leftTiles = new Tile[room.getWidth()][location];
-            rightTiles = new Tile[room.getWidth()][room.getHeight() - location];
-
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(j < location)
-                        leftTiles[i][j] = room.getTileAt(i, j);
-                    else
-                        rightTiles[i][j - location] = room.getTileAt(i, j);
-                }
-            }
-        }
-
-        //If split is vertical
-        else {
-
-            if(location < minRatio * room.getWidth() || (room.getWidth() - location) < minRatio * room.getWidth())
-                location = (int) (minRatio * room.getWidth());
-
-            leftTiles = new Tile[location][room.getHeight()];
-            rightTiles = new Tile[room.getWidth() - location][room.getHeight()];
-
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(i < location)
-                        leftTiles[i][j] = room.getTileAt(i, j);
-                    else
-                        rightTiles[i - location][j] = room.getTileAt(i, j);
-                }
-            }
-        }
-
-        boolean leftSplit = random.nextInt(1000)/1000d < Math.pow(probFactor, depth);
-        boolean rightSplit = random.nextInt(1000)/1000d < Math.pow(probFactor, depth);
-
-        this.left = new BSPNode(new TiledRoom(0, 0, leftTiles), leftSplit, depth + 1, probFactor, minRatio, random);
-        this.right = new BSPNode(new TiledRoom(0, 0, rightTiles), rightSplit, depth + 1, probFactor, minRatio, random);
-    }
-
-    /**
-     * Combine the 2 children into 1
-     */
-    public void combine() {
-
-        int x0 = 0, x = 0, x1 = 0, y0 = 0, y = 0, y1 = 0;
-
-        /*
-        //In each room, punch a hole in the wall for a door
-        if(random.nextBoolean()) {
-            if(random.nextBoolean()) {
-                for(int i = 0; i < left.room.getWidth(); i++) {
-                    for(int j = 0; j < left.room.getHeight(); j++) {
-                        if(left.room.getTiles()[i][j] == Tile.WALL) {
-                            x = i;
-                            do {
-                                y = random.nextInt(left.room.getHeight());
-                            } while (left.room.getTiles()[x][y] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-            else {
-                for(int i = left.room.getWidth() - 1; i >= 0; i--) {
-                    for(int j = 0; j < left.room.getHeight(); j++) {
-                        if(left.room.getTiles()[i][j] == Tile.WALL) {
-                            x = i;
-                            do {
-                                y = random.nextInt(left.room.getHeight());
-                            } while (left.room.getTiles()[x][y] != Tile.WALL);
-                        }
-                    }
-                }
-            }
+        if(horizontal) {
+            lc = new BSPNode(iteration + 1, p, w, w_min, ((int) Math.floor(ratio * h)), h_min, x, y, random);
+            rc = new BSPNode(iteration + 1, p, w, w_min, (int) Math.ceil((1f - ratio) * h), h_min, x, (int) Math.floor(ratio * h), random);
         }
         else {
-            if(random.nextBoolean()) {
-                for(int i = 0; i < left.room.getWidth(); i++) {
-                    for(int j = 0; j < left.room.getHeight(); j++) {
-                        if(left.room.getTiles()[i][j] == Tile.WALL) {
-                            y = j;
-                            do {
-                                x = random.nextInt(left.room.getWidth());
-                            } while (left.room.getTiles()[x][y] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-            else {
-                for(int i = 0; i < left.room.getWidth(); i++) {
-                    for(int j = left.room.getHeight() - 1; j < left.room.getHeight(); j++) {
-                        if(left.room.getTiles()[i][j] == Tile.WALL) {
-                            y = j;
-                            do {
-                                x = random.nextInt(left.room.getWidth());
-                            } while (left.room.getTiles()[x][y] != Tile.WALL);
-                        }
-                    }
-                }
-            }
+            lc = new BSPNode(iteration + 1, p, (int) Math.floor(ratio * w), w_min, h, h_min, x, y, random);
+            rc = new BSPNode(iteration + 1, p, (int) Math.ceil((1f - ratio) * w), w_min, h, h_min, (int) Math.floor(ratio * w), y, random);
         }
 
-        left.room.getTiles()[x][y] = Tile.DOOR;
-
-        //In each room, punch a hole in the wall for a door
-        if(random.nextBoolean()) {
-            if(random.nextBoolean()) {
-                for(int i = 0; i < right.room.getWidth(); i++) {
-                    for(int j = 0; j < right.room.getHeight(); j++) {
-                        if(right.room.getTiles()[i][j] == Tile.WALL) {
-                            x1 = i;
-                            do {
-                                y1 = random.nextInt(right.room.getHeight());
-                            } while (right.room.getTiles()[x1][y1] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-            else {
-                for(int i = right.room.getWidth() - 1; i >= 0; i--) {
-                    for(int j = 0; j < right.room.getHeight(); j++) {
-                        if(right.room.getTiles()[i][j] == Tile.WALL) {
-                            x1 = i;
-                            do {
-                                y1 = random.nextInt(right.room.getHeight());
-                            } while (right.room.getTiles()[x1][y1] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            if(random.nextBoolean()) {
-                for(int i = 0; i < right.room.getWidth(); i++) {
-                    for(int j = 0; j < right.room.getHeight(); j++) {
-                        if(right.room.getTiles()[i][j] == Tile.WALL) {
-                            y1 = j;
-                            do {
-                                x1 = random.nextInt(right.room.getWidth());
-                            } while (right.room.getTiles()[x1][y1] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-            else {
-                for(int i = 0; i < right.room.getWidth(); i++) {
-                    for(int j = right.room.getHeight() - 1; j < right.room.getHeight(); j++) {
-                        if(right.room.getTiles()[i][j] == Tile.WALL) {
-                            y1 = j;
-                            do {
-                                x1 = random.nextInt(right.room.getWidth());
-                            } while (right.room.getTiles()[x1][y1] != Tile.WALL);
-                        }
-                    }
-                }
-            }
-        }
-
-        right.room.getTiles()[x1][y1] = Tile.DOOR;
-
-         */
-
-        //If split is horizontal
-        if(direction == -1) {
-
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(j < location)
-                        room.setTileAt(i, j, left.room.getTiles()[i][j]);
-                    else
-                        room.setTileAt(i, j, right.room.getTiles()[i][j - location]);
-                }
-            }
-
-            /*
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = location; j >= 0; j--) {
-                    if(room.getTiles()[i][j] == Tile.WALL) {
-                        y1 = j ;
-                        break;
-                    }
-                }
-            }
-
-            do {
-                x1 = random.nextInt(room.getWidth());
-            } while (room.getTiles()[x1][y1] != Tile.WALL);
-
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = room.getHeight() - 1; j >= location; j--) {
-                    if(room.getTiles()[i][j] == Tile.WALL) {
-                        y0 = j;
-                        break;
-                    }
-                }
-            }
-
-            do {
-                x0 = random.nextInt(room.getWidth());
-            } while (room.getTiles()[x0][y0] != Tile.WALL);
-
-             */
-
-        }
-
-
-        //If split is vertical
-        else {
-
-            for(int i = 0; i < room.getWidth(); i++) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(i < location)
-                        room.setTileAt(i, j, left.room.getTiles()[i][j]);
-                    else
-                        room.setTileAt(i, j, right.room.getTiles()[i - location][j]);
-                }
-            }
-
-            /*
-            for(int i = location - 1; i >= 0; i--) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(room.getTiles()[i][j] == Tile.WALL) {
-                        x1 = i;
-                        break;
-                    }
-                }
-            }
-
-            do {
-                y1 = random.nextInt(room.getHeight());
-            } while (room.getTiles()[x1][y1] != Tile.WALL);
-
-            for(int i = room.getWidth() - 1; i >= location; i--) {
-                for(int j = 0; j < room.getHeight(); j++) {
-                    if(room.getTiles()[i][j] == Tile.WALL) {
-                        x0 = i;
-                        break;
-                    }
-                }
-            }
-
-            do {
-                y0 = random.nextInt(room.getHeight());
-            } while (room.getTiles()[x0][y0] != Tile.WALL);
-
-
-
-             */
-        }
-
-        /*
-        Line l = new Line(x0, x1, y0, y1);
-        Point prev = null;
-
-        if(l.size() > 2)
-            for(Point p : l) {
-                if((p.getX() == x0 && p.getY() == y0) || (p.getX() == x1 && p.getY() == y1))
-                    room.setTileAt(p.getX(), p.getY(), Tile.DOOR);
-                else {
-                    if(prev != null) {
-                        if(p.getX() != prev.getX() && p.getY() != prev.getY()) {
-                            if(random.nextBoolean())
-                                room.setTileAt(p.getX(), prev.getY(), Tile.FLOOR);
-                            else
-                                room.setTileAt(prev.getX(), p.getY(), Tile.FLOOR);
-                        }
-                    }
-                    room.setTileAt(p.getX(), p.getY(), Tile.FLOOR);
-                }
-                prev = p;
-            }
-
-         */
-
-
+        System.out.printf("Parent: (%d, %d), (%d, %d)\n", x, y, w, h);
+        System.out.printf("\tLeft Child: (%d, %d), (%d, %d)\n", lc.x, lc.y, lc.w, lc.h);
+        System.out.printf("\tRight Child: (%d, %d), (%d, %d)\n", rc.x, rc.y, rc.w, rc.h);
+        System.out.print("");
 
     }
 
-    /**
-     * Generate a rectangular room
-     */
-    public void generateRect() {
-        int x, y, w, h;
-        final int MIN = 12;
+    public void generateRoom() {
 
-        //Fill room with void
-        for(int i = 0; i < room.getWidth(); i++) {
-            for(int j = 0; j < room.getHeight(); j++) {
-                room.getTiles()[i][j] = Tile.BOUNDS;
+        //Leave a padding area of 1 on all sides of the region
+        x = x + 1;
+        y = y + 1;
+        int wadj = w - 2;
+        int hadj = h - 2;
+
+        //Choose random dimensions for the room
+        if(wadj == widthMin) {
+            w = widthMin;
+        }
+        else
+            try {
+                //w = random.nextInt(wadj - widthMin) + widthMin;
+                w = Math.max((int) Math.ceil(wadj * ((random.nextFloat() * 0.5) + 0.5)), widthMin);
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+            }
+        if(hadj == heightMin) {
+            h = heightMin;
+        }
+        else
+            try {
+                h = Math.max((int) Math.ceil(hadj * ((random.nextFloat() * 0.5) + 0.5)), heightMin);
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+            }
+
+        //Choose a random point for the room so that it is within the bounds
+        if(w != widthMin) {
+            try {
+                x = random.nextInt(wadj - w) + x;
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
             }
         }
 
-        if(room.getWidth() <= MIN) w = room.getWidth();
-        else w = random.nextInt((room.getWidth() - 2) - (2 * room.getWidth()/3)) + (2 * room.getWidth()/3);
-
-        if(room.getHeight() <= MIN) h = room.getHeight();
-        else h = random.nextInt((room.getHeight() - 2) - (2 * room.getHeight()/3)) + (2 * room.getHeight()/3);
-
-        //X offset for room is anywhere from 0 (room against left side) to room.getWidth() - w (room against right side).
-        x = random.nextInt((room.getWidth() - w) + 1);
-
-        //Y offset for room is anywhere from 0 (room against bottom side) to room.getHeight() - h (room against top side).
-        y = random.nextInt((room.getHeight() - h) + 1);
-
-        //int doorx, doory;
-        //doorx = random.nextInt(w - x - 1) + x;
-        //doory = (doorx == x || doorx == w - 1) ?
-                //random.nextInt(h - 2 - (y + 1)) + y + 1 :
-                //random.nextInt(h - 1 - y) + y;
-
-        for(int i = x; i < w + x; i++) {
-            for(int j = y; j < h + y; j++) {
-                if(i == x || j == y || i == w + x - 1 || j == h + y - 1)
-                    room.getTiles()[i][j] = Tile.WALL;
-                else
-                    room.getTiles()[i][j] = Tile.FLOOR;
+        if(h != heightMin) {
+            try {
+                y = random.nextInt(hadj - h) + y;
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
             }
         }
+
+        //Create the room
+        rooms.add(new RectRoom(x, y, w, h));
 
     }
 
     //<editor-fold desc="Getters and Setters">
-    public TiledRoom getRoom() {
-        return room;
+    public ArrayList<Room> getRooms() {
+        return rooms;
     }
 
-    public void setRoom(TiledRoom room) {
-        this.room = room;
+    public void setRooms(ArrayList<Room> rooms) {
+        this.rooms = rooms;
     }
 
-    public BSPNode getLeft() {
-        return left;
+    public BSPNode getLc() {
+        return lc;
     }
 
-    public void setLeft(BSPNode left) {
-        this.left = left;
+    public void setLc(BSPNode lc) {
+        this.lc = lc;
     }
 
-    public BSPNode getRight() {
-        return right;
+    public BSPNode getRc() {
+        return rc;
     }
 
-    public void setRight(BSPNode right) {
-        this.right = right;
+    public void setRc(BSPNode rc) {
+        this.rc = rc;
     }
 
-    public int getDirection() {
-        return direction;
+    public int getIteration() {
+        return iteration;
     }
 
-    public void setDirection(int direction) {
-        this.direction = direction;
+    public void setIteration(int iteration) {
+        this.iteration = iteration;
     }
 
-    public int getLocation() {
-        return location;
+    public float getP() {
+        return p;
     }
 
-    public void setLocation(int location) {
-        this.location = location;
+    public void setP(float p) {
+        this.p = p;
     }
 
-    public int getDepth() {
-        return depth;
+    public int getW() {
+        return w;
     }
 
-    public void setDepth(int depth) {
-        this.depth = depth;
+    public void setW(int w) {
+        this.w = w;
     }
 
-    public double getProbFactor() {
-        return probFactor;
+    public int getH() {
+        return h;
     }
 
-    public void setProbFactor(double probFactor) {
-        this.probFactor = probFactor;
+    public void setH(int h) {
+        this.h = h;
     }
 
-    public double getMinRatio() {
-        return minRatio;
+    public int getW_min() {
+        return w_min;
     }
 
-    public void setMinRatio(double minRatio) {
-        this.minRatio = minRatio;
+    public void setW_min(int w_min) {
+        this.w_min = w_min;
+    }
+
+    public int getH_min() {
+        return h_min;
+    }
+
+    public void setH_min(int h_min) {
+        this.h_min = h_min;
+    }
+
+    public int getWidthMin() {
+        return widthMin;
+    }
+
+    public int getHeightMin() {
+        return heightMin;
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public void setX(int x) {
+        this.x = x;
+    }
+
+    public int getY() {
+        return y;
+    }
+
+    public void setY(int y) {
+        this.y = y;
     }
 
     public Random getRandom() {
@@ -500,6 +280,22 @@ public class BSPNode {
 
     public void setRandom(Random random) {
         this.random = random;
+    }
+
+    public boolean isSplit() {
+        return split;
+    }
+
+    public void setSplit(boolean split) {
+        this.split = split;
+    }
+
+    public boolean isHorizontal() {
+        return horizontal;
+    }
+
+    public void setHorizontal(boolean horizontal) {
+        this.horizontal = horizontal;
     }
     //</editor-fold>
 }

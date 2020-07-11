@@ -33,10 +33,10 @@ public class CreatureAi {
      */
     public void onEnter(int x, int y, Tile tile) {
 
-        if(Creature.canEnter(x, y, creature.getWorld())) {
+        if(Creature.canEnter(x, y, creature.getLevel())) {
             creature.setCoordinates(x, y);
-            if(creature.getWorld().getItemAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getWorld().getItemAt(x, y).getName());
+            if(creature.getLevel().getItemAt(x, y) != null) {
+                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).getName());
             }
         }
     }
@@ -62,9 +62,21 @@ public class CreatureAi {
             return false;
 
         for(Point p : new Line(creature.getX(), x, creature.getY(), y)) {
-            if(creature.getWorld().getTileAt(p.getX(), p.getY()).isGround() ||
-                    creature.getWorld().getTileAt(p.getX(), p.getY()) == Tile.BOUNDS || (p.getX() == x && p.getY() == y))
+            if(creature.getLevel().getTileAt(p.getX(), p.getY()) == Tile.BOUNDS)
                 continue;
+            else if(p.getX() == x && p.getY() == y)
+                continue;
+            else if(creature.getLevel().getTileAt(creature.getX(), creature.getY()) == Tile.DOOR) {
+                if(creature.getLevel().getTileAt(p.getX(), p.getY()).isGround() &&
+                        (creature.getLevel().getTileAt(p.getX(), p.getY()) != Tile.DOOR ||
+                                (p.getX() == creature.getX() && p.getY() == creature.getY())))
+                    continue;
+            }
+            else if(creature.getLevel().getTileAt(p.getX(), p.getY()).isGround() &&
+                    creature.getLevel().getTileAt(p.getX(), p.getY()) != Tile.DOOR)
+                continue;
+
+
             return false;
         }
 
@@ -72,13 +84,15 @@ public class CreatureAi {
     }
 
     public void wander() {
-        int mx = creature.getWorld().getRandom().nextInt(3) - 1;
-        int my = creature.getWorld().getRandom().nextInt(3) - 1;
+        int mx = creature.getLevel().getRandom().nextInt(3) - 1;
+        int my = creature.getLevel().getRandom().nextInt(3) - 1;
         creature.moveBy(mx, my);
     }
 
     public ArrayList<String> getMessages() {
         return new ArrayList<String>();
     }
+
+
 
 }

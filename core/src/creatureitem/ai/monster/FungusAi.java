@@ -21,12 +21,22 @@ public class FungusAi extends CreatureAi {
     /**
      * Probability for the fungus to spread on a turn
      */
-    private final double SPREAD_PROBABILITY = 0.018;
+    private final double SPREAD_PROBABILITY = 0.005;
 
     /**
      * Maximum number of spreads this fungus can do
      */
     private final int MAX_SPREAD = 3;
+
+    /**
+     * Minimum distance the fungus has to be from its spawn
+     */
+    private final int MIN_DIST = 1;
+
+    /**
+     * Minimum distance the fungus has to be from its spawn
+     */
+    private final int MAX_DIST = 3;
     //</editor-fold>
 
     public FungusAi(Creature creature, CreatureItemFactory factory) {
@@ -47,11 +57,11 @@ public class FungusAi extends CreatureAi {
     //</editor-fold>
 
     public void onUpdate() {
-        if(creature.getWorld().getRandom().nextInt(1000)/1000d <= SPREAD_PROBABILITY && spread < MAX_SPREAD)
+        if(creature.getLevel().getRandom().nextDouble() <= SPREAD_PROBABILITY && spread < MAX_SPREAD)
             spread();
         for(int i = -1; i < 2; i++) {
             for(int j = -1; j < 2; j++) {
-                Creature foe = creature.getWorld().getCreatureAt(creature.getX() + i, creature.getY() + j);
+                Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
                 if(foe != null && foe.getTeam() != creature.getTeam()) {
                     creature.attack(foe);
                     return;
@@ -61,14 +71,14 @@ public class FungusAi extends CreatureAi {
     }
 
     private void spread() {
-        int x = creature.getX() + creature.getWorld().getRandom().nextInt(5) - 3;
-        int y = creature.getY() + creature.getWorld().getRandom().nextInt(5) - 3;
+        int x = creature.getX() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;
+        int y = creature.getY() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;
 
-        if(!Creature.canEnter(x, y, creature.getWorld()))
+        if(!Creature.canEnter(x, y, creature.getLevel()))
             return;
 
         Creature child = factory.newFungus();
-        creature.getWorld().addAt(x, y, child);
+        creature.getLevel().addAt(x, y, child);
         spread++;
 
         creature.doAction("spread to a nearby tile!");

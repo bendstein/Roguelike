@@ -5,13 +5,13 @@ import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.*;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import creatureitem.ai.PlayerAi;
 import game.ApplicationMain;
+import world.Stairs;
 import world.geometry.floatPoint;
 
 import java.util.Locale;
@@ -29,22 +29,9 @@ public class PlayScreen extends ScreenAdapter {
     private Camera camera;
 
     //UI
-    UI ui;
-    /*
-    private Stage uiStage;
-    private Table uiRoot;
-    private final Skin skin = new Skin(Gdx.files.internal("skin/glassy-ui.json"));
+    private UI ui;
 
-    private Viewport uiViewport;
-    private Camera uiCamera;
-
-    private ScrollPane log;
-    private Table logTable;
-    private Table outerLogTable;
-
-    private Label hp;
-
-     */
+    private boolean shift = false;
 
     public PlayScreen(ApplicationMain game) {
         this.game = game;
@@ -115,7 +102,24 @@ public class PlayScreen extends ScreenAdapter {
                         return true;
                     }
                     case Input.Keys.COMMA: {
-                        game.getPlayer().pickUp();
+                        if(!shift) game.getPlayer().pickUp();
+                        else {
+                            boolean exit = ((PlayerAi) game.getPlayer().getAi()).useStairs('>');
+                            if(exit) game.setScreen(game.getMainMenu());
+                        }
+                        return true;
+                    }
+                    case Input.Keys.PERIOD: {
+                        if(!shift){}
+                        else {
+                            boolean exit = ((PlayerAi) game.getPlayer().getAi()).useStairs('<');
+                            if(exit) game.setScreen(game.getMainMenu());
+                        }
+
+                    }
+                    case Input.Keys.SHIFT_RIGHT:
+                    case Input.Keys.SHIFT_LEFT: {
+                        shift = true;
                         return true;
                     }
                     default:
@@ -136,6 +140,11 @@ public class PlayScreen extends ScreenAdapter {
                     case Input.Keys.NUMPAD_2:
                     case Input.Keys.NUMPAD_3: {
                         game.getPlayer().setMoveDirection(0);
+                        return true;
+                    }
+                    case Input.Keys.SHIFT_RIGHT:
+                    case Input.Keys.SHIFT_LEFT: {
+                        shift = false;
                         return true;
                     }
                     default:
@@ -172,7 +181,7 @@ public class PlayScreen extends ScreenAdapter {
         game.start();
 
         //Add actors to stage
-        root.add(game.getWorld().getActor()).width(stage.getWidth()).height(game.getWorld().getHeight() * ApplicationMain.getTILE_SIZE());
+        root.add(game.getLevel().getActor()).width(stage.getWidth()).height(game.getLevel().getHeight() * ApplicationMain.getTILE_SIZE());
 
         ui.getHp().setText(String.format(Locale.getDefault(), "%d/%d", game.getPlayer().getHP(), game.getPlayer().getMaxHP()));
 
@@ -188,7 +197,7 @@ public class PlayScreen extends ScreenAdapter {
         stage.act(Gdx.graphics.getDeltaTime());
         ui.act(Gdx.graphics.getDeltaTime());
 
-        if(game.getPlayer().isDead()) game.setScreen(new MainMenu(game));
+        if(game.getPlayer().isDead()) game.setScreen(game.getLoseScreen());
 
         //Set the camera to the player. If the player is too close to the edge of the screen, stop following
         floatPoint cameraLocation = getCameraLocation();
@@ -244,15 +253,15 @@ public class PlayScreen extends ScreenAdapter {
         if(p.getX() * ApplicationMain.getTILE_SIZE() < width/2)
             p.setX(width/(2 * ApplicationMain.getTILE_SIZE()));
         //If player's location isn't at least half a screen from the right edge, set the camera to half a screen from the right edge
-        else if((game.getWorld().getWidth() - p.getX()) * ApplicationMain.getTILE_SIZE() < width/2d)
-            p.setX((game.getWorld().getWidth()) - width/(2 * ApplicationMain.getTILE_SIZE()));
+        else if((game.getLevel().getWidth() - p.getX()) * ApplicationMain.getTILE_SIZE() < width/2d)
+            p.setX((game.getLevel().getWidth()) - width/(2 * ApplicationMain.getTILE_SIZE()));
 
         //If player's location isn't at least half a screen from the bottom edge, set the camera to half a screen from the bottom edge
         if(p.getY() * ApplicationMain.getTILE_SIZE() < (height/2 - 2))
             p.setY(height/(2 * ApplicationMain.getTILE_SIZE()));
         //If player's location isn't at least half a screen from the top edge, set the camera to half a screen from the top edge
-        else if((game.getWorld().getHeight() - p.getY()) * ApplicationMain.getTILE_SIZE() < (3f * height/5f)/2d)
-            p.setY((game.getWorld().getHeight()) - (3 * height/5)/(2 * ApplicationMain.getTILE_SIZE()));
+        else if((game.getLevel().getHeight() - p.getY()) * ApplicationMain.getTILE_SIZE() < (3f * height/5f)/2d)
+            p.setY((game.getLevel().getHeight()) - (3 * height/5)/(2 * ApplicationMain.getTILE_SIZE()));
 
         return p;
     }

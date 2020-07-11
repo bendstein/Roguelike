@@ -6,12 +6,16 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import creatureitem.generation.CreatureItemFactory;
 import creatureitem.Player;
+import screens.LoseScreen;
 import screens.MainMenu;
 import screens.PlayScreen;
-import world.World;
-import world.generation.WorldBuilder;
+import world.Dungeon;
+import world.Level;
+import world.Stairs;
+import world.generation.LevelFactory;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class ApplicationMain extends Game {
 
@@ -20,14 +24,17 @@ public class ApplicationMain extends Game {
 
     private PlayScreen playScreen;
     private MainMenu mainMenu;
+    private LoseScreen loseScreen;
 
-    private World world;
-    private WorldBuilder builder;
-    private CreatureItemFactory factory;
+    private Dungeon dungeon;
     private Player player;
     private ArrayList<String> messages;
 
-    private static final int TILE_SIZE = 16;
+    private Random random;
+
+    private long seed;
+
+    private static final int TILE_SIZE = 32;
 
     @Override
     public void create() {
@@ -35,7 +42,9 @@ public class ApplicationMain extends Game {
         font = new BitmapFont();
         font.setColor(Color.BLACK);
         mainMenu = new MainMenu(this);
-        playScreen = new PlayScreen(this);
+        loseScreen = new LoseScreen(this);
+        seed = 1L;
+        random = new Random(seed);
         setScreen(mainMenu);
     }
 
@@ -62,28 +71,12 @@ public class ApplicationMain extends Game {
         this.font = font;
     }
 
-    public World getWorld() {
-        return world;
+    public Dungeon getDungeon() {
+        return dungeon;
     }
 
-    public void setWorld(World world) {
-        this.world = world;
-    }
-
-    public WorldBuilder getBuilder() {
-        return builder;
-    }
-
-    public void setBuilder(WorldBuilder builder) {
-        this.builder = builder;
-    }
-
-    public CreatureItemFactory getFactory() {
-        return factory;
-    }
-
-    public void setFactory(CreatureItemFactory factory) {
-        this.factory = factory;
+    public void setDungeon(Dungeon dungeon) {
+        this.dungeon = dungeon;
     }
 
     public Player getPlayer() {
@@ -122,26 +115,33 @@ public class ApplicationMain extends Game {
         return TILE_SIZE;
     }
 
+    public LoseScreen getLoseScreen() {
+        return loseScreen;
+    }
+
+    public void setLoseScreen(LoseScreen loseScreen) {
+        this.loseScreen = loseScreen;
+    }
+
+    public Random getRandom() {
+        return random;
+    }
+
+    public void setRandom(Random random) {
+        this.random = random;
+    }
+
     //</editor-fold>
 
     public void start() {
-        //Create the level
-        builder = new WorldBuilder(50, 50);
-        world = builder.makeBSPRooms().build();
+        LevelFactory builder = new LevelFactory(100, 100, random);
+        CreatureItemFactory factory = new CreatureItemFactory();
+        this.dungeon = new Dungeon(builder, factory, random, 10);
+        this.player = dungeon.getPlayer();
+    }
 
-        //Create the player
-        factory = new CreatureItemFactory(world);
-        messages = new ArrayList<>();
-        player = factory.newPlayer(messages);
-        world.addAtEmptyLocation(player);
-
-        //Create creatures
-        for(int i = 0; i < 11; i++) world.addAtEmptyLocation(factory.newFungus());
-
-        for(int i = 0; i < 6; i++) world.addAtEmptyLocation(factory.newBat());
-
-        //Create items
-        for(int i = 0; i < 11; i++) world.addAtEmptyLocation(factory.newRock());
+    public Level getLevel() {
+        return player.getLevel();
     }
 
 }

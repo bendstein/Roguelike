@@ -7,6 +7,8 @@ public enum Tile {
     FLOOR('_', "data/Floor.png", "Floor"),
     WALL('#', "data/Wall.png", "Wall"),
     BOUNDS('\\', "data/Boundary.png", "Boundary"),
+    STAIRS_DOWN('<', "data/Downstairs.png", "Stairs Down"),
+    STAIRS_UP('>', "data/Upstairs.png", "Stairs Up"),
     DOOR('+', "data/Door.png", "Door");
 
     //<editor-fold desc="Instance Variables">

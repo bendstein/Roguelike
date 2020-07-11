@@ -29,7 +29,7 @@ public class BatAi extends CreatureAi {
      */
     public void onEnter(int x, int y, Tile tile) {
 
-        if(Creature.canEnter(x, y, creature.getWorld())) {
+        if(Creature.canEnter(x, y, creature.getLevel())) {
             creature.setCoordinates(x, y);
         }
     }

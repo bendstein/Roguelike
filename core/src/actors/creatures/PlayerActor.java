@@ -9,7 +9,6 @@ public class PlayerActor extends CreatureActor {
 
     public PlayerActor(Creature player) {
         super(player);
-        this.creature.setActor(this);
     }
 
     @Override
