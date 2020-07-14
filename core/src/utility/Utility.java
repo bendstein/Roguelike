@@ -1,7 +1,11 @@
 package utility;
 
+import creatureitem.Creature;
+import game.Main;
+import world.Level;
 import world.Tile;
 import world.geometry.AStarPoint;
+import world.geometry.Line;
 import world.geometry.Point;
 
 import java.util.*;
@@ -134,5 +138,31 @@ public class Utility {
         }
 
         return costs;
+    }
+
+    public static int[][] toCostArray(Level level) {
+        int[][] costs = new int[level.getWidth()][level.getHeight()];
+        for(int i = 0; i < level.getWidth(); i++) {
+            for(int j = 0; j < level.getHeight(); j++) {
+                if(level.getTileAt(i, j) != Tile.WALL && level.getTileAt(i, j) != Tile.BOUNDS) costs[i][j] = 1;
+                else costs[i][j] = -1;
+            }
+        }
+
+        return costs;
+    }
+
+    /**
+     * @param x The x coordinate of the mouse on the screen
+     * @param y The y coordinate of the mouse on the screen
+     * @return The cursors coordinates mapped to the world
+     */
+    public static Point roundCursor(float x, float y) {
+        return new Point((int) Math.floor(x/ Main.getTILE_SIZE()), (int) Math.floor(y/ Main.getTILE_SIZE()));
+    }
+
+    public static int getDistance(Point a, Point b) {
+        Line l = new Line(a.getX(), b.getX(), a.getY(), b.getY());
+        return l.size();
     }
 }

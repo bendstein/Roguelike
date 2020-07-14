@@ -26,6 +26,7 @@ public class AStarPoint extends Point implements Comparable {
     }
     //</editor-fold>
 
+    /*
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -39,6 +40,8 @@ public class AStarPoint extends Point implements Comparable {
     public int hashCode() {
         return Objects.hash(x, y);
     }
+
+     */
 
     @Override
     public int compareTo(Object o) {

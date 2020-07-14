@@ -5,6 +5,8 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import creatureitem.Creature;
 import creatureitem.Player;
 import creatureitem.item.Item;
+import utility.Utility;
+import world.geometry.Point;
 import world.room.Room;
 
 import java.util.ArrayList;
@@ -27,6 +29,11 @@ public class Level extends World {
      * Tiles seen by player
      */
     private boolean[][] seen;
+
+    /**
+     * A* Costs
+     */
+    private int[][] costs;
 
     /**
      * Reference to this level's actor
@@ -72,6 +79,7 @@ public class Level extends World {
 
     public Level(Tile[][] tiles, Random random) {
         super(tiles);
+        costs = Utility.toCostArray(tiles);
         this.random = random;
         creatures = new ArrayList<>();
         creatureQueue = new ArrayList<>();
@@ -116,6 +124,10 @@ public class Level extends World {
     public boolean addAt(int x, int y, Creature c) {
         if(Creature.canEnter(x, y, this)) {
             c.setCoordinates(x, y);
+            c.setLevel(this);
+
+            //Calculate creature level now that the ai has been created
+            c.setExp(c.getExp(), false);
             creatureQueue.add(c);
             return true;
         }
@@ -239,8 +251,12 @@ public class Level extends World {
      */
     public void update() {
         ArrayList<Creature> toUpdate = new ArrayList<>(creatures);
-        for(Creature c : toUpdate)
-            c.update();
+        for(Creature c : toUpdate) {
+            //Don't update if the creature has been removed
+            if(creatures.contains(c)) c.update();
+            costs = Utility.toCostArray(this);
+        }
+        incrementTurn();
     }
 
     /**
@@ -256,7 +272,7 @@ public class Level extends World {
                     try {
                         tiles[r.xToParentX(i)][r.yToParentY(j)] = r.getTileAt(i, j);
                     } catch (Exception e) {
-                        System.out.println(e.getMessage());
+                        System.err.println(e.getMessage());
                     }
                 else if(tiles[r.xToParentX(i)][r.yToParentY(j)] == null)
                     tiles[r.xToParentX(i)][r.yToParentY(j)] = Tile.BOUNDS;
@@ -382,6 +398,26 @@ public class Level extends World {
 
     public boolean getSeen(int x, int y) {
         return seen[x][y];
+    }
+
+    public int[][] getCosts() {
+        return costs;
+    }
+
+    public void setCosts(int[][] costs) {
+        this.costs = costs;
+    }
+
+    public int getTurn() {
+        return dungeon.getGame().getTurn();
+    }
+
+    public void setTurn(int turnNumber) {
+        dungeon.getGame().setTurn(turnNumber);
+    }
+
+    public void incrementTurn() {
+        dungeon.getGame().incrementTurn();
     }
 
     //</editor-fold>

@@ -3,6 +3,7 @@ package world;
 import actors.world.LevelActor;
 import creatureitem.Player;
 import creatureitem.generation.CreatureItemFactory;
+import game.Main;
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.jetbrains.annotations.NotNull;
 import world.generation.LevelFactory;
@@ -13,6 +14,11 @@ import java.util.Random;
 public class Dungeon {
 
     //<editor-fold desc="Instance Variables">
+    /**
+     * Reference to the main game
+     */
+    private Main game;
+
     /**
      * The name of the dungeon
      */
@@ -55,11 +61,12 @@ public class Dungeon {
 
     //</editor-fold>
 
-    public Dungeon(LevelFactory builder, CreatureItemFactory factory, Random random, int floors) {
+    public Dungeon(LevelFactory builder, CreatureItemFactory factory, Random random, Main game, int floors) {
         this.builder = builder;
         this.factory = factory;
         this.random = random;
         this.floors = floors;
+        this.game = game;
 
         generate();
     }
@@ -86,10 +93,17 @@ public class Dungeon {
             else
                 connect(current, previous, true);
 
-            for(int c = 0; c < 25; c++) {
+            for(int c = 0; c < 8; c++) {
                 current.addAtEmptyLocation(factory.newFungus());
+                current.addAtEmptyLocation(factory.newZombie());
+                current.addAtEmptyLocation(factory.newGoblin());
                 current.addAtEmptyLocation(factory.newBat());
                 current.addAtEmptyLocation(factory.newRock());
+                current.addAtEmptyLocation(factory.newLongsword());
+                current.addAtEmptyLocation(factory.newShortbow());
+                current.addAtEmptyLocation(factory.newArrow());
+                current.addAtEmptyLocation(factory.newSling());
+                current.addAtEmptyLocation(factory.newArmor());
             }
 
             previous = current;
@@ -195,6 +209,14 @@ public class Dungeon {
 
     public void setLevelActor(LevelActor levelActor) {
         this.levelActor = levelActor;
+    }
+
+    public Main getGame() {
+        return game;
+    }
+
+    public void setGame(Main game) {
+        this.game = game;
     }
 
     //</editor-fold>

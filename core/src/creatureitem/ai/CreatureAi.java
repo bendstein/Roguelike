@@ -1,11 +1,16 @@
 package creatureitem.ai;
 
 import creatureitem.Creature;
+import creatureitem.item.Food;
+import utility.Utility;
 import world.Tile;
+import world.geometry.AStarPoint;
 import world.geometry.Line;
 import world.geometry.Point;
 
 import java.util.ArrayList;
+import java.util.EmptyStackException;
+import java.util.Stack;
 
 public class CreatureAi {
 
@@ -36,16 +41,25 @@ public class CreatureAi {
         if(Creature.canEnter(x, y, creature.getLevel())) {
             creature.setCoordinates(x, y);
             if(creature.getLevel().getItemAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).getName());
+                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).toString());
             }
         }
+    }
+
+    /**
+     * Stuff to do when the creature dies
+     */
+    public void onDie() {
+        if(creature.getLevel().getRandom().nextDouble() < .3) creature.leaveCorpse();
+        creature.getLevel().remove(creature);
     }
 
     /**
      * Perform any actions the creature does when it's time to update
      */
     public void onUpdate() {
-
+        if(creature.getLevel().getTurn() % creature.getHungerRate() == creature.getHungerRate() - 1) creature.modifyHunger(-1);
+        if(creature.getLevel().getTurn() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
     }
 
     /**
@@ -56,6 +70,11 @@ public class CreatureAi {
 
     }
 
+    /**
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @return true if the creature can see the tile at (x, y)
+     */
     public boolean canSee(int x, int y) {
 
         if(Math.pow(creature.getX() - x, 2) + Math.pow(creature.getY() - y, 2) > Math.pow(creature.getVisionRadius(), 2))
@@ -76,6 +95,26 @@ public class CreatureAi {
                     creature.getLevel().getTileAt(p.getX(), p.getY()) != Tile.DOOR)
                 continue;
 
+            boolean canSee = false;
+            for(int i = -1; i <= 1; i++) {
+                for(int j = -1; j <= 1; j++) {
+                    int creaturex = creature.getX(), creaturey = creature.getY();
+                    int seex = creaturex + i, seey = creaturey + j;
+
+                    if(creature.getLevel().getTileAt(seex, seey) == Tile.DOOR) {
+                        for(int i1 = -1; i1 <= 1; i1++) {
+                            for(int j1 = -1; j1 <= 1; j1++) {
+                                if(x == seex + i1 && y == seey + j1)
+                                    canSee = true;
+                            }
+                        }
+
+                    }
+                }
+            }
+
+            if(canSee) continue;
+
 
             return false;
         }
@@ -89,10 +128,68 @@ public class CreatureAi {
         creature.moveBy(mx, my);
     }
 
+    public boolean moveToDestination(Point destination) {
+
+        if(destination == null) return false;
+        if(creature.getX() < 0 || creature.getX() >= creature.getLevel().getWidth() || creature.getY() < 0 ||
+                creature.getY() >= creature.getLevel().getHeight()) return false;
+        if(creature.getLevel().getTileAt(destination.getX(), destination.getY()) == Tile.WALL) return false;
+        Point me = new Point(creature.getX(), creature.getY());
+        Stack<AStarPoint> path = Utility.aStar(creature.getLevel().getCosts(), me, destination);
+
+        Point next;
+        try {
+            next = path.pop();
+            while(next.equals(me))
+                next = path.pop();
+        } catch (EmptyStackException e) {
+            destination = null;
+            return false;
+        }
+
+        creature.moveTowards(next);
+        return true;
+    }
+
     public ArrayList<String> getMessages() {
         return new ArrayList<String>();
     }
 
+    public void eatRandom() {
+        int i;
+        do {
+            i = creature.getLevel().getRandom().nextInt(creature.getInventory().getItems().length);
+        } while(creature.getInventory().getItems()[i] == null && !creature.getInventory().getItems()[i].hasProperty("eat"));
 
+        Food f = (Food)creature.getInventory().getItems()[i];
+        creature.getInventory().removeOne(f);
+        creature.eat(f);
+
+    }
+
+    public int calculateLevel() {
+        int i = 1;
+
+        while(creature.getExp() > (int)(levelFunction(i)))
+            i++;
+
+        return i;
+    }
+
+    public int expToNextLevel() {
+        return (int)levelFunction(creature.getExpLevel()) - creature.getExp();
+    }
+
+    protected double levelFunction(int i) {
+        return (20 * Math.pow(i, 1.5)) + 1;
+    }
+
+    public void gainLevels(int lvlold) {
+        for(int i = lvlold + 1; i <= creature.getExpLevel(); i++) {
+            creature.modifyMaxHp((i * 2) + creature.getAttributeBonus(creature.getConstitution()));
+            creature.setHP(creature.getMaxHP());
+        }
+
+    }
 
 }

@@ -37,13 +37,17 @@ public class Point {
     public void setY(int y) {
         this.y = y;
     }
-    //</editor-fold>
 
+    public void setLocation(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+    //</editor-fold>
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (!(o instanceof Point)) return false;
         Point point = (Point) o;
         return x == point.x &&
                 y == point.y;
@@ -53,4 +57,5 @@ public class Point {
     public int hashCode() {
         return Objects.hash(x, y);
     }
+
 }

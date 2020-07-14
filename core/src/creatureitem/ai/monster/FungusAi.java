@@ -45,7 +45,6 @@ public class FungusAi extends CreatureAi {
         spread = 0;
     }
 
-
     //<editor-fold desc="Getters and Setters">
     public int getSpread() {
         return spread;
@@ -57,12 +56,16 @@ public class FungusAi extends CreatureAi {
     //</editor-fold>
 
     public void onUpdate() {
+
+        //Low chance for the fungus to spread to a nearby tile
         if(creature.getLevel().getRandom().nextDouble() <= SPREAD_PROBABILITY && spread < MAX_SPREAD)
             spread();
+
+        //If there's an adjacent creature, attack it
         for(int i = -1; i < 2; i++) {
             for(int j = -1; j < 2; j++) {
                 Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                if(foe != null && foe.getTeam() != creature.getTeam()) {
+                if(foe != null && foe.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
                     creature.attack(foe);
                     return;
                 }
@@ -70,6 +73,9 @@ public class FungusAi extends CreatureAi {
         }
     }
 
+    /**
+     * Create a new Fungus creature in a nearby, random tile.
+     */
     private void spread() {
         int x = creature.getX() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;
         int y = creature.getY() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;

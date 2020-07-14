@@ -10,14 +10,14 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import game.ApplicationMain;
+import game.Main;
 
 public class LoseScreen extends ScreenAdapter {
 
-    private ApplicationMain game;
+    private Main game;
     private Stage stage;
 
-    public LoseScreen(ApplicationMain game) {
+    public LoseScreen(Main game) {
         this.game = game;
         this.stage = new Stage(new ScreenViewport());
     }

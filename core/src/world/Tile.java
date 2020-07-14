@@ -7,9 +7,11 @@ public enum Tile {
     FLOOR('_', "data/Floor.png", "Floor"),
     WALL('#', "data/Wall.png", "Wall"),
     BOUNDS('\\', "data/Boundary.png", "Boundary"),
-    STAIRS_DOWN('<', "data/Downstairs.png", "Stairs Down"),
-    STAIRS_UP('>', "data/Upstairs.png", "Stairs Up"),
-    DOOR('+', "data/Door.png", "Door");
+    STAIRS_DOWN('>', "data/Downstairs.png", "Stairs Down"),
+    STAIRS_UP('<', "data/Upstairs.png", "Stairs Up"),
+    DOOR('+', "data/Door.png", "Door"),
+    CURSOR_GREEN('_', "data/TileSelectGreen.png", "Green Cursor"),
+    CURSOR_RED('_', "data/TileSelectRed.png", "Red Cursor");
 
     //<editor-fold desc="Instance Variables">
     /**
@@ -65,5 +67,9 @@ public enum Tile {
      */
     public boolean isGround() {
         return this != WALL && this != BOUNDS;
+    }
+
+    public boolean isPassable() {
+        return this != WALL && this != BOUNDS && this != DOOR;
     }
 }

@@ -1,0 +1,45 @@
+package creatureitem.item;
+
+import creatureitem.effect.Damage;
+
+public class Equipable extends Item {
+
+    /**
+     * Whether or not the item is equipped
+     */
+    protected boolean isEquipped;
+
+    public Equipable(char glyph, String texturePath, String name) {
+        super(glyph, texturePath, name);
+        isEquipped = false;
+        addProperty("equip");
+    }
+
+    public Equipable(char glyph, String texturePath, String name, String... properties) {
+        super(glyph, texturePath, name, properties);
+        isEquipped = false;
+        addProperty("equip");
+    }
+
+    public Equipable(char glyph, String texturePath, String name, Damage throwDamage, String... properties) {
+        super(glyph, texturePath, name, throwDamage, properties);
+        isEquipped = false;
+        addProperty("equip");
+    }
+
+    public Equipable(Item item) {
+        super(item);
+        isEquipped = false;
+        addProperty("equip");
+    }
+
+    //<editor-fold desc="Getters and Setters">
+    public boolean isEquipped() {
+        return isEquipped;
+    }
+
+    public void setEquipped(boolean equipped) {
+        isEquipped = equipped;
+    }
+    //</editor-fold>
+}

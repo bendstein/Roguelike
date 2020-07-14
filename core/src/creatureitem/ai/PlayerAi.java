@@ -31,18 +31,24 @@ public class PlayerAi extends CreatureAi {
     public void onEnter(int x, int y, Tile tile) {
         if(Creature.canEnter(x, y, creature.getLevel())) {
             creature.setCoordinates(x, y);
-            System.out.println(x + ", " + y);
+            if(((Player)creature).getCurrentDestination() == creature.getLocation()) {
+                ((Player)creature).setCurrentDestination(null);
+            }
 
             if(creature.getLevel().getItemAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).getName());
+                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).toString());
             }
             if(creature.getLevel().getStairsAt(x, y) != null) {
                 creature.doAction("step on %s.", creature.getLevel().getStairsAt(x, y).isUp()? "the stairs going up" : "the stairs going down");
             }
         }
 
-        else
-            creature.doAction("bump into the %s.", tile.getName());
+    }
+
+    @Override
+    public void onDie() {
+        ((Player)creature).setDead(true);
+        creature.getLevel().remove(creature);
     }
 
     /**

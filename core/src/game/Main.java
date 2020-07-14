@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import creatureitem.generation.CreatureItemFactory;
 import creatureitem.Player;
+import screens.InventoryScreen;
 import screens.LoseScreen;
 import screens.MainMenu;
 import screens.PlayScreen;
@@ -17,7 +18,7 @@ import world.generation.LevelFactory;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class ApplicationMain extends Game {
+public class Main extends Game {
 
     private SpriteBatch batch;
     private BitmapFont font;
@@ -25,10 +26,13 @@ public class ApplicationMain extends Game {
     private PlayScreen playScreen;
     private MainMenu mainMenu;
     private LoseScreen loseScreen;
+    private InventoryScreen inventoryScreen;
 
     private Dungeon dungeon;
     private Player player;
     private ArrayList<String> messages;
+
+    private int turn;
 
     private Random random;
 
@@ -43,8 +47,10 @@ public class ApplicationMain extends Game {
         font.setColor(Color.BLACK);
         mainMenu = new MainMenu(this);
         loseScreen = new LoseScreen(this);
-        seed = 1L;
+        inventoryScreen = new InventoryScreen(this);
+        seed = System.currentTimeMillis();
         random = new Random(seed);
+        turn = 0;
         setScreen(mainMenu);
     }
 
@@ -131,17 +137,42 @@ public class ApplicationMain extends Game {
         this.random = random;
     }
 
-    //</editor-fold>
+    public InventoryScreen getInventoryScreen() {
+        return inventoryScreen;
+    }
 
-    public void start() {
-        LevelFactory builder = new LevelFactory(100, 100, random);
-        CreatureItemFactory factory = new CreatureItemFactory();
-        this.dungeon = new Dungeon(builder, factory, random, 10);
-        this.player = dungeon.getPlayer();
+    public void setInventoryScreen(InventoryScreen inventoryScreen) {
+        this.inventoryScreen = inventoryScreen;
+    }
+
+    public long getSeed() {
+        return seed;
     }
 
     public Level getLevel() {
         return player.getLevel();
     }
+
+    public int getTurn() {
+        return turn;
+    }
+
+    public void setTurn(int turn) {
+        this.turn = turn;
+    }
+
+    public void incrementTurn() {
+        turn++;
+    }
+
+    //</editor-fold>
+
+    public void start() {
+        LevelFactory builder = new LevelFactory(100, 100, random);
+        CreatureItemFactory factory = new CreatureItemFactory();
+        this.dungeon = new Dungeon(builder, factory, random, this,10);
+        this.player = dungeon.getPlayer();
+    }
+
 
 }
