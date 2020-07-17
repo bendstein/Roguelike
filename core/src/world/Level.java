@@ -1,12 +1,12 @@
 package world;
 
 import actors.world.LevelActor;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import creatureitem.Creature;
 import creatureitem.Player;
 import creatureitem.item.Item;
 import utility.Utility;
-import world.geometry.Point;
+import world.thing.Stairs;
+import world.thing.Thing;
 import world.room.Room;
 
 import java.util.ArrayList;
@@ -34,7 +34,6 @@ public class Level extends World {
      * A* Costs
      */
     private int[][] costs;
-
     /**
      * Reference to this level's actor
      */
@@ -56,9 +55,14 @@ public class Level extends World {
     private ArrayList<Room> rooms;
 
     /**
+     * List of all things on the level
+     */
+    private ArrayList<Thing> things;
+
+    /**
      * List of all staircases in the level
      */
-    private ArrayList<Stairs> stairs;
+    private ArrayList<world.thing.Stairs> stairs;
 
     /**
      * Name of the level
@@ -87,12 +91,6 @@ public class Level extends World {
         seen = new boolean[getWidth()][getHeight()];
         stairs = new ArrayList<>();
         rooms = new ArrayList<>();
-
-        for(int i = 0; i < getWidth(); i++) {
-            for(int j = 0; j < getHeight(); j++) {
-                seen[i][j] = false;
-            }
-        }
     }
 
     /**
@@ -112,6 +110,15 @@ public class Level extends World {
      */
     public Item getItemAt(int x, int y) {
         return items[x][y];
+    }
+
+    public Thing getThingAt(int x, int y) {
+        for(Thing thing : things) {
+            if(thing.getX() == x && thing.getY() == y)
+                return thing;
+        }
+
+        return null;
     }
 
     /**
@@ -182,6 +189,17 @@ public class Level extends World {
         return true;
     }
 
+    public boolean addAt(int x, int y, Thing t) {
+        if(!tiles[x][y].isGround())
+            return false;
+        if(!t.isOpen() && (items[x][y] != null || getCreatureAt(x, y) != null))
+            return false;
+
+        things.add(t);
+        t.setLocation(x, y);
+        return true;
+    }
+
     /**
      * @param x X coordinate
      * @param y Y Coordinate
@@ -234,6 +252,10 @@ public class Level extends World {
         }
     }
 
+    public void remove(Thing thing) {
+        things.remove(thing);
+    }
+
     /**
      * Remove an item at (x, y) from the level
      * @param x X coord
@@ -282,23 +304,19 @@ public class Level extends World {
     }
 
     /**
-     * @param x X coord
-     * @param y Y coord
-     * @return Return the stairs at (x, y), or null if there is none
-     */
-    public Stairs getStairsAt(int x, int y) {
-        for(Stairs s : stairs) if(s.getX() == x && s.getY() == y) return s;
-        return null;
-    }
-
-    /**
      * Place the given staircase s at (x, y)
      * @param s A staircase
      */
-    public void addStairs(Stairs s) {
-        tiles[s.getX()][s.getY()] = s.getT();
-        stairs.add(s);
+    public void addStairs(world.thing.Stairs s) {
+        addAt(s.getX(), s.getY(), s);
         s.setLevel(this);
+    }
+
+    public boolean isPassable(int x, int y) {
+        if(!tiles[x][y].isPassable()) return false;
+        if(getThingAt(x, y) != null && !getThingAt(x, y).isOpen()) return false;
+
+        return true;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -360,12 +378,20 @@ public class Level extends World {
         this.rooms = rooms;
     }
 
-    public ArrayList<Stairs> getStairs() {
+    public ArrayList<world.thing.Stairs> getStairs() {
         return stairs;
     }
 
     public void setStairs(ArrayList<Stairs> stairs) {
         this.stairs = stairs;
+    }
+
+    public ArrayList<Thing> getThings() {
+        return things;
+    }
+
+    public void setThings(ArrayList<Thing> things) {
+        this.things = things;
     }
 
     public String getName() {

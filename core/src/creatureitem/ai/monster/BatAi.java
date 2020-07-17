@@ -17,9 +17,7 @@ public class BatAi extends CreatureAi {
 
     @Override
     public void onUpdate() {
-
-        //Update hunger
-        if(creature.getLevel().getTurn() % 5 == 0) creature.modifyHunger(-1);
+        super.onUpdate();
 
         //Move around
         wander();

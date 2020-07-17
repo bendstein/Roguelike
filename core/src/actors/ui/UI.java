@@ -27,6 +27,7 @@ public class UI {
 
     private Table table1;
     private Label hp;
+    private Label mana;
     private Label hunger;
     private Label level;
     private Label armor;
@@ -55,19 +56,28 @@ public class UI {
 
         hp = new Label("", skin);
         hp.setWrap(false);
+        hp.setFontScale(.8f);
+
+        mana = new Label("", skin);
+        mana.setWrap(true);
+        mana.setFontScale(.8f);
 
         hunger = new Label("", skin);
         hunger.setWrap(false);
+        hunger.setFontScale(.8f);
 
         armor = new Label("", skin);
-        hunger.setWrap(true);
+        armor.setWrap(true);
+        armor.setFontScale(.8f);
 
         level = new Label("", skin);
         level.setWrap(true);
+        level.setFontScale(.8f);
 
-        table1.top().left().padLeft(5).defaults().expandY().height((1f * viewport.getScreenHeight()) / 10f).width(.1f * viewport.getScreenWidth());
+        table1.top().left().padLeft(5).defaults().expandY().height((1f * viewport.getScreenHeight()) / 10f).width(.2f * viewport.getScreenWidth());
 
         table1.add(hp).width(.1f * viewport.getScreenWidth()).height((1f * viewport.getScreenHeight()) / 20f);
+        table1.add(mana).width(.1f * viewport.getScreenWidth()).height((1f * viewport.getScreenHeight()) / 20f);
         table1.row();
         table1.add(hunger).width(.1f * viewport.getScreenWidth()).height((1f * viewport.getScreenHeight()) / 20f);
         table1.row();
@@ -80,7 +90,7 @@ public class UI {
         table1.layout();
 
         //Filler space
-        root.add().width(.7f * viewport.getScreenWidth());
+        root.add().width(.6f * viewport.getScreenWidth());
 
         outerLogTable = new Table();
         outerLogTable.pad(5).defaults().space(4);
@@ -195,12 +205,13 @@ public class UI {
 
         //Update location
         float menux = viewport.getCamera().position.x - viewport.getScreenWidth()/2f;
-        float menuy = viewport.getCamera().position.y + (2f * viewport.getScreenHeight()/5f) - 2.4f * Main.getTILE_SIZE();
+        float menuy = viewport.getCamera().position.y + (2f * viewport.getScreenHeight()/5f) - (float)Math.pow(Main.getTileHeight(), 2)/10f;
 
         root.setPosition(menux, menuy);
 
         //Update content
-        hp.setText(String.format(Locale.getDefault(), "%d/%d hp", game.getPlayer().getHP(), game.getPlayer().getMaxHP()));
+        hp.setText(String.format(Locale.getDefault(), "%d/%d hp", game.getPlayer().getHp(), game.getPlayer().getHpMax()));
+        mana.setText(String.format(Locale.getDefault(), "%d/%d mana", game.getPlayer().getMana(), game.getPlayer().getManaMax()));
         hunger.setText(game.getPlayer().hungerToString() + " (" + game.getPlayer().getHunger() + ")");
         armor.setText(game.getPlayer().getArmor() + " defence");
         level.setText(String.format(Locale.getDefault(), "Level %d (%d to next)", game.getPlayer().getExpLevel(), game.getPlayer().getAi().expToNextLevel()));

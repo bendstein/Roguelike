@@ -1,0 +1,450 @@
+package screens;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.badlogic.gdx.utils.viewport.Viewport;
+import creatureitem.Player;
+import creatureitem.item.Equipable;
+import creatureitem.item.Food;
+import creatureitem.item.Item;
+import creatureitem.item.Potion;
+import creatureitem.spell.Spell;
+import game.Main;
+
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
+
+public class SpellScreen extends ScreenAdapter {
+
+    /**
+     * Reference to the main application
+     */
+    private Main game;
+
+    /**
+     * Letters referring to the index in the inventory
+     */
+    private final String LETTERS = "abcdefghijklmnopqrstuvwxyz";
+
+    /**
+     * Mapping from the letter index to the item
+     */
+    private TreeMap<String, Spell> spellbook;
+
+    /**
+     * Variables related to the main stage
+     */
+    private Stage stage;
+    private Table root;
+    private Viewport viewport;
+    private Camera camera;
+
+    private final Skin skin = new Skin(Gdx.files.internal("skin/glassy-ui.json"));
+
+    private Label verbLabel;
+
+    private ScrollPane list;
+    private Table listTable;
+    private Table outerListTable;
+
+    private String currentVerb;
+    private String[] currentFilter;
+    private String selection;
+    private boolean shift;
+
+    int turnsElapsed;
+
+    public SpellScreen(Main game) {
+        this.game = game;
+        this.spellbook = new TreeMap<>();
+
+        camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        viewport = new ScreenViewport(camera);
+        stage = new Stage(viewport, game.getBatch());
+        currentVerb = "";
+        selection = "";
+        shift = false;
+
+        stage.addListener(new InputListener() {
+            @Override
+            public boolean keyDown(InputEvent event, int keycode) {
+
+                if(Input.Keys.toString(keycode).length() == 1) {
+                    char in = Input.Keys.toString(keycode).charAt(0);
+                    selection += shift? Character.toUpperCase(in) : Character.toLowerCase(in);
+
+                    if(filtered().size() == 1) use(filtered().firstKey());
+                }
+
+                switch (keycode) {
+                    case Input.Keys.ESCAPE: {
+                        game.setScreen(game.getPlayScreen());
+                        return true;
+                    }
+                    case Input.Keys.SHIFT_LEFT:
+                    case Input.Keys.SHIFT_RIGHT: {
+                        shift = true;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            public boolean keyUp(InputEvent event, int keycode) {
+                switch (keycode) {
+                    case Input.Keys.SHIFT_LEFT:
+                    case Input.Keys.SHIFT_RIGHT: {
+                        shift = false;
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            public boolean scrolled(InputEvent event, float x, float y, int amount) {
+                if(amount == 1) {
+                    list.setScrollY(list.getScrollY() + 20);
+                    return true;
+                }
+                else if(amount == -1) {
+                    list.setScrollY(list.getScrollY() - 20);
+                    return true;
+                }
+
+                return false;
+            }
+
+        });
+        currentVerb = "";
+        currentFilter = new String[]{""};
+        turnsElapsed = 0;
+
+        init();
+
+    }
+
+    public void init() {
+
+        root = new Table();
+        root.setFillParent(true);
+        root.setBackground(new TextureRegionDrawable(new Texture(Gdx.files.internal("data/Test_Background.png"))));
+        root.top().left();
+        root.setSize(viewport.getScreenWidth(), viewport.getScreenHeight());
+        stage.addActor(root);
+
+        verbLabel = new Label(currentVerb.equals("")? "Spells" : Character.toUpperCase(currentVerb.charAt(0)) + currentVerb.substring(1), skin);
+        verbLabel.setWrap(true);
+        verbLabel.pack();
+        root.add(verbLabel).width(9f * getViewport().getScreenWidth()/10f);
+        root.row();
+
+        outerListTable = new Table();
+        outerListTable.pad(5).defaults();
+        outerListTable.setSize(viewport.getScreenWidth(), viewport.getScreenHeight());
+        outerListTable.layout();
+
+        root.add(outerListTable);
+
+        listTable = new Table();
+        listTable.pad(5).defaults();
+        listTable.setSize(viewport.getScreenWidth(), viewport.getScreenHeight());
+        listTable.layout();
+
+        list = new ScrollPane(listTable);
+        list.setSize(viewport.getScreenWidth(), viewport.getScreenHeight());
+        list.setFadeScrollBars(false);
+        list.setScrollingDisabled(true, false);
+        outerListTable.add(list);
+
+    }
+
+    public void out() {
+        listTable.clearChildren();
+
+        TreeMap<String, Spell> filtered = filtered();
+
+        for(Map.Entry<String, Spell> entry : filtered.entrySet()) {
+            Label l;
+
+            l = new Label(String.format(Locale.getDefault(), "%s, %s, %d Mana", entry.getKey(), entry.getValue().getName(), entry.getValue().getCost()), skin);
+
+            l.setWrap(true);
+            l.pack();
+            listTable.add(l).width(9f * getViewport().getScreenWidth()/10f);
+            listTable.row();
+            listTable.layout();
+        }
+    }
+
+    public TreeMap<String, Spell> filtered() {
+        TreeMap<String, Spell> filtered;
+
+        if(!selection.equals("")) {
+            filtered = new TreeMap<>();
+            for(Map.Entry<String, Spell> entry : spellbook.entrySet()) {
+                if(entry.getKey().contains(selection)) filtered.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        else
+            filtered = spellbook;
+
+        if(filtered.size() == 0)
+            selection = "";
+
+        return filtered;
+    }
+
+    /**
+     * Perform the verb on the item
+     * @param index the location in the inventory of the item to use
+     */
+    public void use(String index) {
+        Spell s = spellbook.get(index);
+        game.getPlayer().prepCast(s);
+        game.setScreen(game.getPlayScreen());
+        selection = "";
+        /*
+        if(currentVerb.equals("drop")) {
+            Item i = inventory.get(index);
+            game.getPlayer().drop(i);
+            inventory.remove(index);
+            selection = "";
+        }
+        else if(currentVerb.equals("throw")) {
+            game.getPlayer().prepThrow(inventory.get(index));
+            game.setScreen(game.getPlayScreen());
+            selection = "";
+        }
+        else if(currentVerb.equals("eat")) {
+            Food i = new Food(inventory.get(index));
+            game.getPlayer().eat(i);
+            selection = "";
+            if(game.getPlayer().getInventory().contains(i) == -1) inventory.remove(index);
+            else inventory.replace(index, game.getPlayer().getInventory().getItems()[game.getPlayer().getInventory().contains(i)]);
+        }
+        else if(currentVerb.equals("equip")) {
+            if(getPlayer().isEquipped(inventory.get(index))) getPlayer().unequip(inventory.get(index));
+            else getPlayer().equip(inventory.get(index));
+            selection = "";
+        }
+        else if(currentVerb.equals("quaff")) {
+            Potion p = (Potion)inventory.get(index);
+            game.getPlayer().drink(p);
+            selection = "";
+            if(game.getPlayer().getInventory().contains(p) == -1) inventory.remove(index);
+            else inventory.replace(index, game.getPlayer().getInventory().getItems()[game.getPlayer().getInventory().contains(p)]);
+        }
+
+         */
+    }
+
+
+    ///**
+     //* Filter the inventory to only show items that match the requirements
+     //*/
+
+    public void filterProperty(String ... keywords) {
+        ArrayList<Spell> filtered = new ArrayList<>();
+
+        if(game.getPlayer().getSpells().size() == 0) return;
+
+        for(Spell s : game.getPlayer().getSpells()) {
+            if(s == null) continue;
+            filtered.add(s);
+            /*
+            if(keywords.length == 0 || keywords[0].equals("") || s.hasProperty(keywords))
+                filtered.add(i);
+
+             */
+        }
+
+        for(int i = 0; i < filtered.size(); i++) {
+            int index = i % LETTERS.length();
+            int times = Math.floorDiv(i, LETTERS.length()) + 1;
+            StringBuilder s = new StringBuilder();
+
+            do {
+                if(times % 2 == 0) {
+                    s.append(Character.toUpperCase(LETTERS.charAt(index)));
+                    times -= 2;
+                }
+                else {
+                    s.append(LETTERS.charAt(index));
+                    times -= 1;
+                }
+
+            } while (times > 0);
+
+            spellbook.put(s.toString(), filtered.get(i));
+        }
+    }
+
+
+    /**
+     * @param key The string associated with the item's index in the inventory
+     * @return The item who's index is associated with the string given
+     */
+    public Spell getSpellAt(String key) {
+        return spellbook.get(key);
+    }
+
+    @Override
+    public void render(float delta) {
+        super.render(delta);
+        Gdx.gl.glClearColor(0, 0, 0, 255);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        camera.update();
+        stage.act(Gdx.graphics.getDeltaTime());
+        outerListTable.bottom().left();
+        outerListTable.setPosition(0f, 0f);
+        verbLabel.setText(currentVerb.equals("")? "Spells" : Character.toUpperCase(currentVerb.charAt(0)) + currentVerb.substring(1));
+        out();
+        stage.draw();
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        super.resize(width, height);
+        viewport.update(width, height);
+    }
+
+    @Override
+    public void show() {
+        Gdx.input.setInputProcessor(stage);
+        listTable.clearChildren();
+        spellbook.clear();
+        selection = "";
+        turnsElapsed = 0;
+        filterProperty(currentFilter);
+    }
+
+    @Override
+    public void hide() {
+        Gdx.input.setInputProcessor(null);
+        selection = "";
+    }
+
+    //<editor-fold desc="Getters and Setters">
+    public Player getPlayer() {
+        return game.getPlayer();
+    }
+
+    public Main getGame() {
+        return game;
+    }
+
+    public void setGame(Main game) {
+        this.game = game;
+    }
+
+    public String getLETTERS() {
+        return LETTERS;
+    }
+
+    public TreeMap<String, Spell> getSpellbook() {
+        return spellbook;
+    }
+
+    public void setInventory(TreeMap<String, Spell> spellbook) {
+        this.spellbook = spellbook;
+    }
+
+    public Stage getStage() {
+        return stage;
+    }
+
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    public Table getRoot() {
+        return root;
+    }
+
+    public void setRoot(Table root) {
+        this.root = root;
+    }
+
+    public Viewport getViewport() {
+        return viewport;
+    }
+
+    public void setViewport(Viewport viewport) {
+        this.viewport = viewport;
+    }
+
+    public Camera getCamera() {
+        return camera;
+    }
+
+    public void setCamera(Camera camera) {
+        this.camera = camera;
+    }
+
+    public Skin getSkin() {
+        return skin;
+    }
+
+    public ScrollPane getList() {
+        return list;
+    }
+
+    public void setList(ScrollPane list) {
+        this.list = list;
+    }
+
+    public Table getListTable() {
+        return listTable;
+    }
+
+    public void setListTable(Table listTable) {
+        this.listTable = listTable;
+    }
+
+    public Table getOuterListTable() {
+        return outerListTable;
+    }
+
+    public void setOuterListTable(Table outerListTable) {
+        this.outerListTable = outerListTable;
+    }
+
+    public String getCurrentVerb() {
+        return currentVerb;
+    }
+
+    public void setCurrentVerb(String currentVerb) {
+        this.currentVerb = currentVerb;
+    }
+
+    public String[] getCurrentFilter() {
+        return currentFilter;
+    }
+
+    public void setCurrentFilter(String ... currentFilter) {
+        this.currentFilter = currentFilter;
+    }
+
+    //</editor-fold>
+}

@@ -2,7 +2,12 @@ package creatureitem;
 
 import creatureitem.ai.PlayerAi;
 import creatureitem.item.*;
+import creatureitem.spell.AOESpell;
+import creatureitem.spell.LineSpell;
+import creatureitem.spell.PointSpell;
+import creatureitem.spell.Spell;
 import world.Level;
+import world.Tile;
 import world.World;
 import world.geometry.Cursor;
 import world.geometry.Line;
@@ -35,6 +40,11 @@ public class Player extends creatureitem.Creature {
     private Item toThrow;
 
     /**
+     * The spell we're preparing to cast
+     */
+    private Spell toCast;
+
+    /**
      * Cursor pointing at a tile on the map
      */
     private Cursor cursor;
@@ -43,9 +53,9 @@ public class Player extends creatureitem.Creature {
 
     //</editor-fold>
 
-    public Player(int maxHP, int hungerMax, int exp, int strength, int agility, int constitution, int perception,
+    public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence,
                   Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor) {
-        super(maxHP, hungerMax, exp, strength, agility, constitution, perception,
+        super(maxHP, hungerMax, manaMax, exp, strength, agility, constitution, perception, intelligence,
         level, texturePath, name, glyph, team, unarmedAttack, natArmor);
 
         isDead = false;
@@ -152,6 +162,14 @@ public class Player extends creatureitem.Creature {
         this.turnsToProcess += i;
     }
 
+    public Spell getToCast() {
+        return toCast;
+    }
+
+    public void setToCast(Spell toCast) {
+        this.toCast = toCast;
+    }
+
     //</editor-fold>
 
     /**
@@ -202,6 +220,11 @@ public class Player extends creatureitem.Creature {
         cursor.setHasLine(true);
         cursor.setConsiderObstacle(true);
         cursor.setRange(getThrowRange());
+        cursor.setHasArea(false);
+
+        cursor.setPositive(0);
+        cursor.setNegative(1);
+        cursor.setNeutral(2);
     }
 
     public void prepShoot() {
@@ -212,11 +235,55 @@ public class Player extends creatureitem.Creature {
         cursor.setHasLine(true);
         cursor.setConsiderObstacle(true);
         cursor.setRange(rangedWeapon.getRange());
+        cursor.setHasArea(false);
+
+        cursor.setPositive(0);
+        cursor.setNegative(1);
+        cursor.setNeutral(2);
+    }
+
+    public void prepCast(Spell s) {
+        if(s instanceof PointSpell) {
+
+            cursor.setPurpose("zap");
+            cursor.setLocation(x, y);
+            cursor.setActive(true);
+            cursor.setHasLine(true);
+            cursor.setConsiderObstacle(true);
+            cursor.setRange(((PointSpell)s).getRange());
+
+            cursor.setPositive(0);
+            cursor.setNegative(1);
+            cursor.setNeutral(2);
+            cursor.setHasArea(false);
+
+            if(s instanceof LineSpell) cursor.setNeutral(0);
+            if(s instanceof AOESpell) cursor.setRadius(((AOESpell) s).getRadius());
+
+            toCast = s;
+        }
     }
 
     public void shoot() {
         super.shootRangedWeapon(cursor);
         level.update();
+    }
+
+    @Override
+    public void cast(Spell s) {
+
+        doAction("cast %s.", s.getName());
+
+        if(s instanceof LineSpell) {
+            ((LineSpell)s).cast(getLocation(), cursor);
+        }
+        else if(s instanceof AOESpell) {
+            ((AOESpell)s).cast(cursor.getX(), cursor.getY());
+        }
+        else if(s instanceof PointSpell) {
+            ((PointSpell)s).cast(cursor);
+        }
+        toCast = null;
     }
 
     public void processTurns() {
@@ -239,6 +306,12 @@ public class Player extends creatureitem.Creature {
             doAction("feel %s.", hungerToString());
 
         inventory.removeOne(f);
+        increaseTurnsToProcess(1);
+    }
+
+    @Override
+    public void drink(Potion p) {
+        super.drink(p);
         increaseTurnsToProcess(1);
     }
 

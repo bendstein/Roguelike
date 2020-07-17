@@ -1,5 +1,6 @@
 package actors.creatures;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import creatureitem.Player;
@@ -7,6 +8,7 @@ import game.Main;
 import creatureitem.Creature;
 import utility.Utility;
 import world.Tile;
+import world.geometry.Cursor;
 import world.geometry.Line;
 import world.geometry.Point;
 
@@ -117,14 +119,16 @@ public class PlayerActor extends CreatureActor {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         //Draw the texture
-        batch.draw(creature.getTexture(), Main.getTILE_SIZE() * creature.getX(), Main.getTILE_SIZE() * creature.getY());
+        batch.draw(creature.getTexture(), Main.getTileWidth() * creature.getX(), Main.getTileHeight() * creature.getY());
+
+        Cursor cursor = ((Player)creature).getCursor();
 
         //Draw the cursor if it's active
-        if(((Player)creature).getCursor().isActive()) {
+        if(cursor.isActive()) {
 
             //Draw the line if the cursor has one
-            if(((Player)creature).getCursor().isHasLine()) {
-                Line l = new Line(creature.getX(), ((Player)creature).getCursor().getX(), creature.getY(), ((Player)creature).getCursor().getY());
+            if(cursor.isHasLine()) {
+                Line l = new Line(creature.getX(), cursor.getX(), creature.getY(), cursor.getY());
 
                 int i = 0;
                 boolean obstacle = false;
@@ -132,18 +136,26 @@ public class PlayerActor extends CreatureActor {
                 //Cursor is green if the location is acceptable (in range, not in an obstacle, etc), and red if it's not
                 for(Point p : l) {
 
-                    if(((Player)creature).getCursor().isConsiderObstacle() && (!creature.getLevel().getTileAt(p.getX(), p.getY()).isPassable() || obstacle)) {
-                        batch.draw(Tile.CURSOR_RED.getTexture(), Main.getTILE_SIZE() * p.getX(), Main.getTILE_SIZE() * p.getY());
+                    if(cursor.isConsiderObstacle() && (!creature.getLevel().isPassable(p.getX(), p.getY()) || obstacle)) {
+                        batch.draw(cursor.getNegativeTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
                         obstacle = true;
                     }
 
-                    else if(!((Player)creature).getCursor().isHasRange())
-                        batch.draw(Tile.CURSOR_GREEN.getTexture(), Main.getTILE_SIZE() * p.getX(), Main.getTILE_SIZE() * p.getY());
-                    else {
-                        if(i <= ((Player)creature).getCursor().getRange())
-                            batch.draw(Tile.CURSOR_GREEN.getTexture(), Main.getTILE_SIZE() * p.getX(), Main.getTILE_SIZE() * p.getY());
+                    else if(!cursor.isHasRange()) {
+                        if(p.equals(cursor))
+                            batch.draw(cursor.getPositiveTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
                         else
-                            batch.draw(Tile.CURSOR_RED.getTexture(), Main.getTILE_SIZE() * p.getX(), Main.getTILE_SIZE() * p.getY());
+                            batch.draw(cursor.getNeutralTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
+                    }
+                    else {
+                        if(i <= cursor.getRange()) {
+                            if(p.equals(cursor) || i == cursor.getRange())
+                                batch.draw(cursor.getPositiveTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
+                            else
+                                batch.draw(cursor.getNeutralTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
+                        }
+                        else
+                            batch.draw(cursor.getNegativeTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
                     }
                     i++;
                 }
@@ -152,17 +164,54 @@ public class PlayerActor extends CreatureActor {
 
             //Cursor is green if the location is acceptable (in range, not in an obstacle, etc), and red if it's not
             else
-                if(((Player)creature).getCursor().isConsiderObstacle() && !creature.getLevel().getTileAt(((Player)creature).getCursor().getX(), ((Player)creature).getCursor().getY()).isPassable())
-                    batch.draw(Tile.CURSOR_RED.getTexture(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getX(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getY());
-                else if(!((Player)creature).getCursor().isHasRange())
-                    batch.draw(Tile.CURSOR_GREEN.getTexture(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getX(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getY());
+                if(cursor.isConsiderObstacle() && !creature.getLevel().isPassable(cursor.getX(), cursor.getY()))
+                    batch.draw(cursor.getNegativeTexture(), Main.getTileWidth() * cursor.getX(), Main.getTileHeight() * cursor.getY());
+                else if(!cursor.isHasRange())
+                    batch.draw(cursor.getPositiveTexture(), Main.getTileWidth() * cursor.getX(), Main.getTileHeight() * cursor.getY());
                 else {
-                    int r = Utility.getDistance(creature.getLocation(), ((Player)creature).getCursor());
-                    if(r <= ((Player)creature).getCursor().getRange())
-                        batch.draw(Tile.CURSOR_GREEN.getTexture(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getX(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getY());
+                    int r = Utility.getDistance(creature.getLocation(), cursor);
+                    if(r <= cursor.getRange())
+                        batch.draw(cursor.getPositiveTexture(), Main.getTileWidth() * cursor.getX(), Main.getTileHeight() * cursor.getY());
                     else
-                        batch.draw(Tile.CURSOR_RED.getTexture(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getX(), Main.getTILE_SIZE() * ((Player)creature).getCursor().getY());
+                        batch.draw(cursor.getNegativeTexture(), Main.getTileWidth() * cursor.getX(), Main.getTileHeight() * cursor.getY());
                 }
+
+
+            //If there is an area around the cursor, and the cursor is in range, draw it
+            if(!cursor.isHasRange() || Utility.getDistance(creature.getLocation(), cursor) <= cursor.getRange() + 1) {
+                if(cursor.isHasArea()) {
+                    for(int i = -cursor.getRadius(); i <= cursor.getRadius(); i++) {
+                        for(int j = -cursor.getRadius(); j <= cursor.getRadius(); j++) {
+                            //if(i == 0 && j == 0) continue;
+                            if(cursor.getX() + i < 0 || cursor.getX() + i >= Gdx.graphics.getWidth() || cursor.getY() + j < 0 || cursor.getY() + j >= Gdx.graphics.getHeight()) continue;
+
+                            if(Math.pow(i, 2) + Math.pow(j, 2) <= Math.pow(cursor.getRadius(), 2)) {
+                                boolean obstacle = false;
+                                for(Point p : new Line(cursor.getX(), cursor.getX() + i, cursor.getY(), cursor.getY() + j)) {
+
+                                    if(cursor.isConsiderObstacle() && (!creature.getLevel().isPassable(p.getX(), p.getY()) || obstacle)) {
+                                        batch.draw(cursor.getNegativeTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
+                                        obstacle = true;
+                                    }
+                                    else
+                                        batch.draw(cursor.getPositiveTexture(), Main.getTileWidth() * p.getX(), Main.getTileHeight() * p.getY());
+                                }
+                            }
+
+
+                            /*
+                            if(cursor.isConsiderObstacle() && !creature.getLevel().getTileAt(cursor.getX() + i, cursor.getY() + j).isPassable())
+                                batch.draw(cursor.getNegative().getTexture(), Main.getTILE_SIZE() * (cursor.getX() + i), Main.getTILE_SIZE() * (cursor.getY() + j));
+                            else
+                                batch.draw(cursor.getPositive().getTexture(), Main.getTILE_SIZE() * (cursor.getX() + i), Main.getTILE_SIZE() * (cursor.getY() + j));
+
+                             */
+
+                        }
+                    }
+                }
+            }
+
         }
     }
 

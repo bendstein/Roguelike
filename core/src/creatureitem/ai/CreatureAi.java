@@ -1,6 +1,7 @@
 package creatureitem.ai;
 
 import creatureitem.Creature;
+import creatureitem.effect.Effect;
 import creatureitem.item.Food;
 import utility.Utility;
 import world.Tile;
@@ -60,6 +61,7 @@ public class CreatureAi {
     public void onUpdate() {
         if(creature.getLevel().getTurn() % creature.getHungerRate() == creature.getHungerRate() - 1) creature.modifyHunger(-1);
         if(creature.getLevel().getTurn() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
+        if(creature.getLevel().getTurn() % creature.getManaRegenRate() == creature.getManaRegenRate() -1) creature.modifyMana(1);
     }
 
     /**
@@ -85,14 +87,8 @@ public class CreatureAi {
                 continue;
             else if(p.getX() == x && p.getY() == y)
                 continue;
-            else if(creature.getLevel().getTileAt(creature.getX(), creature.getY()) == Tile.DOOR) {
-                if(creature.getLevel().getTileAt(p.getX(), p.getY()).isGround() &&
-                        (creature.getLevel().getTileAt(p.getX(), p.getY()) != Tile.DOOR ||
-                                (p.getX() == creature.getX() && p.getY() == creature.getY())))
-                    continue;
-            }
-            else if(creature.getLevel().getTileAt(p.getX(), p.getY()).isGround() &&
-                    creature.getLevel().getTileAt(p.getX(), p.getY()) != Tile.DOOR)
+
+            else if(creature.getLevel().isPassable(p.getX(), p.getY()))
                 continue;
 
             boolean canSee = false;
@@ -101,7 +97,7 @@ public class CreatureAi {
                     int creaturex = creature.getX(), creaturey = creature.getY();
                     int seex = creaturex + i, seey = creaturey + j;
 
-                    if(creature.getLevel().getTileAt(seex, seey) == Tile.DOOR) {
+                    if(creature.getLevel().getThingAt(seex, seey) != null && !creature.getLevel().getThingAt(seex, seey).isOpen()) {
                         for(int i1 = -1; i1 <= 1; i1++) {
                             for(int j1 = -1; j1 <= 1; j1++) {
                                 if(x == seex + i1 && y == seey + j1)
@@ -187,9 +183,15 @@ public class CreatureAi {
     public void gainLevels(int lvlold) {
         for(int i = lvlold + 1; i <= creature.getExpLevel(); i++) {
             creature.modifyMaxHp((i * 2) + creature.getAttributeBonus(creature.getConstitution()));
-            creature.setHP(creature.getMaxHP());
+            creature.setHp(creature.getHpMax());
+            creature.modifyMana((i * 2) + creature.getAttributeBonus(creature.getIntelligence()));
+            creature.setMana(creature.getManaMax());
         }
 
+    }
+
+    public boolean useStairs() {
+        return false;
     }
 
 }

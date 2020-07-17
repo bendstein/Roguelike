@@ -4,9 +4,10 @@ import actors.world.LevelActor;
 import creatureitem.Player;
 import creatureitem.generation.CreatureItemFactory;
 import game.Main;
-import org.graalvm.compiler.api.replacements.Snippet;
 import org.jetbrains.annotations.NotNull;
 import world.generation.LevelFactory;
+import world.thing.Stairs;
+import world.thing.StairsBehavior;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -82,7 +83,7 @@ public class Dungeon {
             factory.setLevel(current);
             if(i == 0) {
                 root = current;
-                Stairs first = connect(current, previous, true);
+                world.thing.Stairs first = connect(current, previous, true);
                 this.player = factory.newPlayer(new ArrayList<>());
                 player.setLevel(current);
                 current.setPlayer(player);
@@ -92,8 +93,8 @@ public class Dungeon {
             }
             else
                 connect(current, previous, true);
+            for(int c = 0; c < 0; c++) {
 
-            for(int c = 0; c < 8; c++) {
                 current.addAtEmptyLocation(factory.newFungus());
                 current.addAtEmptyLocation(factory.newZombie());
                 current.addAtEmptyLocation(factory.newGoblin());
@@ -104,6 +105,10 @@ public class Dungeon {
                 current.addAtEmptyLocation(factory.newArrow());
                 current.addAtEmptyLocation(factory.newSling());
                 current.addAtEmptyLocation(factory.newArmor());
+                current.addAtEmptyLocation(factory.newHealthPotion());
+                current.addAtEmptyLocation(factory.newRegenPotion());
+                current.addAtEmptyLocation(factory.newPoisonPotion());
+                current.addAtEmptyLocation(factory.newHeroismPotion());
             }
 
             previous = current;
@@ -119,7 +124,7 @@ public class Dungeon {
      * @param below true if level a is below level b
      * @return the staircase generated on level a
      */
-    public Stairs connect(@NotNull Level a, Level b, boolean below) {
+    public world.thing.Stairs connect(@NotNull Level a, Level b, boolean below) {
 
         int ax, ay, bx, by;
 
@@ -128,7 +133,9 @@ public class Dungeon {
             ay = random.nextInt(a.getHeight());
         } while(a.getTileAt(ax, ay) != Tile.FLOOR);
 
-        Stairs stair_a = new Stairs(ax, ay, null, a, below);
+        world.thing.Stairs stair_a = new world.thing.Stairs(ax, ay, null, a, below);
+        new StairsBehavior(stair_a);
+
         a.addStairs(stair_a);
 
         if (b != null) {
@@ -137,7 +144,9 @@ public class Dungeon {
                 by = random.nextInt(b.getHeight());
             } while(b.getTileAt(bx, by) != Tile.FLOOR);
 
-            Stairs stair_b = new Stairs(bx, by, stair_a, b, !below);
+            world.thing.Stairs stair_b = new Stairs(bx, by, stair_a, b, !below);
+            new StairsBehavior(stair_b);
+
             stair_a.setDestination(stair_b);
             b.addStairs(stair_b);
         }

@@ -1,18 +1,15 @@
 package game;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import creatureitem.generation.CreatureItemFactory;
 import creatureitem.Player;
-import screens.InventoryScreen;
-import screens.LoseScreen;
-import screens.MainMenu;
-import screens.PlayScreen;
+import screens.*;
 import world.Dungeon;
 import world.Level;
-import world.Stairs;
 import world.generation.LevelFactory;
 
 import java.util.ArrayList;
@@ -22,11 +19,13 @@ public class Main extends Game {
 
     private SpriteBatch batch;
     private BitmapFont font;
+    private AssetManager manager;
 
     private PlayScreen playScreen;
     private MainMenu mainMenu;
     private LoseScreen loseScreen;
     private InventoryScreen inventoryScreen;
+    private SpellScreen spellScreen;
 
     private Dungeon dungeon;
     private Player player;
@@ -38,16 +37,19 @@ public class Main extends Game {
 
     private long seed;
 
-    private static final int TILE_SIZE = 32;
+    private static final int TILE_WIDTH = 24;
+    private static final int TILE_HEIGHT = 28;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
         font = new BitmapFont();
         font.setColor(Color.BLACK);
+        manager = new AssetManager();
         mainMenu = new MainMenu(this);
         loseScreen = new LoseScreen(this);
         inventoryScreen = new InventoryScreen(this);
+        spellScreen = new SpellScreen(this);
         seed = System.currentTimeMillis();
         random = new Random(seed);
         turn = 0;
@@ -117,8 +119,12 @@ public class Main extends Game {
         this.messages = messages;
     }
 
-    public static int getTILE_SIZE() {
-        return TILE_SIZE;
+    public static int getTileWidth() {
+        return TILE_WIDTH;
+    }
+
+    public static int getTileHeight() {
+        return TILE_HEIGHT;
     }
 
     public LoseScreen getLoseScreen() {
@@ -143,6 +149,14 @@ public class Main extends Game {
 
     public void setInventoryScreen(InventoryScreen inventoryScreen) {
         this.inventoryScreen = inventoryScreen;
+    }
+
+    public SpellScreen getSpellScreen() {
+        return spellScreen;
+    }
+
+    public void setSpellScreen(SpellScreen spellScreen) {
+        this.spellScreen = spellScreen;
     }
 
     public long getSeed() {

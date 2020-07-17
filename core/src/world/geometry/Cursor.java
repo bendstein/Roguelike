@@ -1,41 +1,56 @@
 package world.geometry;
 
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import world.Tile;
+
 public class Cursor extends Point {
 
     /**
      * Whether or not there should be a line following the cursor
      */
-    boolean hasLine;
+    private boolean hasLine;
+
+    /**
+     * Whether or not the cursor has an area
+     */
+    private boolean hasArea;
+
+    /**
+     * The radius of the cursor area, if it has a surrounding area
+     */
+    private int radius;
 
     /**
      * Whether or not the cursor should be currently shown
      */
-    boolean isActive;
+    private boolean isActive;
 
     /**
      * Whether or not the camera should follow the cursor
      */
-    boolean follow;
+    private boolean follow;
 
     /**
      * If the cursor has a range
      */
-    boolean hasRange;
+    private boolean hasRange;
 
     /**
      * The range the cursor has if it has a range
      */
-    int range;
+    private int range;
 
     /**
      * Whether or not the cursor cares about obstacles
      */
-    boolean considerObstacle;
+    private boolean considerObstacle;
 
     /**
      * What the cursor is currently being used for
      */
-    String purpose;
+    private String purpose;
+
+    private int negative, neutral, positive;
 
     public Cursor(int x, int y) {
         super(x, y);
@@ -46,6 +61,9 @@ public class Cursor extends Point {
         range = 0;
         considerObstacle = false;
         purpose = "";
+        negative = 1;
+        neutral = 2;
+        positive = 0;
     }
 
     public Cursor(int x, int y, boolean hasLine) {
@@ -57,6 +75,9 @@ public class Cursor extends Point {
         range = 0;
         considerObstacle = false;
         purpose = "";
+        negative = 1;
+        neutral = 2;
+        positive = 0;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -101,6 +122,23 @@ public class Cursor extends Point {
         hasRange = true;
     }
 
+    public boolean isHasArea() {
+        return hasArea;
+    }
+
+    public void setHasArea(boolean hasArea) {
+        this.hasArea = hasArea;
+    }
+
+    public int getRadius() {
+        return radius;
+    }
+
+    public void setRadius(int radius) {
+        this.radius = radius;
+        hasArea = true;
+    }
+
     public boolean isConsiderObstacle() {
         return considerObstacle;
     }
@@ -115,6 +153,42 @@ public class Cursor extends Point {
 
     public void setPurpose(String purpose) {
         this.purpose = purpose;
+    }
+
+    public int getNegative() {
+        return negative;
+    }
+
+    public TextureRegion getNegativeTexture() {
+        return Tile.CURSOR.getSprite(negative);
+    }
+
+    public void setNegative(int negative) {
+        this.negative = negative;
+    }
+
+    public int getNeutral() {
+        return neutral;
+    }
+
+    public TextureRegion getNeutralTexture() {
+        return Tile.CURSOR.getSprite(neutral);
+    }
+
+    public void setNeutral(int neutral) {
+        this.neutral = neutral;
+    }
+
+    public int getPositive() {
+        return positive;
+    }
+
+    public TextureRegion getPositiveTexture() {
+        return Tile.CURSOR.getSprite(positive);
+    }
+
+    public void setPositive(int positive) {
+        this.positive = positive;
     }
 
     //</editor-fold>

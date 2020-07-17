@@ -56,7 +56,7 @@ public class FungusAi extends CreatureAi {
     //</editor-fold>
 
     public void onUpdate() {
-
+        super.onUpdate();
         //Low chance for the fungus to spread to a nearby tile
         if(creature.getLevel().getRandom().nextDouble() <= SPREAD_PROBABILITY && spread < MAX_SPREAD)
             spread();

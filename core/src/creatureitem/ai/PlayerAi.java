@@ -2,7 +2,7 @@ package creatureitem.ai;
 
 import creatureitem.Creature;
 import creatureitem.Player;
-import world.Stairs;
+import world.thing.Stairs;
 import world.Tile;
 
 import java.util.ArrayList;
@@ -38,8 +38,8 @@ public class PlayerAi extends CreatureAi {
             if(creature.getLevel().getItemAt(x, y) != null) {
                 creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).toString());
             }
-            if(creature.getLevel().getStairsAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getLevel().getStairsAt(x, y).isUp()? "the stairs going up" : "the stairs going down");
+            if(creature.getLevel().getThingAt(x, y) != null && creature.getLevel().getThingAt(x, y) instanceof Stairs) {
+                creature.doAction("step on %s.", ((Stairs)creature.getLevel().getThingAt(x, y)).isUp()? "the stairs going up" : "the stairs going down");
             }
         }
 
@@ -71,10 +71,12 @@ public class PlayerAi extends CreatureAi {
                 creature.getLevel().setSeen(i, j);
     }
 
-    public boolean useStairs(char c) {
-        Stairs s = creature.getLevel().getStairsAt(creature.getX(), creature.getY());
-        if(s == null || s.getT().getGlyph() != c)
-        creature.doAction("can't do that here!");
+    @Override
+    public boolean useStairs() {
+        if(!(creature.getLevel().getThingAt(creature.getX(), creature.getY()) instanceof Stairs)) return false;
+        Stairs s = (Stairs)creature.getLevel().getThingAt(creature.getX(), creature.getY());
+        if(s == null)
+            creature.doAction("can't do that here!");
         else {
             creature.doAction("%s the stairs.", s.isUp()? "ascend" : "descend");
 

@@ -5,15 +5,19 @@ import com.badlogic.gdx.*;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.scenes.scene2d.*;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import creatureitem.ai.PlayerAi;
 import game.Main;
 import utility.Utility;
+import world.Tile;
 import world.geometry.Point;
 import world.geometry.floatPoint;
+import world.thing.DoorBehavior;
+import world.thing.Thing;
+import world.thing.Stairs;
 
 import java.util.Locale;
 
@@ -58,6 +62,7 @@ public class PlayScreen extends ScreenAdapter {
         camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         viewport = new ScreenViewport(camera);
         stage = new Stage(viewport, game.getBatch());
+        //((OrthographicCamera)stage.getCamera()).zoom -= 0.4f;
 
         root = new Table();
         root.setFillParent(true);
@@ -142,8 +147,11 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift) game.getPlayer().pickUp();
                         else {
                             shift = false;
-                            boolean exit = ((PlayerAi) game.getPlayer().getAi()).useStairs('>');
-                            if(exit) game.setScreen(game.getMainMenu());
+                            Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
+                            if(t instanceof Stairs && ((Stairs) t).isUp()) {
+                                boolean exit = t.interact(game.getPlayer());
+                                if(exit) game.setScreen(game.getMainMenu());
+                            }
                         }
                         return true;
                     }
@@ -153,10 +161,13 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift){}
                         else {
                             shift = false;
-                            boolean exit = ((PlayerAi) game.getPlayer().getAi()).useStairs('<');
-                            if(exit) game.setScreen(game.getMainMenu());
+                            Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
+                            if(t instanceof Stairs && !((Stairs) t).isUp()) {
+                                boolean exit = t.interact(game.getPlayer());
+                                if(exit) game.setScreen(game.getMainMenu());
+                            }
                         }
-
+                        return true;
                     }
                     case Input.Keys.SHIFT_RIGHT:
                     case Input.Keys.SHIFT_LEFT: {
@@ -171,7 +182,11 @@ public class PlayScreen extends ScreenAdapter {
                             game.getPlayer().getCursor().setHasRange(false);
                             game.getPlayer().getCursor().setHasLine(false);
                             game.getPlayer().getCursor().setConsiderObstacle(false);
+                            game.getPlayer().getCursor().setHasArea(false);
                             game.getPlayer().getCursor().setLocation(game.getPlayer().getX(), game.getPlayer().getY());
+                            game.getPlayer().getCursor().setPositive(0);
+                            game.getPlayer().getCursor().setNegative(1);
+                            game.getPlayer().getCursor().setNeutral(2);
                         }
                         return true;
                     }
@@ -278,6 +293,60 @@ public class PlayScreen extends ScreenAdapter {
                         }
                         return true;
                     }
+                    case Input.Keys.O: {
+                        if(!shift) {
+                            boolean opened = false;
+                            for(int i = -1; i <= 1; i++) {
+                                for(int j = -1; j <= 1; j++) {
+                                    if(i == 0 && j == 0) continue;
+                                    Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
+                                    if(t != null && t.getBehavior() instanceof DoorBehavior && !t.isOpen()) {
+                                        t.interact();
+                                        break;
+                                    }
+                                }
+
+                                if(opened) break;
+                            }
+                        }
+                        return true;
+                    }
+                    case Input.Keys.C: {
+                        if(!shift) {
+                            boolean opened = false;
+                            for(int i = -1; i <= 1; i++) {
+                                for(int j = -1; j <= 1; j++) {
+                                    if(i == 0 && j == 0) continue;
+                                    Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
+                                    if(t != null && t.getBehavior() instanceof DoorBehavior && t.isOpen()) {
+                                        t.interact();
+                                        break;
+                                    }
+                                }
+
+                                if(opened) break;
+                            }
+                        }
+                        return true;
+                    }
+                    case Input.Keys.Z: {
+                        if(!shift) {
+                            if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                                game.getPlayer().cast(game.getPlayer().getToCast());
+                                game.getPlayer().getCursor().setPurpose("");
+                                game.getPlayer().getCursor().setActive(false);
+                            }
+                        }
+                        else {
+                            shift = false;
+                            if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                                game.getPlayer().cast(game.getPlayer().getToCast());
+                                game.getPlayer().getCursor().setPurpose("");
+                                game.getPlayer().getCursor().setActive(false);
+                            }
+                            else game.setScreen(game.getSpellScreen());
+                        }
+                    }
                     default:
                         return false;
                 }
@@ -313,8 +382,17 @@ public class PlayScreen extends ScreenAdapter {
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
              switch (button) {
                  case Input.Buttons.LEFT: {
-                     if(!shift) game.getPlayer().setCurrentDestination(Utility.roundCursor(x, y));
-                     else game.getPlayer().enqueueDestination(Utility.roundCursor(x, y));
+                     Point c = Utility.roundCursor(x, y);
+                     if(!game.getPlayer().getCursor().isActive()) {
+                         if(game.getPlayer().canSee(c) || game.getPlayer().getSeen(c.getX(), c.getY())) {
+                             if(!shift) game.getPlayer().setCurrentDestination(c);
+                             else game.getPlayer().enqueueDestination(c);
+                         }
+
+                     }
+                     else {
+                         game.getPlayer().getCursor().setLocation(c.getX(), c.getY());
+                     }
                      return true;
                  }
                  default: {
@@ -354,9 +432,9 @@ public class PlayScreen extends ScreenAdapter {
         game.start();
 
         //Add actors to stage
-        root.add(game.getLevel().getActor()).width(stage.getWidth()).height(game.getLevel().getHeight() * Main.getTILE_SIZE());
+        root.add(game.getLevel().getActor()).width(stage.getWidth()).height(game.getLevel().getHeight() * Main.getTileHeight());
 
-        ui.getHp().setText(String.format(Locale.getDefault(), "%d/%d", game.getPlayer().getHP(), game.getPlayer().getMaxHP()));
+        ui.getHp().setText(String.format(Locale.getDefault(), "%d/%d", game.getPlayer().getHp(), game.getPlayer().getHpMax()));
 
     }
 
@@ -374,7 +452,7 @@ public class PlayScreen extends ScreenAdapter {
 
         //Set the camera to the player. If the player is too close to the edge of the screen, stop following
         floatPoint cameraLocation = getCameraLocation();
-        stage.getCamera().position.set(cameraLocation.getX() * Main.getTILE_SIZE(), (cameraLocation.getY() * Main.getTILE_SIZE()), 0);
+        stage.getCamera().position.set(cameraLocation.getX() * Main.getTileWidth(), (cameraLocation.getY() * Main.getTileHeight()), 0);
         stage.getCamera().update();
 
         game.getBatch().setProjectionMatrix(camera.combined);
@@ -409,23 +487,23 @@ public class PlayScreen extends ScreenAdapter {
 
         floatPoint p;
         if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().isFollow())
-            p = new floatPoint(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY() + ((height/ Main.getTILE_SIZE())/5f));
+            p = new floatPoint(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY() + ((height/ Main.getTileHeight())/5f));
         else
-            p = new floatPoint(game.getPlayer().getX(), game.getPlayer().getY() + ((height/ Main.getTILE_SIZE())/5f));
+            p = new floatPoint(game.getPlayer().getX(), game.getPlayer().getY() + ((height/ Main.getTileHeight())/5f));
 
         //If player's location isn't at least half a screen from the left edge, set the camera to half a screen from the left edge
-        if(p.getX() * Main.getTILE_SIZE() < width/2)
-            p.setX(width/(2 * Main.getTILE_SIZE()));
+        if(p.getX() * Main.getTileWidth() < width/2)
+            p.setX(width/(2 * Main.getTileWidth()));
         //If player's location isn't at least half a screen from the right edge, set the camera to half a screen from the right edge
-        else if((game.getLevel().getWidth() - p.getX()) * Main.getTILE_SIZE() < width/2d)
-            p.setX((game.getLevel().getWidth()) - width/(2 * Main.getTILE_SIZE()));
+        else if((game.getLevel().getWidth() - p.getX()) * Main.getTileWidth() < width/2f)
+            p.setX((game.getLevel().getWidth()) - width/(2 * Main.getTileWidth()));
 
         //If player's location isn't at least half a screen from the bottom edge, set the camera to half a screen from the bottom edge
-        if(p.getY() * Main.getTILE_SIZE() < (height/2 - 2))
-            p.setY(height/(2 * Main.getTILE_SIZE()));
+        if(p.getY() * Main.getTileHeight() < (height/2 - 2))
+            p.setY(height/(2 * Main.getTileHeight()));
         //If player's location isn't at least half a screen from the top edge, set the camera to half a screen from the top edge
-        else if((game.getLevel().getHeight() - p.getY()) * Main.getTILE_SIZE() < (3f * height/5f)/2d)
-            p.setY((game.getLevel().getHeight()) - (3 * height/5)/(2 * Main.getTILE_SIZE()));
+        else if((game.getLevel().getHeight() - p.getY()) * Main.getTileHeight() < (3f * height/5f)/2f)
+            p.setY((game.getLevel().getHeight()) - (3 * height/5)/(2 * Main.getTileHeight()));
 
         return p;
     }

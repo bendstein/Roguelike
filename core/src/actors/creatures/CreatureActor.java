@@ -19,15 +19,15 @@ public class CreatureActor extends Actor {
     public CreatureActor(Creature creature) {
         this.creature = creature;
         this.creature.setActor(this);
-        setBounds(creature.getX() * Main.getTILE_SIZE(), creature.getY() * Main.getTILE_SIZE(),
-                Main.getTILE_SIZE(), Main.getTILE_SIZE());
+        setBounds(creature.getX() * Main.getTileWidth(), creature.getY() * Main.getTileHeight(),
+                Main.getTileWidth(), Main.getTileHeight());
     }
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
         //Only draw the creature if they're visible
         if(creature.getLevel().getPlayer() != null && creature.getLevel().getPlayer().canSee(creature.getX(), creature.getY()))
-            batch.draw(creature.getTexture(), Main.getTILE_SIZE() * creature.getX(), Main.getTILE_SIZE() * creature.getY());
+            batch.draw(creature.getTexture(), Main.getTileWidth() * creature.getX(), Main.getTileHeight() * creature.getY());
     }
 
     public Creature getCreature() {

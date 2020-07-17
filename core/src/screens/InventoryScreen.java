@@ -20,6 +20,7 @@ import creatureitem.Player;
 import creatureitem.item.Equipable;
 import creatureitem.item.Food;
 import creatureitem.item.Item;
+import creatureitem.item.Potion;
 import game.Main;
 
 import java.util.ArrayList;
@@ -240,6 +241,13 @@ public class InventoryScreen extends ScreenAdapter {
             if(getPlayer().isEquipped(inventory.get(index))) getPlayer().unequip(inventory.get(index));
             else getPlayer().equip(inventory.get(index));
             selection = "";
+        }
+        else if(currentVerb.equals("quaff")) {
+            Potion p = (Potion)inventory.get(index);
+            game.getPlayer().drink(p);
+            selection = "";
+            if(game.getPlayer().getInventory().contains(p) == -1) inventory.remove(index);
+            else inventory.replace(index, game.getPlayer().getInventory().getItems()[game.getPlayer().getInventory().contains(p)]);
         }
     }
 

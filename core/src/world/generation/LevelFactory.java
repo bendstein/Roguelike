@@ -1,13 +1,13 @@
 package world.generation;
 
-import actors.world.LevelActor;
 import utility.Utility;
 import utility.WeightedRandom;
 import world.Level;
-import world.Stairs;
 import world.Tile;
 import world.geometry.AStarPoint;
 import world.geometry.Point;
+import world.thing.DoorBehavior;
+import world.thing.Thing;
 import world.room.*;
 
 import java.util.ArrayList;
@@ -63,7 +63,23 @@ public class LevelFactory {
      * @return A level built from the provided tile grid
      */
     public Level build() {
-        return new Level(tiles, random);
+        ArrayList<Thing> things = new ArrayList<>();
+
+        for(int i = 0; i < tiles.length; i++) {
+            for(int j = 0; j < tiles[0].length; j++) {
+                if(tiles[i][j] == Tile.DOOR) {
+                    tiles[i][j] = Tile.FLOOR;
+                    Thing door = new Thing(Tile.DOOR);
+                    door.setLocation(i, j);
+                    new DoorBehavior(door);
+                    things.add(door);
+                }
+            }
+        }
+
+        Level l = new Level(tiles, random);
+        l.setThings(things);
+        return l;
     }
 
     private LevelFactory randomizeTiles() {

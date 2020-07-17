@@ -165,7 +165,7 @@ public class Item {
 
     @Override
     public String toString() {
-        if(count > 1) return String.format(Locale.getDefault(), "%s (%d)", name, count);
+        if(hasProperty("stack") && count > 1) return String.format(Locale.getDefault(), "%s (%d)", name, count);
         else return name;
     }
 }

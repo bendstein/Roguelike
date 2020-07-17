@@ -26,6 +26,7 @@ public class GoblinAi extends CreatureAi {
     @Override
     public void onUpdate() {
 
+        super.onUpdate();
         //Get the player location
         int player_x = creature.getLevel().getPlayer().getX();
         int player_y = creature.getLevel().getPlayer().getY();

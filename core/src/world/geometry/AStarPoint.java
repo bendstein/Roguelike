@@ -28,7 +28,7 @@ public class AStarPoint extends Point implements Comparable {
 
     /*
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(Thing o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AStarPoint point = (AStarPoint) o;

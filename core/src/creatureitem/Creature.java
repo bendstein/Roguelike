@@ -5,14 +5,18 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import creatureitem.ai.CreatureAi;
+import creatureitem.effect.Effect;
 import creatureitem.item.*;
+import creatureitem.spell.Spell;
 import utility.Utility;
 import world.Level;
 import world.geometry.Cursor;
 import world.geometry.Line;
 import world.geometry.Point;
 
+import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Objects;
 
 public class Creature {
 
@@ -23,14 +27,14 @@ public class Creature {
      */
 
     /**
-     * The creature's max HP
-     */
-    protected int maxHP;
-
-    /**
      * The creature's current HP
      */
-    protected int HP;
+    protected int hp;
+
+    /**
+     * The creature's max HP
+     */
+    protected int hpMax;
 
 
     /**
@@ -42,6 +46,17 @@ public class Creature {
      * Max Satiation
      */
     protected int hungerMax;
+
+
+    /**
+     * Measure of the creature's magic power
+     */
+    protected int mana;
+
+    /**
+     * Max mana
+     */
+    protected int manaMax;
 
 
     /**
@@ -74,6 +89,27 @@ public class Creature {
      * Measure of the creature's perception
      */
     protected int perception;
+
+    /**
+     * Measure of the creature's intelligence
+     */
+    protected int intelligence;
+
+
+    /**
+     * Bonus to damage, separate from strength bonus
+     */
+    protected int damageBonus;
+
+    /**
+     * Bonus to magic damage, separate from intelligence bonus
+     */
+    protected int magicBonus;
+
+    /**
+     * Bonus to defense, separate from natural armor
+     */
+    protected int defenseBonus;
 
 
     /*
@@ -182,13 +218,24 @@ public class Creature {
      */
     protected Armor body;
 
+    /**
+     * Spells that the creature knows
+     */
+    protected ArrayList<Spell> spells;
+
+    /**
+     * A list of all effects currently active on the creature
+     */
+    protected ArrayList<Effect> activeEffects;
+
     //</editor-fold>
 
-    public Creature(int maxHP, int hungerMax, int exp, int strength, int agility, int constitution, int perception,
+    public Creature(int hpMax, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence,
                     Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor) {
-        this.HP = this.maxHP = maxHP + getAttributeBonus(constitution);
-        this.hunger = this.hungerMax = hungerMax;
 
+        this.hp = this.hpMax = hpMax + getAttributeBonus(constitution);
+        this.hunger = this.hungerMax = hungerMax;
+        this.manaMax = this.mana = manaMax;
         this.exp = exp;
         this.expLevel = 1;
 
@@ -196,6 +243,11 @@ public class Creature {
         this.agility = agility;
         this.constitution = constitution;
         this.perception = perception;
+        this.intelligence = intelligence;
+
+        this.damageBonus = 0;
+        this.magicBonus = 0;
+        this.defenseBonus = 0;
 
         this.level = level;
 
@@ -211,11 +263,15 @@ public class Creature {
         this.unarmedAttack = unarmedAttack;
         this.natArmor = new Armor(natArmor);
 
+        this.spells = new ArrayList<>();
+        this.activeEffects = new ArrayList<>();
+
     }
 
     public Creature(Creature creature) {
-        this.HP = this.maxHP = creature.maxHP;
+        this.hp = this.hpMax = creature.hpMax;
         this.hunger = this.hungerMax = creature.hungerMax;
+        this.mana = this.manaMax = creature.manaMax;
 
         this.exp = creature.exp;
         this.expLevel = 1;
@@ -224,6 +280,11 @@ public class Creature {
         this.agility = creature.agility;
         this.constitution = creature.constitution;
         this.perception = creature.perception;
+        this.intelligence = creature.intelligence;
+
+        this.damageBonus = creature.damageBonus;
+        this.magicBonus = creature.magicBonus;
+        this.defenseBonus = creature.defenseBonus;
 
         this.x = creature.x;
         this.y = creature.y;
@@ -254,6 +315,8 @@ public class Creature {
         this.quiver = creature.quiver;
         this.body = creature.body;
 
+        this.spells = new ArrayList<>(creature.spells);
+        this.activeEffects = new ArrayList<>(creature.activeEffects);
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -321,20 +384,20 @@ public class Creature {
         this.team = team;
     }
 
-    public int getMaxHP() {
-        return maxHP;
+    public int getHpMax() {
+        return hpMax;
     }
 
-    public void setMaxHP(int maxHP) {
-        this.maxHP = maxHP;
+    public void setHpMax(int hpMax) {
+        this.hpMax = hpMax;
     }
 
-    public int getHP() {
-        return HP;
+    public int getHp() {
+        return hp;
     }
 
-    public void setHP(int HP) {
-        this.HP = HP;
+    public void setHp(int hp) {
+        this.hp = hp;
     }
 
     public int getEvasion() {
@@ -342,7 +405,7 @@ public class Creature {
     }
 
     public int getArmor() {
-        int total = natArmor.getArmor();
+        int total = natArmor.getArmor() + defenseBonus;
 
         total += body == null? 0 : body.getArmor();
 
@@ -504,11 +567,15 @@ public class Creature {
     }
 
     public int getHungerRate() {
-        return 25/getAttributeBonus(constitution);
+        return 25/(getAttributeBonus(constitution) == 0? 1 : getAttributeBonus(constitution));
     }
 
     public int getRegenRate() {
-        return 40/getAttributeBonus(constitution);
+        return 40/(getAttributeBonus(constitution) == 0? 1 : getAttributeBonus(constitution));
+    }
+
+    public int getManaRegenRate() {
+        return 20/(getAttributeBonus(intelligence) == 0? 1 : getAttributeBonus(intelligence));
     }
 
     public int getStrength() {
@@ -547,6 +614,78 @@ public class Creature {
         return Math.max(((attribute % 2 == 0)? (attribute - 10)/2 : (attribute - 11)/2), -5);
     }
 
+    public ArrayList<Effect> getActiveEffects() {
+        return activeEffects;
+    }
+
+    public void setActiveEffects(ArrayList<Effect> activeEffects) {
+        this.activeEffects = activeEffects;
+    }
+
+    public boolean hasEffect(Effect effect) {
+        return activeEffects.contains(effect);
+    }
+
+    public void removeEffect(Effect effect) {
+        activeEffects.remove(effect);
+    }
+
+    public int getDamageBonus() {
+        return damageBonus;
+    }
+
+    public void setDamageBonus(int damageBonus) {
+        this.damageBonus = damageBonus;
+    }
+
+    public int getDefenseBonus() {
+        return defenseBonus;
+    }
+
+    public void setDefenseBonus(int defenseBonus) {
+        this.defenseBonus = defenseBonus;
+    }
+
+    public int getMana() {
+        return mana;
+    }
+
+    public void setMana(int mana) {
+        this.mana = mana;
+    }
+
+    public int getManaMax() {
+        return manaMax;
+    }
+
+    public void setManaMax(int manaMax) {
+        this.manaMax = manaMax;
+    }
+
+    public int getIntelligence() {
+        return intelligence;
+    }
+
+    public void setIntelligence(int intelligence) {
+        this.intelligence = intelligence;
+    }
+
+    public int getMagicBonus() {
+        return magicBonus;
+    }
+
+    public void setMagicBonus(int magicBonus) {
+        this.magicBonus = magicBonus;
+    }
+
+    public ArrayList<Spell> getSpells() {
+        return spells;
+    }
+
+    public void setSpells(ArrayList<Spell> spells) {
+        this.spells = spells;
+    }
+
     //</editor-fold>
 
     public void modifyExp(int exp) {
@@ -563,12 +702,24 @@ public class Creature {
      * @return true if the creature died
      */
     public boolean modifyHP(int mod) {
-        if(HP + mod <= 0) {
+        if(hp + mod <= 0) {
             die();
             return true;
         }
         else {
-            HP = Math.min(maxHP, HP + mod);
+            hp = Math.min(hpMax, hp + mod);
+            return false;
+        }
+    }
+
+    public boolean modifyHP(int mod, boolean notifyOnDie) {
+        if(hp + mod <= 0) {
+            if(notifyOnDie) doAction("collapse to the floor.");
+            die();
+            return true;
+        }
+        else {
+            hp = Math.min(hpMax, hp + mod);
             return false;
         }
     }
@@ -579,12 +730,12 @@ public class Creature {
      * @return true if the creature died
      */
     public boolean modifyMaxHp(int mod) {
-        if(maxHP + mod <= 0) {
+        if(hpMax + mod <= 0) {
             die();
             return true;
         }
         else {
-            maxHP += mod;
+            hpMax += mod;
             return false;
         }
     }
@@ -607,6 +758,14 @@ public class Creature {
 
     public void modifyMaxHunger(int mod) {
         hungerMax = Math.max(hungerMax, 0);
+    }
+
+    public void modifyMana(int mod) {
+        mana = Math.max(0, Math.min(mana + mod, manaMax));
+    }
+
+    public void modifyManaMax(int mod) {
+        manaMax = Math.max(0, manaMax + mod);
     }
 
     /**
@@ -643,8 +802,9 @@ public class Creature {
             return;
         }
 
-        if(mainHand == null) damage = unarmedAttack.getWeaponDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength);
-        else damage = mainHand.getWeaponDamage().getDamage(getLevel().getRandom()) + + getAttributeBonus(strength);
+        if(mainHand == null) damage = unarmedAttack.getWeaponDamage().getDamage(getLevel().getRandom()) +
+                getAttributeBonus(strength) + damageBonus;
+        else damage = mainHand.getWeaponDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength) + damageBonus;
 
         damage = Math.max(0, damage - foe.getArmor());
         damage *= -1;
@@ -726,7 +886,7 @@ public class Creature {
      * @return true if a creature can enter this tile
      */
     public static boolean canEnter(int x, int y, Level level) {
-        return (x >= 0 && y >= 0 && x < level.getWidth() && y < level.getHeight() && level.getTileAt(x, y).isGround() &&
+        return (x >= 0 && y >= 0 && x < level.getWidth() && y < level.getHeight() && /*level.getTileAt(x, y).isGround()*/ level.isPassable(x, y) &&
                 level.getCreatureAt(x, y) == null && !level.queuedCreatureAt(x, y));
     }
 
@@ -748,6 +908,20 @@ public class Creature {
      */
     public void update() {
         ai.onUpdate();
+
+        ArrayList<Effect> toRemove = new ArrayList<>();
+        for(Effect effect : activeEffects) {
+            if(!effect.isDone()) {
+                effect.affect(this);
+                effect.changeRemainingDurationBy(-1);
+            }
+            else {
+                effect.done(this);
+                toRemove.add(effect);
+            }
+        }
+
+        activeEffects.removeAll(toRemove);
     }
 
     /**
@@ -761,24 +935,25 @@ public class Creature {
      * Pick up an item off the ground and put it in your inventory
      */
     public void pickUp() {
-        Item item = level.getItemAt(x, y);
 
-        if(item == null)
+        if(level.getItemAt(x, y) == null)
             doAction("grab at the ground.");
         else {
-            doAction("pick up %s.", item.toString());
+            doAction("pick up %s.", level.getItemAt(x, y).toString());
+            if(level.getItemAt(x, y) instanceof Potion)
+                ((Potion) level.getItemAt(x, y)).getEffect().setCaster(this);
             inventory.add(level.removeItemAt(x, y));
         }
 
     }
 
     public void pickUp(boolean notify) {
-        Item item = level.getItemAt(x, y);
-
-        if(item == null)
+        if(level.getItemAt(x, y) == null)
             if(notify) doAction("grab at the ground.");
         else {
-            if(notify) doAction("pick up %s.", item.toString());
+            if(notify) doAction("pick up %s.", level.getItemAt(x, y).toString());
+            if(level.getItemAt(x, y) instanceof Potion)
+                ((Potion) level.getItemAt(x, y)).getEffect().setCaster(this);
             inventory.add(level.removeItemAt(x, y));
         }
 
@@ -914,7 +1089,11 @@ public class Creature {
 
     public void throwItem(Item item, Cursor cursor) {
         boolean depleted = inventory.removeOne(item);
-        Item i = new Item(item);
+        Item i;
+
+        if(item instanceof Potion) i = new Potion((Potion)item);
+        else i = new Item(item);
+
         i.setCount(1);
 
         Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), getThrowRange() + 1);
@@ -923,22 +1102,38 @@ public class Creature {
         boolean damage = false;
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
-            if(!level.getTileAt(p.getX(), p.getY()).isPassable()) break;
+            if(!level.isPassable(p.getX(), p.getY())) break;
             current = p;
 
             if(level.getCreatureAt(current.getX(), current.getY()) != null &&
                     level.getCreatureAt(current.getX(), current.getY()).getTeam() != team &&
-                    i.hasProperty("throw")) {
+                    (i.hasProperty("throw") || i instanceof Potion)) {
                 damage = true;
                 break;
             }
         }
 
-        if(damage)
-            throwAttack(i, level.getCreatureAt(current.getX(), current.getY()));
+        if(damage) {
+            if(i instanceof Potion) {
+                if(toHit(i, level.getCreatureAt(current.getX(), current.getY()))) {
+                    doAction("throw %s at %s.", i.getName(), level.getCreatureAt(current.getX(), current.getY()).name);
+                    notify("It shatters on impact and applies its affect!");
+                    level.getCreatureAt(current.getX(), current.getY()).drink(((Potion) i), false);
+                }
+                else {
+                    doAction("throw %s at %s.", i.getName(), level.getCreatureAt(current.getX(), current.getY()).name);
+                    notify("It misses, and breaks into pieces upon hitting the floor.");
+                }
+
+            }
+            else throwAttack(i, level.getCreatureAt(current.getX(), current.getY()));
+        }
         else {
-            drop(i, current.getX(), current.getY());
             doAction("throw %s.", i.getName());
+            if(i.hasProperty("shatter"))
+                notify("It shatters on impact!");
+            else
+                drop(i, current.getX(), current.getY());
         }
 
         if(depleted)
@@ -955,7 +1150,7 @@ public class Creature {
         boolean damage = false;
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
-            if(!level.getTileAt(p.getX(), p.getY()).isPassable()) break;
+            if(!level.isPassable(p.getX(), p.getY())) break;
             current = p;
 
             if(level.getCreatureAt(current.getX(), current.getY()) != null) {
@@ -980,7 +1175,7 @@ public class Creature {
         boolean damage = false;
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
-            if(!level.getTileAt(p.getX(), p.getY()).isPassable()) break;
+            if(!level.isPassable(p.getX(), p.getY())) break;
             current = p;
 
             if(level.getCreatureAt(current.getX(), current.getY()) != null) {
@@ -1019,7 +1214,7 @@ public class Creature {
             return;
         }
 
-        int damage = -1 * (i.getThrowDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength)/2);
+        int damage = -1 * Math.max(0, (i.getThrowDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength)/2));
         boolean died = foe.modifyHP(damage);
         doAction("throw %s at %s for %d damage.", i.getName(), foe.name, Math.abs(damage));
 
@@ -1046,7 +1241,7 @@ public class Creature {
             return;
         }
 
-        int damage = -1 * (rangedWeapon.getWeaponDamage().getDamage(getLevel().getRandom()) + quiver.getAmmoDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(agility));
+        int damage = -1 * Math.max(0, (rangedWeapon.getWeaponDamage().getDamage(getLevel().getRandom()) + quiver.getAmmoDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(agility)));
         boolean died = foe.modifyHP(damage);
         doAction("shoot %s at %s for %d damage.", quiver.getName(), foe.name, Math.abs(damage));
 
@@ -1060,7 +1255,7 @@ public class Creature {
     }
 
     public int getThrowRange() {
-        return 2 + getAttributeBonus(strength);
+        return Math.max(1, 2 + getAttributeBonus(strength));
     }
 
     public void setActor(Actor actor) {
@@ -1076,7 +1271,7 @@ public class Creature {
     }
 
     public void leaveCorpse() {
-        Food corpse = new Food('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), maxHP * 3, "stack");
+        Food corpse = new Food('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), hpMax * 3, "stack");
         level.addAt(x, y, corpse);
 
         for(Item i : inventory.getItems()) {
@@ -1084,7 +1279,7 @@ public class Creature {
             if(getLevel().getRandom().nextDouble() < .5) {
                 if(i.hasProperty("stack")) {
                     int c = i.getCount();
-                    c = getLevel().getRandom().nextInt(c - (int)(c * 0.3d)) + (int)(c * 0.3d);
+                    c = getLevel().getRandom().nextInt(Math.min((c - (int)(c * 0.3d)), 1)) + (int)(c * 0.3d);
                     i.setCount(c);
                 }
                 drop(i, false);
@@ -1102,6 +1297,20 @@ public class Creature {
         inventory.removeOne(f);
         hunger = Math.min(hungerMax, hunger + f.getFoodValue());
         if(notify) doAction("eat %s.", f.getName());
+    }
+
+    public void drink(Potion p) {
+        inventory.removeOne(p);
+        Potion pc = new Potion(p);
+        pc.getEffect().setRemainingDuration(pc.getEffect().getDuration());
+        applyEffect(pc.getEffect());
+        doAction("drink %s.", pc.getName());
+    }
+
+    public void drink(Potion p, boolean notify) {
+        inventory.removeOne(p);
+        applyEffect(p.getEffect());
+        if(notify) doAction("drink %s.", p.getName());
     }
 
     public String hungerToString() {
@@ -1280,5 +1489,61 @@ public class Creature {
         if(body != null && body.equals(i) && ((Equipable)i).isEquipped()) return true;
 
         return false;
+    }
+
+    public void applyEffect(Effect e) {
+        e.affect(this);
+        e.changeRemainingDurationBy(-1);
+        if(!hasEffect(e)) activeEffects.add(e);
+    }
+
+    public void addSpell(Spell s) {
+        spells.add(s);
+        s.setCaster(this);
+    }
+
+    public void cast(Spell s) {
+
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Creature)) return false;
+        Creature creature = (Creature) o;
+        return hpMax == creature.hpMax &&
+                hp == creature.hp &&
+                hunger == creature.hunger &&
+                hungerMax == creature.hungerMax &&
+                exp == creature.exp &&
+                expLevel == creature.expLevel &&
+                strength == creature.strength &&
+                agility == creature.agility &&
+                constitution == creature.constitution &&
+                perception == creature.perception &&
+                damageBonus == creature.damageBonus &&
+                defenseBonus == creature.defenseBonus &&
+                x == creature.x &&
+                y == creature.y &&
+                glyph == creature.glyph &&
+                team == creature.team &&
+                lastMovedTime == creature.lastMovedTime &&
+                moveDirection == creature.moveDirection &&
+                Objects.equals(level, creature.level) &&
+                Objects.equals(name, creature.name) &&
+                Objects.equals(ai, creature.ai) &&
+                Objects.equals(unarmedAttack, creature.unarmedAttack) &&
+                Objects.equals(natArmor, creature.natArmor) &&
+                Objects.equals(inventory, creature.inventory) &&
+                Objects.equals(mainHand, creature.mainHand) &&
+                Objects.equals(rangedWeapon, creature.rangedWeapon) &&
+                Objects.equals(quiver, creature.quiver) &&
+                Objects.equals(body, creature.body) &&
+                Objects.equals(activeEffects, creature.activeEffects);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hpMax, hp, hunger, hungerMax, exp, expLevel, strength, agility, constitution, perception, damageBonus, defenseBonus, x, y, level, name, glyph, ai, team, lastMovedTime, moveDirection, unarmedAttack, natArmor, inventory, mainHand, rangedWeapon, quiver, body, activeEffects);
     }
 }

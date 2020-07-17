@@ -158,7 +158,7 @@ public class Utility {
      * @return The cursors coordinates mapped to the world
      */
     public static Point roundCursor(float x, float y) {
-        return new Point((int) Math.floor(x/ Main.getTILE_SIZE()), (int) Math.floor(y/ Main.getTILE_SIZE()));
+        return new Point((int) Math.floor(x/ Main.getTileWidth()), (int) Math.floor(y/ Main.getTileHeight()));
     }
 
     public static int getDistance(Point a, Point b) {
