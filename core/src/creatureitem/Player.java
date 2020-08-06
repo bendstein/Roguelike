@@ -1,16 +1,15 @@
 package creatureitem;
 
-import creatureitem.ai.PlayerAi;
+import actors.creatures.CreatureActor;
+import actors.world.LevelActor;
+import creatureitem.ai.NPCAi;
 import creatureitem.item.*;
 import creatureitem.spell.AOESpell;
 import creatureitem.spell.LineSpell;
 import creatureitem.spell.PointSpell;
 import creatureitem.spell.Spell;
 import world.Level;
-import world.Tile;
-import world.World;
 import world.geometry.Cursor;
-import world.geometry.Line;
 import world.geometry.Point;
 
 import java.util.ArrayDeque;
@@ -51,6 +50,13 @@ public class Player extends creatureitem.Creature {
 
     private int turnsToProcess;
 
+    /**
+     * Reference to the creature the player is speaking to
+     */
+    private Creature talkingTo;
+
+    private boolean canSeeEverything;
+
     //</editor-fold>
 
     public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence,
@@ -64,6 +70,8 @@ public class Player extends creatureitem.Creature {
         toThrow = null;
         cursor = new Cursor(0, 0);
         turnsToProcess = 0;
+        canSeeEverything = false;
+        talkingTo = null;
     }
 
     public Player(Player player) {
@@ -75,6 +83,8 @@ public class Player extends creatureitem.Creature {
         toThrow = player.toThrow;
         cursor = player.cursor;
         turnsToProcess = 0;
+        canSeeEverything = player.canSeeEverything;
+        talkingTo = player.talkingTo;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -106,6 +116,26 @@ public class Player extends creatureitem.Creature {
     public void setLevel(Level level) {
         super.setLevel(level);
         if(level != null) level.setPlayer(this);
+    }
+
+    public void moveLevel(Level level) {
+        if(this.level != null) {
+            LevelActor lactor = this.level.getActor();
+            this.level.setPlayer(null);
+            this.level.remove(this);
+            this.level.setActor(null);
+            ((CreatureActor)getActor()).setDestination(null);
+            setLevel(level);
+
+            if(level != null) {
+                level.setPlayer(this);
+                level.setActor(lactor);
+            }
+        }
+
+        else
+            setLevel(level);
+
     }
 
     public Point getCurrentDestination() {
@@ -170,6 +200,22 @@ public class Player extends creatureitem.Creature {
         this.toCast = toCast;
     }
 
+    public Creature getTalkingTo() {
+        return talkingTo;
+    }
+
+    public void setTalkingTo(Creature talkingTo) {
+        this.talkingTo = talkingTo;
+    }
+
+    public boolean canSeeEverything() {
+        return canSeeEverything;
+    }
+
+    public void setCanSeeEverything(boolean canSeeEverything) {
+        this.canSeeEverything = canSeeEverything;
+    }
+
     //</editor-fold>
 
     /**
@@ -201,8 +247,7 @@ public class Player extends creatureitem.Creature {
 
         if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
 
-        cursor.setX(x + mx);
-        cursor.setY(y + my);
+        cursor.moveBy(mx, my);
         lastMovedTime = System.currentTimeMillis();
 
     }
@@ -489,5 +534,10 @@ public class Player extends creatureitem.Creature {
             else if(exp < 0) doAction("lose %d experience.", exp);
         }
         setExp(this.exp + exp, notify);
+    }
+
+    public void talkTo(Creature c) {
+        if(!(c.getAi() instanceof NPCAi)) return;
+        talkingTo = c;
     }
 }

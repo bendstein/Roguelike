@@ -13,21 +13,21 @@ public class Potion extends Item {
      */
     Effect effect;
 
-    public Potion(char glyph, String texturePath, String name, Effect effect) {
-        super(glyph, texturePath, name, "quaff", "stack", "shatter");
+    public Potion(char glyph, String texturePath, String name, int worth, Effect effect) {
+        super(glyph, texturePath, name, worth, "quaff", "stack", "shatter");
         this.effect = effect.makeCopy(effect);
     }
 
-    public Potion(char glyph, String texturePath, String name, Effect effect, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Potion(char glyph, String texturePath, String name, int worth, Effect effect, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         this.properties.add("quaff");
         this.properties.add("stack");
         this.properties.add("shatter");
         this.effect = effect.makeCopy(effect);
     }
 
-    public Potion(char glyph, String texturePath, String name, Damage throwDamage, Effect effect, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Potion(char glyph, String texturePath, String name, int worth, Damage throwDamage, Effect effect, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         this.properties.add("quaff");
         this.properties.add("stack");
         this.properties.add("shatter");

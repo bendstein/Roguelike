@@ -105,4 +105,9 @@ public class GoblinAi extends CreatureAi {
         }
     }
 
+    @Override
+    public CreatureAi copy() {
+        return new GoblinAi(creature);
+    }
+
 }

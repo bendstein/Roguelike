@@ -1,9 +1,11 @@
 package creatureitem.item;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import world.geometry.Point;
 
-public class Inventory {
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class Inventory implements Iterable<Item>  {
 
     private Item[] items;
     private int count;
@@ -43,6 +45,16 @@ public class Inventory {
             doubleInventory();
     }
 
+    public void addAll(Item[] toAdd) {
+        for(Item i : toAdd)
+            add(i);
+    }
+
+    public void addAll(Inventory i) {
+        if(i == null) return;
+        addAll(i.items);
+    }
+
     public boolean removeOne(Item item) {
 
         if(item.hasProperty("stack") && item.getCount() >= 1) {
@@ -66,6 +78,7 @@ public class Inventory {
             if(items[i] == null) continue;
             if(items[i].equals(item)) {
                 items[i] = null;
+                count--;
                 return;
             }
         }
@@ -104,6 +117,74 @@ public class Inventory {
 
     public int getCount() {
         return count;
+    }
+
+    public boolean isEmpty() {
+        return count == 0;
+    }
+
+    public Inventory prune() {
+        HashSet<Item> pruned = new HashSet<>(asList()
+                .stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList()));
+
+        items = new Item[1];
+        count = 0;
+
+        for(Item i : pruned)
+            add(i);
+
+        return this;
+    }
+
+    public static Inventory combine(Inventory i, Inventory i2) {
+        Inventory newInventory = new Inventory();
+        newInventory.addAll(i.items);
+        newInventory.addAll(i2.items);
+        return newInventory;
+    }
+
+    public Item[] filterRarity(double raritymin, double raritymax) {
+        ArrayList<Item> it = new ArrayList<Item>(asList()
+                .stream()
+                .filter(i -> (i != null && i.rarity <= raritymax && i.rarity >= raritymin))
+                .collect(Collectors.toList()));
+        Item[] items = new Item[it.size()];
+
+        for(Item item : it) {
+            for(int i = 0; i < items.length; i++)
+                if(items[i] == null) {
+                    items[i] = item;
+                    break;
+                }
+        }
+
+        return items;
+    }
+
+    public Item[] filterWorth(int worthmin, int worthmax) {
+        ArrayList<Item> it = new ArrayList<>(asList()
+                .stream()
+                .filter(i -> (i != null && i.worth <= worthmax && i.worth >= worthmin))
+                .collect(Collectors.toList()));
+
+        Item[] items = new Item[it.size()];
+
+        for(Item item : it) {
+            for(int i = 0; i < items.length; i++)
+                if(items[i] == null) {
+                    items[i] = item;
+                    break;
+                }
+        }
+
+        return items;
+    }
+
+    @Override
+    public Iterator<Item> iterator() {
+        return Arrays.asList(items).iterator();
     }
 
 }

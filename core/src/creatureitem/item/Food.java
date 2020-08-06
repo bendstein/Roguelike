@@ -11,20 +11,20 @@ public class Food extends Item {
      */
     int foodValue;
 
-    public Food(char glyph, String texturePath, String name, int foodValue) {
-        super(glyph, texturePath, name);
+    public Food(char glyph, String texturePath, String name, int worth, int foodValue) {
+        super(glyph, texturePath, name, worth);
         this.properties.add("eat");
         this.foodValue = foodValue;
     }
 
-    public Food(char glyph, String texturePath, String name, int foodValue, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Food(char glyph, String texturePath, String name, int worth, int foodValue, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         this.properties.add("eat");
         this.foodValue = foodValue;
     }
 
-    public Food(char glyph, String texturePath, String name, Damage throwDamage, int foodValue, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Food(char glyph, String texturePath, String name, int worth, Damage throwDamage, int foodValue, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         this.properties.add("eat");
         this.foodValue = foodValue;
     }

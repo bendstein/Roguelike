@@ -35,5 +35,10 @@ public class floatPoint {
     public void setY(float y) {
         this.y = y;
     }
+
+    public void setLocation(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
     //</editor-fold>
 }

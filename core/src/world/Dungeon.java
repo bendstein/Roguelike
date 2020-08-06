@@ -1,13 +1,16 @@
 package world;
 
 import actors.world.LevelActor;
+import com.badlogic.gdx.graphics.Color;
+import creatureitem.Creature;
 import creatureitem.Player;
 import creatureitem.generation.CreatureItemFactory;
+import creatureitem.item.Inventory;
+import creatureitem.item.Item;
 import game.Main;
 import org.jetbrains.annotations.NotNull;
 import world.generation.LevelFactory;
-import world.thing.Stairs;
-import world.thing.StairsBehavior;
+import world.thing.*;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -18,103 +21,218 @@ public class Dungeon {
     /**
      * Reference to the main game
      */
-    private Main game;
+    protected Main game;
 
     /**
      * The name of the dungeon
      */
-    private String name;
+    protected String name;
 
     /**
      * The first floor of the dungeon
      */
-    private Level root;
+    protected Level root;
 
     /**
      * The factory for generating floors
      */
-    private LevelFactory builder;
-
-    /**
-     * The factory for generating creatures
-     */
-    private CreatureItemFactory factory;
+    protected LevelFactory builder;
 
     /**
      * Reference to the player character
      */
-    private Player player;
+    protected Player player;
 
     /**
      * Number of floors
      */
-    private int floors;
+    protected int floors;
 
     /**
      * prng
      */
-    private Random random;
+    protected Random random;
 
     /**
      * Actor for levels in the dungeon
      */
-    private LevelActor levelActor;
+    protected LevelActor levelActor;
+
+    /**
+     * Type of dungeon to generate
+     */
+    protected int type;
+
+    /**
+     * Properties that the dungeon has
+     */
+    protected ArrayList<String> properties;
+
+    /**
+     * A rating for how dangerous the dungeon will be.
+     * The danger level for levels in the dungeon will
+     * by default be this value.
+     */
+    protected int dangerLevel;
+
+    /**
+     * Types for type
+     */
+    protected static final int TOWN = 0, CAVERNS = 1, DUNGEON = 2;
 
     //</editor-fold>
 
-    public Dungeon(LevelFactory builder, CreatureItemFactory factory, Random random, Main game, int floors) {
+    public Dungeon(LevelFactory builder, Random random, Main game, int type, int floors, int dangerLevel, String ... properties) {
         this.builder = builder;
-        this.factory = factory;
         this.random = random;
+        this.type = type;
         this.floors = floors;
         this.game = game;
-
-        generate();
+        this.dangerLevel = dangerLevel;
+        this.properties = new ArrayList<>();
+        for(String p : properties) addProperty(p);
     }
 
     public void generate() {
-        Level previous = null;
+    }
+
+    public Stairs generate(Entrance e, Creature cr) {
+        if(type != 1 && type != 2) return null;
+        setPlayer((Player)cr);
+
+        if(type == 1)
+            return generateDungeon0(e, cr);
+        else if(type == 2)
+            return generateDungeon1(e, cr);
+        /*
+        for(int i = 0; i < floors; i++) {
+            builder.clear();
+            if(type == 1)
+                current = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
+            else if(type == 2)
+                current = builder.generate().build();
+            current.setDungeon(this);
+            current.setFloor_number(i + 1);
+            current.setDangerLevel(dangerLevel);
+            if(i == 0) {
+                root = current;
+                first = connect(e, current, e.isUp()).getDestination();
+                stairs.add(first);
+                levelActor = new LevelActor(current);
+                current.setActor(levelActor);
+            }
+            else
+                stairs.add(connect(current, previous, true).getDestination());
+
+            previous = current;
+        }
+
+        Light[] lights = new Light[]{
+                new LightRandom(Tile.BRAZIER, true, 6, .5f, 3, true, random, 2000L, 0,
+                        new int[][]{
+                                {Light.RED, Light.BLUE_GREEN, Light.GREEN, Light.WHITE},
+                                {Light.PURPLE, Light.WHITE},
+                        }),
+        };
+
+        for(Stairs s : stairs) {
+            builder.generateItems(s.getLevel());
+            builder.generateLightThings(s.getLevel(), lights);
+        }
+
+         */
+
+
+        return null;
+    }
+
+    public Stairs generateDungeon0(Entrance e, Creature cr) {
+
+        Level previous = e.getLevel();
+        setPlayer((Player)cr);
         Level current;
+        Stairs first = null;
+        ArrayList<Stairs> stairs = new ArrayList<>();
+
+        for(int i = 0; i < floors; i++) {
+            builder.clear();
+            current = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
+            current.setDungeon(this);
+            current.setFloor_number(i + 1);
+            current.setDangerLevel(dangerLevel + Math.max(0, i/5));
+            if(i == 0) {
+                root = current;
+                first = connect(e, current, e.isUp()).getDestination();
+                stairs.add(first);
+                levelActor = new LevelActor(current);
+                current.setActor(levelActor);
+            }
+            else
+                stairs.add(connect(current, previous, true).getDestination());
+
+            previous = current;
+        }
+
+        Light[] lights = new Light[]{
+                new LightRandom(Tile.BRAZIER, true, 6, .5f, 3, true, random, 2000L, 0,
+                        new int[][]{
+                                {Light.RED, Light.BLUE_GREEN, Light.GREEN, Light.WHITE},
+                                {Light.PURPLE, Light.WHITE},
+                        }),
+        };
+
+        for(Stairs s : stairs) {
+            builder.generateCreatures(s.getLevel(), 1);
+            //s.getLevel().addCreatureQueue();
+            builder.generateItems(s.getLevel(), 1);
+            builder.generateLightThings(s.getLevel(), lights);
+        }
+
+        return first;
+
+    }
+
+    public Stairs generateDungeon1(Entrance e, Creature cr) {
+        Level previous = e.getLevel();
+        setPlayer((Player)cr);
+        Level current;
+        Stairs first = null;
+        ArrayList<Stairs> stairs = new ArrayList<>();
 
         for(int i = 0; i < floors; i++) {
             builder.clear();
             current = builder.generate().build();
             current.setDungeon(this);
-            factory.setLevel(current);
+            current.setFloor_number(i + 1);
+            current.setDangerLevel(dangerLevel + Math.max(0, i/5));
             if(i == 0) {
                 root = current;
-                world.thing.Stairs first = connect(current, previous, true);
-                this.player = factory.newPlayer(new ArrayList<>());
-                player.setLevel(current);
-                current.setPlayer(player);
-                current.addAt(first.getX(), first.getY(), this.player);
+                first = connect(e, current, e.isUp()).getDestination();
+                stairs.add(first);
                 levelActor = new LevelActor(current);
                 current.setActor(levelActor);
             }
             else
-                connect(current, previous, true);
-            for(int c = 0; c < 0; c++) {
-
-                current.addAtEmptyLocation(factory.newFungus());
-                current.addAtEmptyLocation(factory.newZombie());
-                current.addAtEmptyLocation(factory.newGoblin());
-                current.addAtEmptyLocation(factory.newBat());
-                current.addAtEmptyLocation(factory.newRock());
-                current.addAtEmptyLocation(factory.newLongsword());
-                current.addAtEmptyLocation(factory.newShortbow());
-                current.addAtEmptyLocation(factory.newArrow());
-                current.addAtEmptyLocation(factory.newSling());
-                current.addAtEmptyLocation(factory.newArmor());
-                current.addAtEmptyLocation(factory.newHealthPotion());
-                current.addAtEmptyLocation(factory.newRegenPotion());
-                current.addAtEmptyLocation(factory.newPoisonPotion());
-                current.addAtEmptyLocation(factory.newHeroismPotion());
-            }
+                stairs.add(connect(current, previous, true).getDestination());
 
             previous = current;
         }
 
-        factory.setLevel(root);
+        Light[] lights = new Light[]{
+                new LightRandom(Tile.BRAZIER, true, 6, .6f, 3, true, random, 1000L, .2,
+                        new int[][]{
+                                {Light.YELLOW, Light.WHITE},
+                                {Light.WHITE, Light.ORANGE},
+                        }, Color.CORAL)
+        };
+
+        for(Stairs s : stairs) {
+            builder.generateCreatures(s.getLevel(), 2);
+            builder.generateItems(s.getLevel(), 2);
+            builder.generateLightThings(s.getLevel(), lights);
+        }
+
+        return first;
     }
 
     /**
@@ -124,7 +242,7 @@ public class Dungeon {
      * @param below true if level a is below level b
      * @return the staircase generated on level a
      */
-    public world.thing.Stairs connect(@NotNull Level a, Level b, boolean below) {
+    public Stairs connect(@NotNull Level a, Level b, boolean below) {
 
         int ax, ay, bx, by;
 
@@ -133,7 +251,8 @@ public class Dungeon {
             ay = random.nextInt(a.getHeight());
         } while(a.getTileAt(ax, ay) != Tile.FLOOR);
 
-        world.thing.Stairs stair_a = new world.thing.Stairs(ax, ay, null, a, below);
+        Stairs stair_a = new Stairs(ax, ay, null, a, below);
+        Stairs stair_b = null;
         new StairsBehavior(stair_a);
 
         a.addStairs(stair_a);
@@ -144,7 +263,7 @@ public class Dungeon {
                 by = random.nextInt(b.getHeight());
             } while(b.getTileAt(bx, by) != Tile.FLOOR);
 
-            world.thing.Stairs stair_b = new Stairs(bx, by, stair_a, b, !below);
+            stair_b = new Stairs(bx, by, stair_a, b, !below);
             new StairsBehavior(stair_b);
 
             stair_a.setDestination(stair_b);
@@ -152,6 +271,26 @@ public class Dungeon {
         }
 
         return stair_a;
+    }
+
+    public Stairs connect(@NotNull Stairs a, Level b, boolean below) {
+
+        int bx, by;
+
+        if (b != null) {
+            do {
+                bx = random.nextInt(b.getWidth());
+                by = random.nextInt(b.getHeight());
+            } while(b.getTileAt(bx, by) != Tile.FLOOR);
+
+            Stairs stair_b = new Stairs(bx, by, a, b, !below);
+            new StairsBehavior(stair_b);
+
+            a.setDestination(stair_b);
+            b.addStairs(stair_b);
+        }
+
+        return a;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -178,14 +317,6 @@ public class Dungeon {
 
     public void setBuilder(LevelFactory builder) {
         this.builder = builder;
-    }
-
-    public CreatureItemFactory getFactory() {
-        return factory;
-    }
-
-    public void setFactory(CreatureItemFactory factory) {
-        this.factory = factory;
     }
 
     public Player getPlayer() {
@@ -226,6 +357,32 @@ public class Dungeon {
 
     public void setGame(Main game) {
         this.game = game;
+    }
+
+    public int getDangerLevel() {
+        return dangerLevel;
+    }
+
+    public void setDangerLevel(int dangerLevel) {
+        this.dangerLevel = dangerLevel;
+    }
+
+    public ArrayList<String> getProperties() {
+        return properties;
+    }
+
+    public void setProperties(ArrayList<String> properties) {
+        this.properties = properties;
+    }
+
+    public boolean hasProperty(String property) {
+        if(properties == null) return false;
+        return properties.contains(property);
+    }
+
+    public void addProperty(String property) {
+        if(properties == null) return;
+        if(!hasProperty(property)) properties.add(property);
     }
 
     //</editor-fold>

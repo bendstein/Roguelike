@@ -11,18 +11,18 @@ public class Armor extends Equipable {
      */
     private int armor;
 
-    public Armor(char glyph, String texturePath, int armor, String name) {
-        super(glyph, texturePath, name);
+    public Armor(char glyph, String texturePath, int armor, String name, int worth) {
+        super(glyph, texturePath, name, worth);
         this.armor = armor;
     }
 
-    public Armor(char glyph, String texturePath, String name, int armor, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Armor(char glyph, String texturePath, String name, int worth, int armor, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         this.armor = armor;
     }
 
-    public Armor(char glyph, String texturePath, String name, Damage throwDamage, int armor, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Armor(char glyph, String texturePath, String name, int worth, Damage throwDamage, int armor, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         this.armor = armor;
     }
 
@@ -36,7 +36,7 @@ public class Armor extends Equipable {
      * @param armor The armor rating
      */
     public Armor(int armor) {
-        super(' ', "", " ");
+        super(' ', "", " ", 0);
         this.armor = armor;
     }
 

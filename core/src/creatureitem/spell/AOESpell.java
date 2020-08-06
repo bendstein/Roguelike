@@ -47,7 +47,7 @@ public class AOESpell extends PointSpell {
         for(int i = -radius; i <= radius; i++) {
             for(int j = -radius; j <= radius; j++) {
                 if(x + i < 0 || x + i >= Gdx.graphics.getWidth() || y + j < 0 || y + j >= Gdx.graphics.getHeight()) continue;
-                if(Math.pow(i, 2) + Math.pow(j, 2) <= Math.pow(radius, 2)) {
+                if(Math.abs(i) + Math.abs(j) <= radius/*Math.pow(i, 2) + Math.pow(j, 2) <= Math.pow(radius, 2)*/) {
                     boolean obstacle = false;
                     for(Point p : new Line(x, x + i, y, y + j)) {
 

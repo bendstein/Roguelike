@@ -1,17 +1,17 @@
 package world.room;
 
-import world.World;
+import world.LevelInterface;
 import world.Tile;
 import world.geometry.Point;
 
 import java.util.*;
 
-public abstract class Room extends World {
+public abstract class Room extends LevelInterface {
 
     /**
      * The level this room belongs to
      */
-    protected World parent;
+    protected LevelInterface parent;
 
     /**
      * The x coordinate of the bottom left corner of the room in the parent's coordinate system.
@@ -58,6 +58,10 @@ public abstract class Room extends World {
      */
     public Tile getTileAtParent(int xp, int yp) {
         return tiles[xp - x][yp - y];
+    }
+
+    public Point getPointAtParent(int xp, int yp) {
+        return new Point(xp - x, yp - y);
     }
 
     /**
@@ -479,11 +483,11 @@ public abstract class Room extends World {
     }
 
     //<editor-fold desc="Getters and Setters">
-    public World getParent() {
+    public LevelInterface getParent() {
         return parent;
     }
 
-    public void setParent(World parent) {
+    public void setParent(LevelInterface parent) {
         this.parent = parent;
     }
 

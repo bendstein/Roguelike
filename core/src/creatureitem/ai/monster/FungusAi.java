@@ -8,10 +8,6 @@ public class FungusAi extends CreatureAi {
 
 
     //<editor-fold desc="Instance Variables">
-    /**
-     * Factory for creating more fungi
-     */
-    private CreatureItemFactory factory;
 
     /**
      * Number of spreads this fungus has done
@@ -39,9 +35,8 @@ public class FungusAi extends CreatureAi {
     private final int MAX_DIST = 3;
     //</editor-fold>
 
-    public FungusAi(Creature creature, CreatureItemFactory factory) {
+    public FungusAi(Creature creature) {
         super(creature);
-        this.factory = factory;
         spread = 0;
     }
 
@@ -83,10 +78,15 @@ public class FungusAi extends CreatureAi {
         if(!Creature.canEnter(x, y, creature.getLevel()))
             return;
 
-        Creature child = factory.newFungus();
+        Creature child = CreatureItemFactory.newFungus();
         creature.getLevel().addAt(x, y, child);
         spread++;
 
         creature.doAction("spread to a nearby tile!");
+    }
+
+    @Override
+    public CreatureAi copy() {
+        return new FungusAi(creature);
     }
 }

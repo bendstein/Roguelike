@@ -14,20 +14,20 @@ public class RangedWeapon extends Weapon {
      */
     protected String ammoType;
 
-    public RangedWeapon(char glyph, String texturePath, String name, Damage weaponDamage, int toHitMod, int range, String ammoType) {
-        super(glyph, texturePath, name, weaponDamage, toHitMod);
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage, int toHitMod, int range, String ammoType) {
+        super(glyph, texturePath, name, worth, weaponDamage, toHitMod);
         this.range = range;
         this.ammoType = ammoType;
     }
 
-    public RangedWeapon(char glyph, String texturePath, String name, Damage weaponDamage, int toHitMod, int range, String ammoType, String... properties) {
-        super(glyph, texturePath, name, weaponDamage, toHitMod, properties);
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage, int toHitMod, int range, String ammoType, String... properties) {
+        super(glyph, texturePath, name, worth, weaponDamage, toHitMod, properties);
         this.range = range;
         this.ammoType = ammoType;
     }
 
-    public RangedWeapon(char glyph, String texturePath, String name, Damage throwDamage, Damage weaponDamage, int toHitMod, int range, String ammoType, String... properties) {
-        super(glyph, texturePath, name, throwDamage, weaponDamage, toHitMod, properties);
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage throwDamage, Damage weaponDamage, int toHitMod, int range, String ammoType, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, weaponDamage, toHitMod, properties);
         this.range = range;
         this.ammoType = ammoType;
     }

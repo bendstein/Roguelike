@@ -29,6 +29,15 @@ public class Stairs extends Thing {
         this.up = up;
     }
 
+    public Stairs(Tile tile, int x, int y, Stairs destination, Level level, boolean up) {
+        super(tile, true);
+        this.x = x;
+        this.y = y;
+        this.destination = destination;
+        this.level = level;
+        this.up = up;
+    }
+
     public Stairs getDestination() {
         return destination;
     }

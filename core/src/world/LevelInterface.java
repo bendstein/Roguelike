@@ -1,13 +1,13 @@
 package world;
 
-public abstract class World {
+public abstract class LevelInterface {
 
     /**
      * The tiles making up this level
      */
     protected Tile[][] tiles;
 
-    public World(Tile[][] tiles) {
+    public LevelInterface(Tile[][] tiles) {
         this.tiles = tiles;
     }
 
@@ -21,6 +21,7 @@ public abstract class World {
      * @return Return the tile at (x, y) in the level's coordinate system.
      */
     public Tile getTileAt(int x, int y) {
+        if(isOutOfBounds(x, y)) return null;
         return tiles[x][y];
     }
 
@@ -30,14 +31,18 @@ public abstract class World {
      * @return A 2d array of tiles who are adjacent to (x, y) in the level's coordinate system.
      */
     public Tile[][] getAdjacentTiles(int x, int y) {
-        Tile[][] adj = new Tile[3][3];
+        return getAdjacentTiles(x, y, 1);
+    }
 
-        for(int i = -1; i <= 1; i++) {
-            for(int j = -1; j <= 1; j++) {
+    public Tile[][] getAdjacentTiles(int x, int y, int r) {
+        Tile[][] adj = new Tile[1 + (2 * r)][1 + (2 * r)];
+
+        for(int i = -r; i <= r; i++) {
+            for(int j = -r; j <= r; j++) {
                 if(x + i > 0 && x + i < getWidth() && y + j > 0 && y + j < getHeight())
-                    adj[i + 1][j + 1] = tiles[x + i][y + j];
+                    adj[i + r][j + r] = tiles[x + i][y + j];
                 else
-                    adj[i + 1][j + 1] = null;
+                    adj[i + r][j + r] = null;
             }
         }
 
@@ -45,7 +50,11 @@ public abstract class World {
     }
 
     public int getNumAdj(int x, int y) {
-        Tile[][] ts = getAdjacentTiles(x, y);
+        return getNumAdj(x, y, 1);
+    }
+
+    public int getNumAdj(int x, int y, int r) {
+        Tile[][] ts = getAdjacentTiles(x, y, r);
         int count = 0;
         for(int i = 0; i < ts.length; i++) {
             for(int j = 0; j < ts[0].length; j++) {

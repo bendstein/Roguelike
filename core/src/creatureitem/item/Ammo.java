@@ -11,18 +11,18 @@ public class Ammo extends Equipable {
      */
     Damage ammoDamage;
 
-    public Ammo(char glyph, String texturePath, String name, Damage ammoDamage) {
-        super(glyph, texturePath, name);
+    public Ammo(char glyph, String texturePath, String name, int worth, Damage ammoDamage) {
+        super(glyph, texturePath, name, worth);
         this.ammoDamage = ammoDamage;
     }
 
-    public Ammo(char glyph, String texturePath, String name, Damage ammoDamage, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Ammo(char glyph, String texturePath, String name, int worth, Damage ammoDamage, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         this.ammoDamage = ammoDamage;
     }
 
-    public Ammo(char glyph, String texturePath, String name, Damage throwDamage, Damage ammoDamage, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Ammo(char glyph, String texturePath, String name, int worth, Damage throwDamage, Damage ammoDamage, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         this.ammoDamage = ammoDamage;
     }
 

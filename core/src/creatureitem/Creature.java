@@ -126,6 +126,9 @@ public class Creature {
      */
     protected int y;
 
+    protected double rarity;
+
+    public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
 
     /**
      * Reference to the level the creature is in
@@ -257,6 +260,7 @@ public class Creature {
         this.glyph = glyph;
 
         this.team = team;
+        this.rarity = 0d;
 
         this.inventory = new Inventory();
 
@@ -290,17 +294,20 @@ public class Creature {
         this.y = creature.y;
 
         this.level = creature.level;
+        this.rarity = creature.rarity;
 
         this.texture = new Texture(creature.getTexture().getTextureData());
 
         this.name = creature.name;
         this.glyph = creature.glyph;
 
-        this.ai = creature.ai;
+        this.ai = creature.ai == null? null : creature.ai.copy();
+        if(this.ai != null) this.ai.setCreature(this);
 
         this.team = creature.team;
 
-        this.actor = creature.actor;
+        this.actor = creature.actor == null? null : ((CreatureActor)creature.actor).copy();
+        if(this.actor != null) ((CreatureActor)this.actor).setCreature(this);
 
         this.lastMovedTime = 0L;
         this.moveDirection = 0;
@@ -340,12 +347,13 @@ public class Creature {
         this.y = y;
     }
 
-    public creatureitem.ai.CreatureAi getAi() {
+    public CreatureAi getAi() {
         return ai;
     }
 
     public void setAi(CreatureAi ai) {
         this.ai = ai;
+        if(ai != null) ai.setCreature(this);
     }
 
     public String getName() {
@@ -421,7 +429,7 @@ public class Creature {
     }
 
     public int getVisionRadius() {
-        return 6 + getAttributeBonus(perception);
+        return Math.max(1, 4 + getAttributeBonus(perception));
     }
 
     /**
@@ -456,6 +464,7 @@ public class Creature {
 
     public void setActor(CreatureActor actor) {
         this.actor = actor;
+        if(actor != null) actor.setCreature(this);
     }
 
     public Inventory getInventory() {
@@ -686,6 +695,14 @@ public class Creature {
         this.spells = spells;
     }
 
+    public double getRarity() {
+        return rarity;
+    }
+
+    public void setRarity(double rarity) {
+        this.rarity = rarity;
+    }
+
     //</editor-fold>
 
     public void modifyExp(int exp) {
@@ -830,7 +847,8 @@ public class Creature {
 
         for(int ox = -r; ox < r + 1; ox++) {
             for(int oy = -r; oy < r + 1; oy++) {
-                if(Math.pow(ox, 2) + Math.pow(oy, 2) > Math.pow(r, 2))
+                //if(Math.pow(ox, 2) + Math.pow(oy, 2) > Math.pow(r, 2))
+                if(Math.abs(ox) + Math.abs(oy) > r)
                     continue;
 
                 Creature other = level.getCreatureAt(x + ox, y + oy);
@@ -942,7 +960,7 @@ public class Creature {
             doAction("pick up %s.", level.getItemAt(x, y).toString());
             if(level.getItemAt(x, y) instanceof Potion)
                 ((Potion) level.getItemAt(x, y)).getEffect().setCaster(this);
-            inventory.add(level.removeItemAt(x, y));
+            inventory.add(level.removeItem(x, y));
         }
 
     }
@@ -954,7 +972,7 @@ public class Creature {
             if(notify) doAction("pick up %s.", level.getItemAt(x, y).toString());
             if(level.getItemAt(x, y) instanceof Potion)
                 ((Potion) level.getItemAt(x, y)).getEffect().setCaster(this);
-            inventory.add(level.removeItemAt(x, y));
+            inventory.add(level.removeItem(x, y));
         }
 
     }
@@ -964,42 +982,23 @@ public class Creature {
      * @param item The item to drop
      */
     public void drop(Item item) {
-        if(isEquipped(item)) {
-            boolean uneqipped = unequip(item, false);
-            if(!uneqipped) return;
-        }
-        inventory.remove(item);
-
-        for(int i = 0; i <= 3; i++) {
-            for(int j = 0; j <= 3; j++) {
-                if(level.addAt(x + i, y + j, item)) {
-                    doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x + i, y - j, item)) {
-                    doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y + j, item)) {
-                    doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y - j, item)) {
-                    doAction("drop %s.", item.toString());
-                    return;
-                }
-            }
-        }
-
-        doAction("drop %s into the void.", item.toString());
+        drop(item, true);
     }
 
     public void drop(Item item, boolean notify) {
-        if(isEquipped(item)) {
-            boolean uneqipped = unequip(item, false);
-            if(!uneqipped) return;
+        drop(item, notify, true);
+    }
+
+    public void drop(Item item, boolean notify, boolean remove) {
+        if(remove) {
+            if(isEquipped(item)) {
+                boolean uneqipped = unequip(item, false);
+                if(!uneqipped) return;
+            }
+            inventory.remove(item);
         }
-        inventory.remove(item);
+
+        if(item == null) return;
 
         for(int i = 0; i <= 3; i++) {
             for(int j = 0; j <= 3; j++) {
@@ -1026,42 +1025,21 @@ public class Creature {
     }
 
     public void drop(Item item, int x, int y) {
-        if(isEquipped(item)) {
-            boolean uneqipped = unequip(item, false);
-            if(!uneqipped) return;
-        }
-        inventory.remove(item);
-
-        for(int i = 0; i <= 3; i++) {
-            for(int j = 0; j <= 3; j++) {
-                if(level.addAt(x + i, y + j, item)) {
-                    notify("%s falls to the ground.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
-                    return;
-                }
-                else if(level.addAt(x + i, y - j, item)) {
-                    notify("%s falls to the ground.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y + j, item)) {
-                    notify("%s falls to the ground.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y - j, item)) {
-                    notify("%s falls to the ground.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
-                    return;
-                }
-            }
-        }
-
-        notify("%s falls into the void.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
+       drop(item, x, y, true);
     }
 
     public void drop(Item item, int x, int y, boolean notify) {
-        if(isEquipped(item)) {
-            boolean uneqipped = unequip(item, false);
-            if(!uneqipped) return;
+        drop(item, x, y, notify, true);
+    }
+
+    public void drop(Item item, int x, int y, boolean notify, boolean remove) {
+        if(remove) {
+            if(isEquipped(item)) {
+                boolean uneqipped = unequip(item, false);
+                if(!uneqipped) return;
+            }
+            inventory.remove(item);
         }
-        inventory.remove(item);
 
         for(int i = 0; i <= 3; i++) {
             for(int j = 0; j <= 3; j++) {
@@ -1132,8 +1110,9 @@ public class Creature {
             doAction("throw %s.", i.getName());
             if(i.hasProperty("shatter"))
                 notify("It shatters on impact!");
-            else
-                drop(i, current.getX(), current.getY());
+            else {
+                drop(i, current.getX(), current.getY(), false, false);
+            }
         }
 
         if(depleted)
@@ -1146,20 +1125,23 @@ public class Creature {
 
         Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getRange() + 1);
 
-        Point current = getLocation();
+        //Point current = getLocation();
         boolean damage = false;
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
-            if(!level.isPassable(p.getX(), p.getY())) break;
-            current = p;
+            if(!level.isPassable(p.getX(), p.getY())) return false;
+            //current = p;
 
+            /*
             if(level.getCreatureAt(current.getX(), current.getY()) != null) {
                 damage = true;
                 break;
             }
+
+             */
         }
 
-        return damage;
+        return true;
     }
 
     public void shootRangedWeapon(Cursor cursor) {
@@ -1197,7 +1179,7 @@ public class Creature {
         if(depleted)
             unequip(quiver, false);
         if(recover)
-            drop(i, current.getX(), current.getY(), false);
+            drop(i, current.getX(), current.getY(), false, false);
 
     }
 
@@ -1271,7 +1253,7 @@ public class Creature {
     }
 
     public void leaveCorpse() {
-        Food corpse = new Food('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), hpMax * 3, "stack");
+        Food corpse = new Food('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), 1, hpMax * 3, "stack");
         level.addAt(x, y, corpse);
 
         for(Item i : inventory.getItems()) {

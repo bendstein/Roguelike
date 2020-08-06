@@ -1,15 +1,23 @@
 package actors.ui;
 
+import actors.world.MinimapActor;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import game.Main;
+import utility.Utility;
+import world.Level;
+import world.Tile;
+import world.geometry.Point;
+import world.thing.Light;
 
 import java.util.Locale;
 
@@ -32,6 +40,13 @@ public class UI {
     private Label level;
     private Label armor;
 
+    private Table outerMinimapTable;
+    private ScrollPane minimap;
+    private Table innerMinimapTable;
+    private float minimapScale;
+    private Point currentPlayerLocation;
+    private Stack[][] stacks;
+    private Stack currentPlayerStack;
 
     public UI(Main game) {
         this.game = game;
@@ -89,8 +104,64 @@ public class UI {
 
         table1.layout();
 
+        outerMinimapTable = new Table();
+        innerMinimapTable = new Table();
+        innerMinimapTable.setSize(.3f * viewport.getScreenWidth(), (.2f * viewport.getScreenHeight()));
+        minimap = new ScrollPane(innerMinimapTable);
+        outerMinimapTable.add(minimap);
+        minimapScale = .25f;
+        currentPlayerLocation = new Point(-1, -1);
+        currentPlayerStack = new Stack();
+
+        minimap.addListener(new InputListener() {
+
+            @Override
+            public boolean scrolled(InputEvent event, float x, float y, int amount) {
+                switch (amount) {
+                    case -1: {
+                        if(minimapScale >= 1.5f) return true;
+                        else if(minimapScale <= .20) {
+                            minimapScale += 0.05f;
+                            if(minimapScale == .15f) minimapScale = .2f;
+                        }
+                        else if(minimapScale % .25 == 0) {
+                            minimapScale += 0.25f;
+                        }
+                        else {
+                            minimapScale += minimapScale % .25f;
+                            return scrolled(event, x, y, 1);
+                        }
+                        System.out.println(minimapScale);
+                        return true;
+                    }
+                    case 1: {
+                        if(minimapScale <= 0.15) return true;
+                        else if(minimapScale <= .25) {
+                            minimapScale -= 0.05f;
+                            if(minimapScale == .15f) minimapScale = .1f;
+                        }
+                        else if(minimapScale % .25 == 0) {
+                            minimapScale -= 0.25f;
+                        }
+                        else {
+                            minimapScale -= minimapScale % .25f;
+                            return scrolled(event, x, y, -1);
+                        }
+                        System.out.println(minimapScale);
+                        return true;
+                    }
+                    default: {
+                        return false;
+                    }
+                }
+            }
+        });
+
+        initMinimap();
+
+        root.add(outerMinimapTable).width(.3f * viewport.getScreenWidth());
         //Filler space
-        root.add().width(.6f * viewport.getScreenWidth());
+        root.add().width(.3f * viewport.getScreenWidth());
 
         outerLogTable = new Table();
         outerLogTable.pad(5).defaults().space(4);
@@ -122,6 +193,18 @@ public class UI {
 
     }
 
+    public void initMinimap() {
+        stacks = new Stack[game.getLevel().getWidth()][game.getLevel().getHeight()];
+        Level level = game.getLevel();
+        for(int j = level.getHeight() - 1; j >= 0 ; j--) {
+            for(int i = 0; i < level.getWidth() ; i++) {
+                innerMinimapTable.add();
+                stacks[i][j] = new Stack();
+            }
+            innerMinimapTable.row();
+        }
+    }
+
     /**
      * Dispose of the stage
      */
@@ -129,7 +212,81 @@ public class UI {
         stage.dispose();
     }
 
+
     //<editor-fold desc="Getters and Setters">
+
+    public Table getTable1() {
+        return table1;
+    }
+
+    public void setTable1(Table table1) {
+        this.table1 = table1;
+    }
+
+    public Label getMana() {
+        return mana;
+    }
+
+    public void setMana(Label mana) {
+        this.mana = mana;
+    }
+
+    public Label getHunger() {
+        return hunger;
+    }
+
+    public void setHunger(Label hunger) {
+        this.hunger = hunger;
+    }
+
+    public Label getLevel() {
+        return level;
+    }
+
+    public void setLevel(Label level) {
+        this.level = level;
+    }
+
+    public Label getArmor() {
+        return armor;
+    }
+
+    public void setArmor(Label armor) {
+        this.armor = armor;
+    }
+
+    public Table getOuterMinimapTable() {
+        return outerMinimapTable;
+    }
+
+    public void setOuterMinimapTable(Table outerMinimapTable) {
+        this.outerMinimapTable = outerMinimapTable;
+    }
+
+    public ScrollPane getMinimap() {
+        return minimap;
+    }
+
+    public void setMinimap(ScrollPane minimap) {
+        this.minimap = minimap;
+    }
+
+    public Table getInnerMinimapTable() {
+        return innerMinimapTable;
+    }
+
+    public void setInnerMinimapTable(Table innerMinimapTable) {
+        this.innerMinimapTable = innerMinimapTable;
+    }
+
+    public float getMinimapScale() {
+        return minimapScale;
+    }
+
+    public void setMinimapScale(float minimapScale) {
+        this.minimapScale = minimapScale;
+    }
+
     public Stage getStage() {
         return stage;
     }
@@ -217,6 +374,80 @@ public class UI {
         level.setText(String.format(Locale.getDefault(), "Level %d (%d to next)", game.getPlayer().getExpLevel(), game.getPlayer().getAi().expToNextLevel()));
         displayOutput();
 
+        innerMinimapTable.clear();
+
+        Level level = game.getLevel();
+        if(game != null && game.getPlayer() != null && game.getLevel() != null) {
+            Stack s;
+
+            innerMinimapTable.defaults().width(Main.getTileWidth() * minimapScale).height(Main.getTileHeight() * minimapScale).pad(0);
+            for(int j = level.getHeight() - 1; j >= 0 ; j--) {
+
+                for(int i = 0; i < level.getWidth() ; i++) {
+                    s = stacks[i][j];
+                    s.clearChildren();
+                    boolean canSee = level.getPlayer().canSee(i, j);
+                    boolean seen = level.getSeen(i, j);
+
+                    if (canSee || seen) {
+                        Tile t = level.getTileAt(i, j);
+                        if(t == null) {
+                            Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
+                            im.setScaling(Scaling.fill);
+                            s.add(im);
+                        }
+                        else {
+                            Image im = new Image(t.getSprite(t.getNeutral()));
+                            im.setScaling(Scaling.fill);
+                            s.add(im);
+                        }
+
+                        if(level.getThingAt(i, j) != null) {
+                            t = level.getThingAt(i, j).getTile();
+                            Image im = new Image(t.getSprite(t.getNeutral()));
+                            im.setScaling(Scaling.fill);
+                            s.add(im);
+                        }
+
+                        if(level.getItemAt(i, j) != null) {
+                            Image im = new Image(level.getItemAt(i, j).getTexture());
+                            im.setScaling(Scaling.fill);
+                            s.add(im);
+                        }
+
+                        if(level.getCreatureAt(i, j) != null && (level.getPlayer() == null || level.getPlayer().canSee(i, j))) {
+                            if(level.getCreatureAt(i, j).equals(level.getPlayer())) {
+                                currentPlayerStack = s;
+                            }
+                            Image im = new Image(level.getCreatureAt(i, j).getTexture());
+                            im.setScaling(Scaling.fill);
+                            s.add(im);
+                        }
+                    }
+                    else {
+                        Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
+                        im.setColor(Color.BLACK);
+                        im.setScaling(Scaling.fill);
+                        s.add(im);
+                    }
+                    innerMinimapTable.add(s);
+                }
+
+                innerMinimapTable.row();
+            }
+        }
+
+        if(game.getPlayer() != null && (currentPlayerLocation.equals(new Point(-1, 1)) || !game.getPlayer().getLocation().equals(currentPlayerLocation))) {
+            currentPlayerLocation = game.getPlayer().getLocation();
+            setMinimapCenter();
+            System.out.println("Player " + currentPlayerLocation.getX() + ", " + currentPlayerLocation.getY());
+            System.out.println("Other " + minimap.getScrollX() + ", " + minimap.getScrollY());
+        }
+    }
+
+    public void setMinimapCenter() {
+        minimap.setScrollX(currentPlayerStack.getX());
+        minimap.setScrollY((innerMinimapTable.getHeight() - Main.getTileHeight()) - currentPlayerStack.getY());
     }
 
     /**
@@ -239,4 +470,6 @@ public class UI {
 
         game.getPlayer().getAi().getMessages().clear();
     }
+
+
 }

@@ -1,18 +1,26 @@
 package world;
 
+import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
+import com.badlogic.gdx.graphics.Color;
 import creatureitem.Creature;
 import creatureitem.Player;
+import creatureitem.item.Inventory;
 import creatureitem.item.Item;
+import game.Main;
 import utility.Utility;
-import world.thing.Stairs;
-import world.thing.Thing;
+import world.geometry.AStarPoint;
+import world.geometry.Point;
+import world.geometry.floatPoint;
+import world.thing.*;
 import world.room.Room;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.Stack;
 
-public class Level extends World {
+public class Level extends LevelInterface {
 
     //<editor-fold desc="Instance Variables">
     /**
@@ -30,10 +38,15 @@ public class Level extends World {
      */
     private boolean[][] seen;
 
+    private ArrayList<Light>[][] emitting;
+
+    private boolean[][] staticLight;
+
     /**
      * A* Costs
      */
     private int[][] costs;
+
     /**
      * Reference to this level's actor
      */
@@ -60,11 +73,6 @@ public class Level extends World {
     private ArrayList<Thing> things;
 
     /**
-     * List of all staircases in the level
-     */
-    private ArrayList<world.thing.Stairs> stairs;
-
-    /**
      * Name of the level
      */
     private String name;
@@ -79,9 +87,23 @@ public class Level extends World {
      */
     private Dungeon dungeon;
 
+    /**
+     * A rating of how dangerous the level is.
+     * By default, will be the danger level of the dungeon, but can be set to be
+     * higher or lower.
+     */
+    private int dangerLevel;
+
+    private int floor_number;
+
+    /**
+     * Properties that the level has, separate from dungeon properties
+     */
+    private ArrayList<String> properties;
+
     //</editor-fold>
 
-    public Level(Tile[][] tiles, Random random) {
+    public Level(Tile[][] tiles, Random random, String ... properties) {
         super(tiles);
         costs = Utility.toCostArray(tiles);
         this.random = random;
@@ -89,8 +111,19 @@ public class Level extends World {
         creatureQueue = new ArrayList<>();
         items = new Item[getWidth()][getHeight()];
         seen = new boolean[getWidth()][getHeight()];
-        stairs = new ArrayList<>();
+        emitting = new ArrayList[getWidth()][getHeight()];
+        staticLight = new boolean[getWidth()][getHeight()];
         rooms = new ArrayList<>();
+        floor_number = 0;
+
+        for(int i = 0; i < getWidth(); i++) {
+            for(int j = 0; j < getHeight(); j++) {
+                emitting[i][j] = new ArrayList<>();
+            }
+        }
+
+        this.properties = new ArrayList<>();
+        for(String p : properties) addProperty(p);
     }
 
     /**
@@ -131,11 +164,32 @@ public class Level extends World {
     public boolean addAt(int x, int y, Creature c) {
         if(Creature.canEnter(x, y, this)) {
             c.setCoordinates(x, y);
+            if(c.getActor() != null) {
+                ((CreatureActor)c.getActor()).setCurrentLocation(new floatPoint(x * Main.getTileWidth(), y * Main.getTileHeight()));
+            }
             c.setLevel(this);
 
             //Calculate creature level now that the ai has been created
             c.setExp(c.getExp(), false);
             creatureQueue.add(c);
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean addAtIgnoreQueue(int x, int y, Creature c) {
+        if(Creature.canEnter(x, y, this)) {
+            c.setCoordinates(x, y);
+            if(c.getActor() != null) {
+                ((CreatureActor)c.getActor()).setCurrentLocation(new floatPoint(x * Main.getTileWidth(), y * Main.getTileHeight()));
+            }
+            c.setLevel(this);
+
+            //Calculate creature level now that the ai has been created
+            c.setExp(c.getExp(), false);
+            creatures.add(c);
+            c.setLevel(this);
             return true;
         }
 
@@ -174,6 +228,20 @@ public class Level extends World {
         }
     }
 
+    public void addAtEmptyLocation(Thing t) {
+
+        boolean placed = false;
+        int x = 0, y = 0;
+
+        while(!placed) {
+            x = random.nextInt(getWidth() - 1);
+            y = random.nextInt(getHeight() - 1);
+            placed = addAt(x, y, t);
+        }
+
+        updateStaticLit();
+    }
+
     /**
      * Add item i at (x, y)
      * @param x X coordinate
@@ -196,7 +264,22 @@ public class Level extends World {
             return false;
 
         things.add(t);
+        addToCosts(t);
         t.setLocation(x, y);
+
+        if(t instanceof Light) {
+            Light l = (Light)t;
+            l.determinePosition(this);
+            for(int i = -l.getRange(); i <= l.getRange(); i++) {
+                for(int j = -l.getRange(); j <= l.getRange(); j++) {
+                    if(!isOutOfBounds(l.getY() + i, l.getY() + j) && l.canLight(l.getX() + i, l.getY() + j, this) != 0) {
+                        setStaticLit(l.getX() + i, l.getY() + j, l);
+                    }
+                }
+            }
+        }
+
+
         return true;
     }
 
@@ -216,7 +299,10 @@ public class Level extends World {
      * @return The creature queue
      */
     public ArrayList<Creature> addCreatureQueue() {
-        creatures.addAll(creatureQueue);
+        for(Creature c : creatureQueue) {
+            creatures.add(c);
+            c.setLevel(this);
+        }
         return creatureQueue;
     }
 
@@ -234,6 +320,15 @@ public class Level extends World {
     public void remove(Creature creature) {
         creatures.remove(creature);
         if(creature != player) creature.getActor().remove();
+
+        //creature.setAttack(0);
+    }
+
+    public Creature removeCreature(int x, int y) {
+        Creature c = getCreatureAt(x, y);
+        if(c == null) return null;
+        remove(c);
+        return c;
         //creature.setAttack(0);
     }
 
@@ -252,21 +347,31 @@ public class Level extends World {
         }
     }
 
-    public void remove(Thing thing) {
-        things.remove(thing);
-    }
-
     /**
      * Remove an item at (x, y) from the level
      * @param x X coord
      * @param y Y coord
      * @return The item that was at (x, y)
      */
-    public Item removeItemAt(int x, int y) {
+    public Item removeItem(int x, int y) {
         Item i = items[x][y];
         items[x][y] = null;
+
         return i;
     }
+
+    public void remove(Thing thing) {
+        things.remove(thing);
+    }
+
+    public Thing removeThing(int x, int y) {
+        Thing t = getThingAt(x, y);
+        if(t == null) return null;
+        remove(t);
+        return t;
+        //creature.setAttack(0);
+    }
+
 
     /**
      * Let all creatures do their turn
@@ -276,8 +381,17 @@ public class Level extends World {
         for(Creature c : toUpdate) {
             //Don't update if the creature has been removed
             if(creatures.contains(c)) c.update();
-            costs = Utility.toCostArray(this);
+            //costs = Utility.toCostArray(this);
         }
+
+        /*
+        for(Thing t : things) {
+            if(t instanceof LightRandom && System.currentTimeMillis() - ((LightRandom) t).getLastChange() > ((LightRandom) t).getCurrentRate())
+                ((LightRandom) t).changeColors();
+        }
+
+
+         */
         incrementTurn();
     }
 
@@ -317,6 +431,68 @@ public class Level extends World {
         if(getThingAt(x, y) != null && !getThingAt(x, y).isOpen()) return false;
 
         return true;
+    }
+
+    public ArrayList<Thing> getAdjThings(int x, int y, boolean ignoreCenter) {
+        return getAdjThings(x, y, 1, ignoreCenter);
+    }
+
+    public ArrayList<Thing> getAdjThings(int x, int y, int r, boolean ignoreCenter) {
+        return getAdjThings(x, y, r, ignoreCenter, false);
+    }
+
+    public ArrayList<Thing> getAdjThings(int x, int y, int r, boolean ignoreCenter, boolean sameRoom) {
+        Point p = new Point(x, y);
+        ArrayList<Thing> thingList = new ArrayList<>();
+
+        Room rp = null;
+
+        if(sameRoom) rp = getRoom(p);
+
+        for(Thing t : things) {
+            if(ignoreCenter && t.getX() == x && t.getY() == y) continue;
+
+            if(p.chebychevDistanceFrom(t.getLocation()) <= r) {
+                //If only checking things in same room, only add if thing is in same room as p
+                if(sameRoom) {
+                    Room rt = getRoom(t.getLocation());
+                    if(rt == null && rp == null)
+                        thingList.add(t);
+                    else if(rt != null && rp != null) {
+                        if(rt.equals(rp))
+                            thingList.add(t);
+                    }
+                }
+
+                else
+                    thingList.add(t);
+
+            }
+            /*
+            int astardistance = p.astarDistanceFrom(t.getLocation(), Point.DISTANCE_MANHATTAN, calculateCosts(-1));
+            if(astardistance != -1 && astardistance <= r) thingList.add(t);
+
+             */
+        }
+
+        return thingList;
+    }
+
+    public Room getRoom(Point p) {
+        return getRoom(p.getX(), p.getY());
+    }
+
+    public Room getRoom(int x, int y) {
+        if(rooms.isEmpty() || rooms == null) return null;
+        for(Room r : rooms) {
+            int rx = r.parentXtoX(x), ry = r.parentYtoY(y);
+            if(rx < 0 || ry < 0 || rx >= r.getWidth() || ry >= r.getHeight())
+                continue;
+            else if(r.getTileAt(rx, ry) == Tile.FLOOR)
+                return r;
+        }
+
+        return null;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -378,14 +554,6 @@ public class Level extends World {
         this.rooms = rooms;
     }
 
-    public ArrayList<world.thing.Stairs> getStairs() {
-        return stairs;
-    }
-
-    public void setStairs(ArrayList<Stairs> stairs) {
-        this.stairs = stairs;
-    }
-
     public ArrayList<Thing> getThings() {
         return things;
     }
@@ -422,12 +590,79 @@ public class Level extends World {
         seen[x][y] = true;
     }
 
+    public void setSeenAll() {
+        for(int i = 0; i < seen.length; i++)
+            Arrays.fill(seen[i], true);
+    }
+
     public boolean getSeen(int x, int y) {
+        if(isOutOfBounds(x, y)) return false;
         return seen[x][y];
+    }
+
+    public boolean[][] getStaticLight() {
+        return staticLight;
+    }
+
+    public boolean getStaticLit(int x, int y) {
+        if(isOutOfBounds(x, y)) return false;
+        return staticLight[x][y];
+    }
+
+    public void setStaticLight(boolean[][] staticLight) {
+        this.staticLight = staticLight;
+    }
+
+    public void setStaticLit(int x, int y, Light l) {
+        staticLight[x][y] = true;
+        if(!emitting[x][y].contains(l))
+            emitting[x][y].add(l);
+    }
+
+    public ArrayList<Light>[][] getEmitting() {
+        return emitting;
+    }
+
+    public ArrayList<Light> getEmitting(int x, int y) {
+        return emitting[x][y];
+    }
+
+    public void setEmitting(ArrayList<Light>[][] emitting) {
+        this.emitting = emitting;
     }
 
     public int[][] getCosts() {
         return costs;
+    }
+
+    public int[][] calculateCosts() {
+        return calculateCosts(2);
+    }
+
+    public int[][] calculateCosts(int doorCost) {
+        int[][] costs = Utility.toCostArray(tiles);
+
+        for(Thing t : things) {
+            if(!t.isOpen()) {
+                if(t.getBehavior() instanceof DoorBehavior)
+                    costs[t.getX()][t.getY()] = doorCost;
+                else
+                    costs[t.getX()][t.getY()] = -1;
+            }
+        }
+
+        return costs;
+    }
+
+    public void addToCosts(Thing t) {
+        int[][] costs = Utility.toCostArray(tiles);
+
+        if(!t.isOpen()) {
+            if(t.getBehavior() instanceof DoorBehavior)
+                costs[t.getX()][t.getY()] += 1;
+            else
+                costs[t.getX()][t.getY()] = -1;
+        }
     }
 
     public void setCosts(int[][] costs) {
@@ -446,5 +681,77 @@ public class Level extends World {
         dungeon.getGame().incrementTurn();
     }
 
+    public void updateStaticLit() {
+        for(int i = 0; i < getWidth(); i++)
+            Arrays.fill(staticLight[i], false);
+        for(Thing t : things) {
+            if(t instanceof Light && ((Light)t).isActive()) {
+                Light l = (Light)t;
+                for(int i = -l.getRange(); i <= l.getRange(); i++) {
+                    for(int j = -l.getRange(); j <= l.getRange(); j++) {
+                        if(!isOutOfBounds(l.getY() + i, l.getY() + j) && l.canLight(l.getX() + i, l.getY() + j, this) != 0) {
+                            setStaticLit(l.getX() + i, l.getY() + j, l);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public int getDangerLevel() {
+        return dangerLevel;
+    }
+
+    public void setDangerLevel(int dangerLevel) {
+        this.dangerLevel = dangerLevel;
+    }
+
+    public int getFloor_number() {
+        return floor_number;
+    }
+
+    public void setFloor_number(int floor_number) {
+        this.floor_number = floor_number;
+    }
+
+    public ArrayList<String> getProperties() {
+        return getProperties(true);
+    }
+
+    public ArrayList<String> getProperties(boolean withDungeon) {
+        ArrayList<String> propertyList = new ArrayList<>();
+        if(withDungeon) propertyList.addAll(dungeon.getProperties());
+        propertyList.addAll(properties);
+        return propertyList;
+    }
+
+    public void setProperties(ArrayList<String> properties) {
+        this.properties = properties;
+    }
+
+    public boolean hasProperty(String property) {
+        return hasProperty(property, false);
+    }
+
+    public boolean hasProperty(String property, boolean withDungeon) {
+        if(withDungeon) {
+            if(properties == null && dungeon.properties == null) return false;
+            else if(properties == null && dungeon.properties != null) return dungeon.hasProperty(property);
+            else if(properties != null && dungeon.properties == null) return properties.contains(property);
+            else return properties.contains(property) || dungeon.hasProperty(property);
+        }
+        else {
+            if(properties == null) return false;
+            return properties.contains(property);
+        }
+    }
+
+    public void addProperty(String property) {
+        if(properties == null) return;
+        if(!hasProperty(property, true)) properties.add(property);
+    }
+
     //</editor-fold>
+
+
 }

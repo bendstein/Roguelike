@@ -1,29 +1,86 @@
 package world.room;
 
+import utility.Utility;
 import world.Tile;
 
 import java.util.Random;
 
 public class CellularAutomataRoom extends Room {
 
-    private final float ALIVE = 0.4f;
-    private final int DIE = 2;
-    private final int REMAIN = 4;
-    private final int REVIVE_MIN = 5;
-    private final int REVIVE_MAX = 8;
-    private final int STEPS = 2;
-    private final float MIN_AREA_RATIO = .2f;
+    private float alive = 0.4f;
+    private int die = 2;
+    private int remain = 4;
+    private int reviveMin = 5;
+    private int reviveMax = 8;
+    private int steps = 2;
+    private float minAreaRatio = .2f;
 
     public CellularAutomataRoom(int w, int h, Random random) {
         super(w, h);
+        start(w, h, random);
+    }
+
+    public CellularAutomataRoom(int w, int h, Random random, float ... values) {
+        super(w, h);
+        for(int i = 0; i < values.length; i++) {
+            switch (i) {
+                case 0: {
+                    if(values[i] <= 1 && values[i] >= 0) alive = values[i];
+                    break;
+                }
+                case 1: {
+                    if(values[i] > 0) die = (int)Math.ceil(values[i]);
+                    break;
+                }
+                case 2: {
+                    if(values[i] >= 0) remain = (int)Math.ceil(values[i]);
+                    break;
+                }
+                case 3: {
+                    if(values[i] >= 0) {
+                        if(values.length <= i + 1 && values[i] <= reviveMax)
+                            reviveMin = (int)Math.ceil(values[i]);
+                        else if(values[i] <= values[i + 1])
+                            reviveMin = (int)Math.ceil(values[i]);
+                    }
+
+                    break;
+                }
+                case 4: {
+                    if(values[i] >= 0) {
+                        if(values[i] >= values[i - 1])
+                            reviveMax = (int)Math.ceil(values[i]);
+                    }
+
+                    break;
+                }
+                case 5: {
+                    if(values[i] > 0) steps = (int)Math.ceil(values[i]);
+                    break;
+                }
+                case 6: {
+                    if(values[i] <= 1 && values[i] >= 0) minAreaRatio = values[i];
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+        start(w, h, random);
+    }
+
+    public void start(int w, int h, Random random) {
         boolean[][] cells = new boolean[w][h];
 
-        int tries = 0;
+        int tries;
         do {
             cells = init(cells, random);
-            for (int i = 0; i < STEPS; i++) cells = step(cells);
+            for (int i = 0; i < steps; i++) cells = step(cells);
 
             this.tiles = toRoom(cells);
+
+            smooth(3);
 
             int rx, ry;
             tries = 0;
@@ -38,15 +95,14 @@ public class CellularAutomataRoom extends Room {
             if(tries > 5) continue;
 
             this.tiles = flood(rx, ry);
-        } while (!(getArea() >= (w * h * MIN_AREA_RATIO)) || tries > 5);
-
+        } while (!(getArea() >= (w * h * minAreaRatio)) || tries > 5);
 
     }
 
     public boolean[][] init(boolean[][] cells, Random random) {
         for(int i = 0; i < cells.length; i++) {
             for(int j = 0; j < cells[0].length; j++) {
-                if(random.nextFloat() < ALIVE)
+                if(random.nextFloat() < alive)
                     cells[i][j] = true;
                 else
                     cells[i][j] = false;
@@ -63,12 +119,12 @@ public class CellularAutomataRoom extends Room {
             for(int j = 0; j < cells[0].length; j++) {
                 int adj = getAdjDead(cells, i, j);
                 if(cells[i][j]) {
-                    if(adj < DIE) newCells[i][j] = false;
-                    else if(adj >= REMAIN) newCells[i][j] = true;
+                    if(adj < die) newCells[i][j] = false;
+                    else if(adj >= remain) newCells[i][j] = true;
                     else newCells[i][j] = false;
                 }
                 else {
-                    if(adj >= REVIVE_MIN && adj <= REVIVE_MAX) newCells[i][j] = true;
+                    if(adj >= reviveMin && adj <= reviveMax) newCells[i][j] = true;
                     else newCells[i][j] = false;
                 }
             }

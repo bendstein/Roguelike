@@ -80,6 +80,11 @@ public class Cursor extends Point {
         positive = 0;
     }
 
+    public void moveBy(int mx, int my) {
+        setX(x + mx);
+        setY(y + my);
+    }
+
     //<editor-fold desc="Getters and Setters">
     public boolean isHasLine() {
         return hasLine;

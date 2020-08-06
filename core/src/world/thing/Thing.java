@@ -1,8 +1,12 @@
 package world.thing;
 
+import com.badlogic.gdx.physics.box2d.BodyDef;
 import creatureitem.Creature;
+import game.Main;
 import world.Tile;
 import world.geometry.Point;
+
+import java.util.Objects;
 
 /**
  * An object that appears like a tile, but may have other properties.
@@ -34,6 +38,11 @@ public class Thing {
         this.open = open;
         this.tile = tile;
         x = y = 0;
+    }
+
+    public Thing(Thing thing) {
+        this.open = thing.open;
+        this.tile = thing.tile;
     }
 
     public void interact() {
@@ -98,6 +107,22 @@ public class Thing {
     public Point getLocation() {
         return new Point(x, y);
     }
-
     //</editor-fold>
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Thing)) return false;
+        Thing thing = (Thing) o;
+        return open == thing.open &&
+                x == thing.x &&
+                y == thing.y &&
+                tile == thing.tile;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(open, tile, x, y);
+    }
 }

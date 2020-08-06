@@ -1,7 +1,14 @@
 package creatureitem.ai;
 
+import actors.creatures.CreatureActor;
+import actors.world.LevelActor;
 import creatureitem.Creature;
 import creatureitem.Player;
+import game.Main;
+import world.Level;
+import world.geometry.floatPoint;
+import world.thing.DoorBehavior;
+import world.thing.Entrance;
 import world.thing.Stairs;
 import world.Tile;
 
@@ -29,7 +36,18 @@ public class PlayerAi extends CreatureAi {
      */
     @Override
     public void onEnter(int x, int y, Tile tile) {
-        if(Creature.canEnter(x, y, creature.getLevel())) {
+
+        /*
+         * If trying to move into a closed door, open the door instead of moving.
+         */
+        if(creature.getLevel().getThingAt(x, y) != null && creature.getLevel().getThingAt(x, y).getBehavior() instanceof DoorBehavior
+                && !creature.getLevel().getThingAt(x, y).isOpen()) {
+            creature.getLevel().getThingAt(x, y).setOpen(true);
+        }
+        else if(Creature.canEnter(x, y, creature.getLevel())) {
+            if(creature.getActor() != null)
+                ((CreatureActor)creature.getActor()).setCurrentLocation(new floatPoint(creature.getX() * Main.getTileWidth(), creature.getY() * Main.getTileHeight()));
+
             creature.setCoordinates(x, y);
             if(((Player)creature).getCurrentDestination() == creature.getLocation()) {
                 ((Player)creature).setCurrentDestination(null);
@@ -41,6 +59,9 @@ public class PlayerAi extends CreatureAi {
             if(creature.getLevel().getThingAt(x, y) != null && creature.getLevel().getThingAt(x, y) instanceof Stairs) {
                 creature.doAction("step on %s.", ((Stairs)creature.getLevel().getThingAt(x, y)).isUp()? "the stairs going up" : "the stairs going down");
             }
+
+            if(creature.getActor() != null)
+                ((CreatureActor)creature.getActor()).setDestination(new floatPoint(x * Main.getTileWidth(), y * Main.getTileHeight()));
         }
 
     }
@@ -73,24 +94,33 @@ public class PlayerAi extends CreatureAi {
 
     @Override
     public boolean useStairs() {
-        if(!(creature.getLevel().getThingAt(creature.getX(), creature.getY()) instanceof Stairs)) return false;
-        Stairs s = (Stairs)creature.getLevel().getThingAt(creature.getX(), creature.getY());
-        if(s == null)
-            creature.doAction("can't do that here!");
-        else {
-            creature.doAction("%s the stairs.", s.isUp()? "ascend" : "descend");
 
-            if(s.getDestination() == null)
-                return true;
-
-            creature.getLevel().setPlayer(null);
-            creature.getLevel().remove(creature);
-            creature.setLevel(s.getDestination().getLevel());
-            creature.getLevel().setActor(creature.getLevel().getDungeon().getLevelActor());
-            creature.getLevel().addAt(s.getDestination().getX(), s.getDestination().getY(), creature);
-            creature.getLevel().getDungeon().getFactory().setLevel(creature.getLevel());
+        if(creature.getLevel().getThingAt(creature.getX(), creature.getY()) instanceof Entrance) {
+            Entrance e = (Entrance) creature.getLevel().getThingAt(creature.getX(), creature.getY());
+            ((Player)creature).moveLevel(e.getDestination().getLevel());
+            creature.getLevel().addAt(e.getDestination().getX(), e.getDestination().getY(), creature);
         }
 
-        return false;
+        else {
+            if(!(creature.getLevel().getThingAt(creature.getX(), creature.getY()) instanceof Stairs)) return false;
+            Stairs s = (Stairs)creature.getLevel().getThingAt(creature.getX(), creature.getY());
+            if(s == null) {
+                creature.doAction("can't do that here!");
+                return false;
+            }
+            else {
+                creature.doAction("%s the stairs.", s.isUp()? "ascend" : "descend");
+
+                ((Player)creature).moveLevel(s.getDestination().getLevel());
+                creature.getLevel().addAt(s.getDestination().getX(), s.getDestination().getY(), creature);
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public CreatureAi copy() {
+        return new PlayerAi((Player)creature, messages);
     }
 }

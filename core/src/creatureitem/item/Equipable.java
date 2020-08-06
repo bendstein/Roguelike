@@ -9,20 +9,20 @@ public class Equipable extends Item {
      */
     protected boolean isEquipped;
 
-    public Equipable(char glyph, String texturePath, String name) {
-        super(glyph, texturePath, name);
+    public Equipable(char glyph, String texturePath, String name, int worth) {
+        super(glyph, texturePath, name, worth);
         isEquipped = false;
         addProperty("equip");
     }
 
-    public Equipable(char glyph, String texturePath, String name, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Equipable(char glyph, String texturePath, String name, int worth, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         isEquipped = false;
         addProperty("equip");
     }
 
-    public Equipable(char glyph, String texturePath, String name, Damage throwDamage, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Equipable(char glyph, String texturePath, String name, int worth, Damage throwDamage, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         isEquipped = false;
         addProperty("equip");
     }

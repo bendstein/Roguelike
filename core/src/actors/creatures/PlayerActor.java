@@ -96,7 +96,8 @@ public class PlayerActor extends CreatureActor {
 
                     if(cx < 0 || cx >= creature.getLevel().getWidth() || cy < 0 || cy >= creature.getLevel().getHeight()) continue;
 
-                    if(creature.getLevel().getCreatureAt(cx, cy) != null) {
+                    if(creature.getLevel().getCreatureAt(cx, cy) != null &&
+                            creature.getLevel().getCreatureAt(cx, cy).getTeam() != creature.getTeam()) {
                         adjenemy = true;
                         break;
                     }
@@ -119,7 +120,7 @@ public class PlayerActor extends CreatureActor {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         //Draw the texture
-        batch.draw(creature.getTexture(), Main.getTileWidth() * creature.getX(), Main.getTileHeight() * creature.getY());
+        batch.draw(creature.getTexture(), currentLocation.getX(), currentLocation.getY());
 
         Cursor cursor = ((Player)creature).getCursor();
 

@@ -2,6 +2,7 @@ package creatureitem.item;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.physics.box2d.BodyDef;
 import creatureitem.effect.Damage;
 
 import java.util.ArrayList;
@@ -23,41 +24,61 @@ public class Item {
 
     protected Damage throwDamage;
 
-    public Item(char glyph, String texturePath, String name) {
+    protected BodyDef itemDef;
+
+    protected int worth;
+
+    protected double rarity;
+
+    public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
+
+    public Item(char glyph, String texturePath, int worth, String name) {
         this.glyph = glyph;
         if(!texturePath.equals(""))
             this.texture = new Texture(Gdx.files.internal(texturePath));
         else this.texture = null;
+        this.worth = worth;
         this.name = name;
+        this.rarity = 0;
         this.properties = new ArrayList<>();
         this.properties.add("drop");
         throwDamage = new Damage(0, 1, 0);
+        itemDef = new BodyDef();
+        itemDef.type = BodyDef.BodyType.StaticBody;
     }
 
-    public Item(char glyph, String texturePath, String name, String ... properties) {
+    public Item(char glyph, String texturePath, String name, int worth, String ... properties) {
         this.glyph = glyph;
         if(!texturePath.equals(""))
             this.texture = new Texture(Gdx.files.internal(texturePath));
         else this.texture = null;
+        this.worth = worth;
+        this.rarity = 0;
         this.name = name;
         this.properties = new ArrayList<>(Arrays.asList(properties));
         this.properties.add("drop");
         throwDamage = new Damage(0, 1, 0);
+        itemDef = new BodyDef();
+        itemDef.type = BodyDef.BodyType.StaticBody;
 
         if(hasProperty("stack")) {
             count = 1;
         }
     }
 
-    public Item(char glyph, String texturePath, String name, Damage throwDamage, String ... properties) {
+    public Item(char glyph, String texturePath, String name, int worth, Damage throwDamage, String ... properties) {
         this.glyph = glyph;
         if(!texturePath.equals(""))
             this.texture = new Texture(Gdx.files.internal(texturePath));
         else this.texture = null;
+        this.worth = worth;
+        this.rarity = 0;
         this.name = name;
         this.properties = new ArrayList<>(Arrays.asList(properties));
         this.properties.add("drop");
         this.throwDamage = throwDamage;
+        itemDef = new BodyDef();
+        itemDef.type = BodyDef.BodyType.StaticBody;
 
         if(hasProperty("stack")) {
             count = 1;
@@ -67,10 +88,13 @@ public class Item {
     public Item(Item item) {
         this.glyph = item.glyph;
         this.texture = item.texture;
+        this.worth = item.worth;
+        this.rarity = item.rarity;
         this.name = item.name;
         this.properties = item.properties;
         this.count = item.count;
         this.throwDamage = item.throwDamage;
+        this.itemDef = item.itemDef;
     }
 
     public char getGlyph() {
@@ -114,7 +138,7 @@ public class Item {
     }
 
     public void addProperty(String property) {
-        properties.add(property);
+        if(!properties.contains(property)) properties.add(property);
     }
 
     public int getCount() {
@@ -145,7 +169,29 @@ public class Item {
         this.throwDamage = throwDamage;
     }
 
+    public BodyDef getItemDef() {
+        return itemDef;
+    }
 
+    public void setItemDef(BodyDef itemDef) {
+        this.itemDef = itemDef;
+    }
+
+    public int getWorth() {
+        return worth;
+    }
+
+    public void setWorth(int worth) {
+        this.worth = worth;
+    }
+
+    public double getRarity() {
+        return rarity;
+    }
+
+    public void setRarity(double rarity) {
+        this.rarity = rarity;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -154,13 +200,15 @@ public class Item {
         Item item = (Item) o;
         return glyph == item.glyph &&
                 throwDamage == item.throwDamage &&
+                worth == item.worth &&
+                rarity == item.rarity &&
                 Objects.equals(name, item.name) &&
                 Objects.equals(properties, item.properties);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(glyph, name, properties, throwDamage);
+        return Objects.hash(glyph, name, properties, throwDamage, worth, rarity);
     }
 
     @Override

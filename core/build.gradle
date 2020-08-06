@@ -4,6 +4,7 @@ apply plugin: "java"
 sourceCompatibility = 1.8
 dependencies {
     implementation 'org.jetbrains:annotations:15.0'
+    implementation "com.badlogicgames.box2dlights:box2dlights:1.4"
 }
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 

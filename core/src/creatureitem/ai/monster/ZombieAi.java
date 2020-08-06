@@ -68,4 +68,8 @@ public class ZombieAi extends CreatureAi {
         }
     }
 
+    @Override
+    public CreatureAi copy() {
+        return new ZombieAi(creature);
+    }
 }

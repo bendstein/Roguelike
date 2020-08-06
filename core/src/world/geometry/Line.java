@@ -69,8 +69,16 @@ public class Line implements Iterable<Point> {
         }
     }
 
+    public Line(ArrayList<Point> points) {
+        this.points = points;
+    }
+
     public ArrayList<Point> getPoints() {
         return points;
+    }
+
+    public void setPoints(ArrayList<Point> points) {
+        this.points = points;
     }
 
     public int size() {

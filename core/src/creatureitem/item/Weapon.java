@@ -17,20 +17,20 @@ public class Weapon extends Equipable {
      */
     protected int toHitMod;
 
-    public Weapon(char glyph, String texturePath, String name, Damage weaponDamage, int toHitMod) {
-        super(glyph, texturePath, name);
+    public Weapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage, int toHitMod) {
+        super(glyph, texturePath, name, worth);
         this.weaponDamage = weaponDamage;
         this.toHitMod = toHitMod;
     }
 
-    public Weapon(char glyph, String texturePath, String name, Damage weaponDamage, int toHitMod, String... properties) {
-        super(glyph, texturePath, name, properties);
+    public Weapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage, int toHitMod, String... properties) {
+        super(glyph, texturePath, name, worth, properties);
         this.weaponDamage = weaponDamage;
         this.toHitMod = toHitMod;
     }
 
-    public Weapon(char glyph, String texturePath, String name, Damage throwDamage, Damage weaponDamage, int toHitMod, String... properties) {
-        super(glyph, texturePath, name, throwDamage, properties);
+    public Weapon(char glyph, String texturePath, String name, int worth, Damage throwDamage, Damage weaponDamage, int toHitMod, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, properties);
         this.weaponDamage = weaponDamage;
         this.toHitMod = toHitMod;
     }
@@ -42,7 +42,7 @@ public class Weapon extends Equipable {
     }
 
     public Weapon(String name, Damage weaponDamage, int toHitMod) {
-        super(' ', "", name);
+        super(' ', "", name, 0);
         this.weaponDamage = new Damage(weaponDamage);
         this.toHitMod = toHitMod;
     }

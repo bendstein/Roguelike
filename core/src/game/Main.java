@@ -10,6 +10,7 @@ import creatureitem.Player;
 import screens.*;
 import world.Dungeon;
 import world.Level;
+import world.Town;
 import world.generation.LevelFactory;
 
 import java.util.ArrayList;
@@ -19,7 +20,6 @@ public class Main extends Game {
 
     private SpriteBatch batch;
     private BitmapFont font;
-    private AssetManager manager;
 
     private PlayScreen playScreen;
     private MainMenu mainMenu;
@@ -27,7 +27,7 @@ public class Main extends Game {
     private InventoryScreen inventoryScreen;
     private SpellScreen spellScreen;
 
-    private Dungeon dungeon;
+    private Town town;
     private Player player;
     private ArrayList<String> messages;
 
@@ -45,7 +45,6 @@ public class Main extends Game {
         batch = new SpriteBatch();
         font = new BitmapFont();
         font.setColor(Color.BLACK);
-        manager = new AssetManager();
         mainMenu = new MainMenu(this);
         loseScreen = new LoseScreen(this);
         inventoryScreen = new InventoryScreen(this);
@@ -79,12 +78,12 @@ public class Main extends Game {
         this.font = font;
     }
 
-    public Dungeon getDungeon() {
-        return dungeon;
+    public Town getTown() {
+        return town;
     }
 
-    public void setDungeon(Dungeon dungeon) {
-        this.dungeon = dungeon;
+    public void setTown(Town town) {
+        this.town = town;
     }
 
     public Player getPlayer() {
@@ -182,10 +181,10 @@ public class Main extends Game {
     //</editor-fold>
 
     public void start() {
-        LevelFactory builder = new LevelFactory(100, 100, random);
-        CreatureItemFactory factory = new CreatureItemFactory();
-        this.dungeon = new Dungeon(builder, factory, random, this,10);
-        this.player = dungeon.getPlayer();
+        LevelFactory builder = new LevelFactory(25, 25, random);
+        this.town = new Town(builder, random, this);
+        town.generate();
+        this.player = town.getPlayer();
     }
 
 
