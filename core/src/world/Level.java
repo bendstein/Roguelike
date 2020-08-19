@@ -47,6 +47,8 @@ public class Level extends LevelInterface {
      */
     private int[][] costs;
 
+    private int[][][] tile_orientations;
+
     /**
      * Reference to this level's actor
      */
@@ -61,6 +63,8 @@ public class Level extends LevelInterface {
      * 2d array of items in the level
      */
     private Item[][] items;
+
+    private Inventory[][] inventories;
 
     /**
      * List of all rooms in the level
@@ -101,24 +105,31 @@ public class Level extends LevelInterface {
      */
     private ArrayList<String> properties;
 
+    boolean requestLightingUpdate;
+
     //</editor-fold>
 
     public Level(Tile[][] tiles, Random random, String ... properties) {
         super(tiles);
-        costs = Utility.toCostArray(tiles);
         this.random = random;
         creatures = new ArrayList<>();
         creatureQueue = new ArrayList<>();
         items = new Item[getWidth()][getHeight()];
+        inventories = new Inventory[getWidth()][getHeight()];
         seen = new boolean[getWidth()][getHeight()];
+        tile_orientations = new int[getWidth()][getHeight()][];
         emitting = new ArrayList[getWidth()][getHeight()];
         staticLight = new boolean[getWidth()][getHeight()];
         rooms = new ArrayList<>();
         floor_number = 0;
+        requestLightingUpdate = false;
+        costs = calculateCosts();
 
         for(int i = 0; i < getWidth(); i++) {
             for(int j = 0; j < getHeight(); j++) {
                 emitting[i][j] = new ArrayList<>();
+                inventories[i][j] = new Inventory();
+                tile_orientations[i][j] = new int[]{tiles[i][j].getNeutral()};
             }
         }
 
@@ -142,7 +153,13 @@ public class Level extends LevelInterface {
      * @return The item at (x, y)
      */
     public Item getItemAt(int x, int y) {
-        return items[x][y];
+        if(inventories[x][y].isEmpty()) return null;
+        return inventories[x][y].top();
+        //return items[x][y];
+    }
+
+    public Inventory getInventoryAt(int x, int y) {
+        return inventories[x][y];
     }
 
     public Thing getThingAt(int x, int y) {
@@ -228,6 +245,18 @@ public class Level extends LevelInterface {
         }
     }
 
+    public void addAtEmptyLocation(Inventory i) {
+
+        boolean placed = false;
+        int x = 0, y = 0;
+
+        while(!placed) {
+            x = random.nextInt(getWidth() - 1);
+            y = random.nextInt(getHeight() - 1);
+            placed = addAt(x, y, i);
+        }
+    }
+
     public void addAtEmptyLocation(Thing t) {
 
         boolean placed = false;
@@ -240,6 +269,7 @@ public class Level extends LevelInterface {
         }
 
         updateStaticLit();
+        calculateOrientations();
     }
 
     /**
@@ -250,10 +280,22 @@ public class Level extends LevelInterface {
      * @return true if the item was successfully added at (x, y)
      */
     public boolean addAt(int x, int y, Item i) {
+        if(!tiles[x][y].isGround()) return false;
+        inventories[x][y].add(i);
+        return true;
+        /*
         if(!tiles[x][y].isGround() || items[x][y] != null)
             return false;
 
         items[x][y] = i;
+        return true;
+
+         */
+    }
+
+    public boolean addAt(int x, int y, Inventory i) {
+        if(!tiles[x][y].isGround()) return false;
+        inventories[x][y].addAll(i);
         return true;
     }
 
@@ -264,7 +306,7 @@ public class Level extends LevelInterface {
             return false;
 
         things.add(t);
-        addToCosts(t);
+        costs = calculateCosts();
         t.setLocation(x, y);
 
         if(t instanceof Light) {
@@ -303,6 +345,8 @@ public class Level extends LevelInterface {
             creatures.add(c);
             c.setLevel(this);
         }
+
+        costs = calculateCosts();
         return creatureQueue;
     }
 
@@ -337,6 +381,15 @@ public class Level extends LevelInterface {
      * @param item The item
      */
     public void remove(Item item) {
+        for(int i = 0; i < inventories.length; i++) {
+            for(int j = 0; j < inventories[0].length; i++) {
+                if(inventories[i][j].contains(item) != -1) {
+                    inventories[i][j].remove(item);
+                    return;
+                }
+            }
+        }
+        /*
         for(int i = 0; i < items.length; i++) {
             for(int j = 0; j < items[0].length; j++) {
                 if(items[i][j] == item) {
@@ -345,6 +398,8 @@ public class Level extends LevelInterface {
                 }
             }
         }
+
+         */
     }
 
     /**
@@ -354,24 +409,44 @@ public class Level extends LevelInterface {
      * @return The item that was at (x, y)
      */
     public Item removeItem(int x, int y) {
-        Item i = items[x][y];
-        items[x][y] = null;
+        Item i = inventories[x][y].top();
+        inventories[x][y].remove(i);
 
+        return i;
+    }
+
+    public Inventory removeInventory(int x, int y) {
+        Inventory i = inventories[x][y];
+        inventories[x][y] = new Inventory();
         return i;
     }
 
     public void remove(Thing thing) {
         things.remove(thing);
+
+        if(thing instanceof Light) {
+            ((Light) thing).setActive(false);
+            requestLightingUpdate = true;
+        }
+
+        calculateOrientations();
     }
 
     public Thing removeThing(int x, int y) {
         Thing t = getThingAt(x, y);
         if(t == null) return null;
         remove(t);
+
+        if(t instanceof Light) {
+            ((Light) t).setActive(false);
+            requestLightingUpdate = true;
+        }
+
+        calculateOrientations();
+
         return t;
         //creature.setAttack(0);
     }
-
 
     /**
      * Let all creatures do their turn
@@ -384,14 +459,7 @@ public class Level extends LevelInterface {
             //costs = Utility.toCostArray(this);
         }
 
-        /*
-        for(Thing t : things) {
-            if(t instanceof LightRandom && System.currentTimeMillis() - ((LightRandom) t).getLastChange() > ((LightRandom) t).getCurrentRate())
-                ((LightRandom) t).changeColors();
-        }
-
-
-         */
+        dungeon.getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
         incrementTurn();
     }
 
@@ -424,6 +492,7 @@ public class Level extends LevelInterface {
     public void addStairs(world.thing.Stairs s) {
         addAt(s.getX(), s.getY(), s);
         s.setLevel(this);
+        calculateOrientations();
     }
 
     public boolean isPassable(int x, int y) {
@@ -496,6 +565,22 @@ public class Level extends LevelInterface {
     }
 
     //<editor-fold desc="Getters and Setters">
+
+    public Inventory[][] getInventories() {
+        return inventories;
+    }
+
+    public void setInventories(Inventory[][] inventories) {
+        this.inventories = inventories;
+    }
+
+    public boolean isRequestLightingUpdate() {
+        return requestLightingUpdate;
+    }
+
+    public void setRequestLightingUpdate(boolean requestLightingUpdate) {
+        this.requestLightingUpdate = requestLightingUpdate;
+    }
 
     public ArrayList<Creature> getCreatures() {
         return creatures;
@@ -636,33 +721,64 @@ public class Level extends LevelInterface {
     }
 
     public int[][] calculateCosts() {
-        return calculateCosts(2);
+        return calculateCosts(1, 1);
     }
 
-    public int[][] calculateCosts(int doorCost) {
+    public int[][] calculateCosts(int doorCost, int creatureCost) {
         int[][] costs = Utility.toCostArray(tiles);
 
-        for(Thing t : things) {
-            if(!t.isOpen()) {
-                if(t.getBehavior() instanceof DoorBehavior)
-                    costs[t.getX()][t.getY()] = doorCost;
-                else
-                    costs[t.getX()][t.getY()] = -1;
+        if(things != null && !things.isEmpty()) {
+            for(Thing t : things) {
+                if(!t.isOpen()) {
+                    if(costs[t.getX()][t.getY()] >= 0) {
+                        if(t.getBehavior() instanceof DoorBehavior)
+                            costs[t.getX()][t.getY()] += doorCost;
+                        else
+                            costs[t.getX()][t.getY()] = -1;
+                    }
+
+                }
+            }
+        }
+
+
+        if(creatures != null && !creatures.isEmpty()) {
+            for(Creature c : creatures) {
+                if(costs[c.getX()][c.getY()] >= 0)
+                    costs[c.getX()][c.getY()] += creatureCost;
             }
         }
 
         return costs;
     }
 
-    public void addToCosts(Thing t) {
-        int[][] costs = Utility.toCostArray(tiles);
+    @Override
+    public void setTiles(Tile[][] tiles) {
+        this.tiles = tiles;
+        costs = calculateCosts();
+    }
 
-        if(!t.isOpen()) {
-            if(t.getBehavior() instanceof DoorBehavior)
-                costs[t.getX()][t.getY()] += 1;
-            else
-                costs[t.getX()][t.getY()] = -1;
-        }
+    /**
+     * Set the tile at (x, y) in the level's coordinate system to be tile t
+     * @param x X coordinate
+     * @param y Y coordinate
+     */
+    @Override
+    public void setTileAt(int x, int y, Tile t) {
+        tiles[x][y] = t;
+        costs = calculateCosts();
+        calculateOrientations();
+    }
+
+    /**
+     * If the tile at (x, y) in the level's coordinate system is diggable, dig it out.
+     * @param x X coordinate
+     * @param y Y coordinate
+     */
+    @Override
+    public void dig(int x, int y) {
+        if(tiles[x][y].isDiggable())
+            setTileAt(x, y, Tile.FLOOR);
     }
 
     public void setCosts(int[][] costs) {
@@ -696,6 +812,9 @@ public class Level extends LevelInterface {
                 }
             }
         }
+
+        calculateOrientations();
+        requestLightingUpdate = false;
     }
 
     public int getDangerLevel() {
@@ -749,6 +868,258 @@ public class Level extends LevelInterface {
     public void addProperty(String property) {
         if(properties == null) return;
         if(!hasProperty(property, true)) properties.add(property);
+    }
+
+    public int[][][] getTile_orientations() {
+        return tile_orientations;
+    }
+
+    public void setTile_orientations(int[][][] tile_orientations) {
+        this.tile_orientations = tile_orientations;
+    }
+
+    public int[] getOrientation(int x, int y) {
+        if(isOutOfBounds(x, y)) return new int[]{0};
+        return tile_orientations[x][y];
+    }
+
+    public void calculateOrientations() {
+
+        for(int i = 0; i < getWidth(); i++) {
+            for(int j = 0; j < getHeight(); j++) {
+
+                Tile t = getTileAt(i, j);
+
+                if(t == Tile.WALL) {
+                    Tile[][] adj = Utility.getAdjacentTiles(tiles, i, j);
+                    boolean[][] toChange = new boolean[adj.length][adj[0].length];
+                    //For the intents of this method, treat null as if it was the same tile as t.
+                    //Same with walls the player can't see
+                    for(int indexi = 0; indexi < adj.length; indexi++) {
+                        for(int indexj = 0; indexj < adj[0].length; indexj++) {
+                            if(adj[indexi][indexj] == null) toChange[indexi][indexj] = true;
+                            else if(!getSeen(i + indexi - 1, j + indexj - 1)) adj[indexi][indexj] = t;
+                            else toChange[indexi][indexj] = false;
+                        }
+                    }
+
+                    for(int indexi = 0; indexi < adj.length; indexi++) {
+                        for(int indexj = 0; indexj < adj[0].length; indexj++) {
+                            if(toChange[indexi][indexj]) adj[indexi][indexj] = t;
+                        }
+                    }
+
+                    //Note: (0, 0) is bottom left corner, not top left.
+                    //No walls
+                    if(adj[0][1] != t && adj[1][0] != t && adj[1][2] != t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {15};
+                    }
+                    //No walls on: bottom, left, right
+                    else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] != t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {12};
+                    }
+                    //No walls on: bottom, left, top
+                    else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] == t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {11};
+                    }
+                    //No walls on: bottom, left
+                    else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] == t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {8};
+
+                        if(adj[2][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 18;
+                        }
+                    }
+                    //No walls on: bottom, right, top
+                    else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] != t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {3};
+
+                        if(adj[0][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 17;
+                        }
+                    }
+                    //No walls on: bottom, right
+                    else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] != t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {0};
+                        if(adj[2][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 19;
+                        }
+                    }
+                    //No walls on: bottom, top
+                    else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] == t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {7};
+                    }
+                    //No walls on: bottom
+                    else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] == t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {4};
+
+                        if(adj[2][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 19;
+                        }
+                        if(adj[2][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 18;
+                        }
+                    }
+                    //No walls on: left, right, top
+                    else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] != t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {14};
+                    }
+                    //No walls on: left, right
+                    else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] != t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {13};
+                    }
+                    //No walls on: left, top
+                    else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] == t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {10};
+
+                        if(adj[0][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 16;
+                        }
+                    }
+                    //No walls on: left
+                    else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] == t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {9};
+                    }
+                    //No walls on: right, top
+                    else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] != t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {2};
+
+                        if(adj[0][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 17;
+                        }
+                    }
+                    //No walls on: right
+                    else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] != t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {1};
+
+                        if(adj[0][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 17;
+                        }
+                        if(adj[2][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 19;
+                        }
+                    }
+                    //No walls on: top
+                    else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] == t && adj[2][1] != t) {
+                        tile_orientations[i][j] = new int[] {6};
+                        if(adj[0][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 17;
+                        }
+                        if(adj[0][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 16;
+                        }
+                    }
+                    //All walls
+                    else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] == t && adj[2][1] == t) {
+                        tile_orientations[i][j] = new int[] {5};
+
+                        if(adj[0][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 17;
+                        }
+                        if(adj[2][0] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 19;
+                        }
+                        if(adj[0][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 16;
+                        }
+                        if(adj[2][2] != t) {
+                            tile_orientations[i][j] = Arrays.copyOf(tile_orientations[i][j], tile_orientations[i][j].length + 1);
+                            tile_orientations[i][j][tile_orientations[i][j].length - 1] = 18;
+                        }
+                    }
+
+                }
+                else
+                    tile_orientations[i][j] = new int[] {getTileAt(i, j).getNeutral()};
+            }
+        }
+
+        for(Thing th : things) {
+                if(th instanceof Stairs) {
+                    if(((Stairs) th).isUp())
+                        th.setOrientation(1);
+                    else
+                        th.setOrientation(0);
+                }
+                else if(th.getBehavior() instanceof DoorBehavior) {
+                    Tile[][] adj = Utility.getAdjacentTiles(getTiles(), th.getX(), th.getY());
+                    if(adj[0][1] == Tile.WALL) {
+                        if(th.isOpen())
+                            th.setOrientation(4);
+                        else
+                            th.setOrientation(0);
+                    }
+                    else {
+                        if(th.isOpen())
+                            th.setOrientation(5);
+                        else
+                            th.setOrientation(1);
+                    }
+                }
+                else if(th instanceof Light) {
+                    if(th instanceof LightRandom && System.currentTimeMillis() - ((LightRandom) th).getLastChange() > ((LightRandom) th).getCurrentRate())
+                        ((LightRandom) th).changeColors();
+                    switch (((Light) th).getPosition()) {
+                        case Light.LEFT: {
+                            if(((Light) th).isActive()) {
+                                th.setOrientation(0);
+                            }
+                            else {
+                                th.setOrientation(4);
+                            }
+                            break;
+                        }
+                        case Light.TOP: {
+                            if(((Light) th).isActive()) {
+                                th.setOrientation(2);
+                            }
+                            else {
+                                th.setOrientation(6);
+                            }
+                            break;
+                        }
+                        case Light.RIGHT: {
+                            if(((Light) th).isActive()) {
+                                th.setOrientation(1);
+                            }
+                            else {
+                                th.setOrientation(5);
+                            }
+                            break;
+                        }
+                        case Light.BOTTOM: {
+                            if(((Light) th).isActive()) {
+                                th.setOrientation(3);
+                            }
+                            else {
+                                th.setOrientation(7);
+                            }
+                            break;
+                        }
+                        default: {
+                            th.setOrientation(-1);
+                            break;
+                        }
+                    }
+
+                }
+                else
+                    th.setOrientation(th.getTile().getNeutral());
+        }
     }
 
     //</editor-fold>

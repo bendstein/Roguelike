@@ -176,6 +176,10 @@ public class Point {
         return minDistance;
     }
 
+    public boolean isAdjacent(Point p) {
+        return Math.abs(x - p.x) <= 1 && Math.abs(y - p.x) <= 1;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

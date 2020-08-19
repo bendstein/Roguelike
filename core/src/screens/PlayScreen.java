@@ -16,6 +16,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import creatureitem.Creature;
 import creatureitem.ai.NPCAi;
+import creatureitem.item.Inventory;
 import game.Main;
 import utility.Utility;
 import world.Tile;
@@ -50,7 +51,6 @@ public class PlayScreen extends ScreenAdapter {
      */
     private UI ui;
     private DialogueUI dialogueUI;
-    private InventoryScreen inventoryScreen;
 
     /**
      * If the shift key is held down, true
@@ -82,15 +82,12 @@ public class PlayScreen extends ScreenAdapter {
 
         ui = new UI(game);
 
-
         dialogueUI = new DialogueUI(game);
-
 
         //Set up game stage
         camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         viewport = new ScreenViewport(camera);
         stage = new Stage(viewport, game.getBatch());
-        //((OrthographicCamera)stage.getCamera()).zoom += 0.4f;
 
         root = new Table();
         root.setFillParent(true);
@@ -175,7 +172,18 @@ public class PlayScreen extends ScreenAdapter {
                     case Input.Keys.COMMA: {
                         game.getPlayer().setCurrentDestination(null);
                         game.getPlayer().getDestinationQueue().clear();
-                        if(!shift) game.getPlayer().pickUp();
+                        if(!shift) {
+                            Inventory in = game.getPlayer().getLevel().getInventoryAt(game.getPlayer().getX(), game.getPlayer().getY());
+                            //if(in == null) return true;
+                            if(in.getCount() <= 1) game.getPlayer().pickUp();
+                            else {
+                                game.getInventoryScreen().setInventory(in);
+                                game.getInventoryScreen().setCurrentVerb("pickup");
+                                game.getInventoryScreen().setCurrentFilter("");
+                                game.setScreen(game.getInventoryScreen());
+                            }
+
+                        }
                         else {
                             shift = false;
                             Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
@@ -227,10 +235,44 @@ public class PlayScreen extends ScreenAdapter {
                         }
                         return true;
                     }
+                    case Input.Keys.M: {
+                        if(!shift) {
+                            if(game.getPlayer().getCursor().isActive()) {
+                                if(game.getPlayer().getCursor().getPurpose().equals("look") ||
+                                        game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                    if(game.getPlayer().getSeen(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY())) {
+                                        game.getPlayer().getCursor().setActive(false);
+                                        game.getPlayer().enqueueDestination(game.getPlayer().getCursor());
+                                    }
+                                }
+                            }
+                            else {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getPlayer().getCursor().setPurpose("move");
+                                game.getPlayer().getCursor().setActive(true);
+                                game.getPlayer().getCursor().setFollow(true);
+                                game.getPlayer().getCursor().setHasRange(false);
+                                game.getPlayer().getCursor().clearPath();
+                                game.getPlayer().getCursor().setHasLine(true);
+                                game.getPlayer().getCursor().setConsiderObstacle(false);
+                                game.getPlayer().getCursor().setHasArea(false);
+                                game.getPlayer().getCursor().setLocation(game.getPlayer().getX(), game.getPlayer().getY());
+                                game.getPlayer().getCursor().setPositive(0);
+                                game.getPlayer().getCursor().setNegative(1);
+                                game.getPlayer().getCursor().setNeutral(2);
+                                game.getPlayer().getCursor().setPath(Utility.aStarPathToLine(Utility.aStar(game.getLevel().getCosts(),
+                                        Point.DISTANCE_MANHATTAN, game.getPlayer().getLocation(), game.getPlayer().getCursor())).getPoints());
+                            }
+                        }
+
+                        return true;
+                    }
                     case Input.Keys.I: {
                         if(!shift) {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("");
                             game.getInventoryScreen().setCurrentFilter("");
                             game.setScreen(game.getInventoryScreen());
@@ -242,6 +284,7 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift) {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("drop");
                             game.getInventoryScreen().setCurrentFilter("");
                             game.setScreen(game.getInventoryScreen());
@@ -254,6 +297,7 @@ public class PlayScreen extends ScreenAdapter {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
                             if(!game.getPlayer().getCursor().isActive()) {
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                                 game.getInventoryScreen().setCurrentVerb("throw");
                                 game.getInventoryScreen().setCurrentFilter("");
                                 game.setScreen(game.getInventoryScreen());
@@ -271,13 +315,13 @@ public class PlayScreen extends ScreenAdapter {
 
                         }
                         else {
-
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
                             shift = false;
 
                             if(!game.getPlayer().getCursor().isActive()) {
                                 if(game.getPlayer().getQuiver() == null && game.getPlayer().getRangedWeapon() != null) {
+                                    game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                                     game.getInventoryScreen().setCurrentVerb("equip");
                                     game.getInventoryScreen().setCurrentFilter(game.getPlayer().getRangedWeapon().getAmmoType());
                                     game.setScreen(game.getInventoryScreen());
@@ -302,6 +346,7 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift) {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("quaff");
                             game.getInventoryScreen().setCurrentFilter("quaff");
                             game.setScreen(game.getInventoryScreen());
@@ -310,16 +355,16 @@ public class PlayScreen extends ScreenAdapter {
                         return true;
                     }
                     case Input.Keys.E: {
+                        game.getPlayer().setCurrentDestination(null);
+                        game.getPlayer().getDestinationQueue().clear();
                         if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("eat");
                             game.getInventoryScreen().setCurrentFilter("eat");
                         }
                         else {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
                             shift = false;
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("equip");
                             game.getInventoryScreen().setCurrentFilter("equip");
                         }
@@ -331,6 +376,7 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift) {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("use");
                             game.getInventoryScreen().setCurrentFilter("use");
                             game.setScreen(game.getInventoryScreen());
@@ -342,6 +388,7 @@ public class PlayScreen extends ScreenAdapter {
                         if(!shift) {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
+                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
                             game.getInventoryScreen().setCurrentVerb("read");
                             game.getInventoryScreen().setCurrentFilter("read");
                             game.setScreen(game.getInventoryScreen());
@@ -358,7 +405,7 @@ public class PlayScreen extends ScreenAdapter {
                                     Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
                                     if(t != null && t.getBehavior() instanceof DoorBehavior && !t.isOpen()) {
                                         if(i == 0 && j == 0) continue;
-                                        t.interact();
+                                        t.interact(game.getPlayer());
                                         opened = true;
                                         break;
                                     }
@@ -385,7 +432,7 @@ public class PlayScreen extends ScreenAdapter {
                                     Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
                                     if(t != null && t.getBehavior() instanceof DoorBehavior && t.isOpen()) {
                                         if(i == 0 && j == 0) continue;
-                                        t.interact();
+                                        t.interact(game.getPlayer());
                                         opened = true;
                                         break;
                                     }
@@ -434,6 +481,7 @@ public class PlayScreen extends ScreenAdapter {
                             game.getPlayer().getDestinationQueue().clear();
                             if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
                                 game.getPlayer().cast(game.getPlayer().getToCast());
+                                //game.getPlayer().increaseTurnsToProcess(1);
                                 game.getPlayer().getCursor().setPurpose("");
                                 game.getPlayer().getCursor().setActive(false);
                             }
@@ -444,6 +492,8 @@ public class PlayScreen extends ScreenAdapter {
                             shift = false;
                             if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
                                 game.getPlayer().cast(game.getPlayer().getToCast());
+                                //game.getPlayer().increaseTurnsToProcess(1);
+                                game.getPlayer().processTurns();
                                 game.getPlayer().getCursor().setPurpose("");
                                 game.getPlayer().getCursor().setActive(false);
                             }
@@ -513,13 +563,52 @@ public class PlayScreen extends ScreenAdapter {
                      Point c = Utility.roundCursor(x, y);
                      if(!game.getPlayer().getCursor().isActive()) {
                          if(game.getPlayer().canSee(c) || game.getPlayer().getSeen(c.getX(), c.getY())) {
+
                              if(!shift) game.getPlayer().setCurrentDestination(c);
                              else game.getPlayer().enqueueDestination(c);
                          }
 
                      }
                      else {
-                         game.getPlayer().getCursor().setLocation(c.getX(), c.getY());
+                         if(c.equals(game.getPlayer().getCursor().point())) {
+
+                             if(game.getPlayer().getCursor().getPurpose().equals("look") ||
+                                     game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                 if(game.getPlayer().canSee(c) || game.getPlayer().getSeen(c.getX(), c.getY())) {
+                                     game.getPlayer().getCursor().setActive(false);
+                                     if(!shift) game.getPlayer().setCurrentDestination(c);
+                                     else game.getPlayer().enqueueDestination(c);
+                                 }
+                             }
+                             else if(game.getPlayer().getCursor().getPurpose().equals("throw")) {
+                                 game.getPlayer().throwItem();
+                                 game.getPlayer().getCursor().setPurpose("");
+                                 game.getPlayer().getCursor().setActive(false);
+                             }
+                             else if(game.getPlayer().getCursor().getPurpose().equals("shoot")) {
+                                 game.getPlayer().shoot();
+                                 game.getPlayer().getCursor().setPurpose("");
+                                 game.getPlayer().getCursor().setActive(false);
+                             }
+                             else if(game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                                 game.getPlayer().cast(game.getPlayer().getToCast());
+                                 game.getPlayer().getCursor().setPurpose("");
+                                 game.getPlayer().getCursor().setActive(false);
+                             }
+
+                         }
+                         else {
+                             game.getPlayer().getCursor().setLocation(c.getX(), c.getY());
+
+                             if(game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                 if(game.getPlayer().canSee(c) || game.getPlayer().getSeen(c.getX(), c.getY())) {
+                                     game.getPlayer().getCursor().setHasLine(true);
+                                     game.getPlayer().getCursor()
+                                             .setPath(Utility.aStarPathToLine(Utility.aStar(game.getLevel().getCosts(), Point.DISTANCE_MANHATTAN, game.getPlayer().getLocation(), game.getPlayer().getCursor())).getPoints());
+                                 }
+                             }
+                         }
+
                      }
                      return true;
                  }
@@ -715,20 +804,24 @@ public class PlayScreen extends ScreenAdapter {
         if(scrolling != 0) {
             if(System.currentTimeMillis() - lastScroll >= scrollRate) {
                 if(scrolling == 1) {
-                    if(Gdx.input.getInputProcessor().equals(mux))
+                    if(Gdx.input.getInputProcessor().equals(mux)) {
                         mux.scrolled(-1);
+                    }
                     else if(Gdx.input.getInputProcessor().equals(dialogueUI.getStage()))
                         dialogueUI.getStage().scrolled(1);
                 }
                 else if(scrolling == -1) {
-                    if(Gdx.input.getInputProcessor().equals(mux))
+                    if(Gdx.input.getInputProcessor().equals(mux)) {
                         mux.scrolled(1);
+                    }
                     else if(Gdx.input.getInputProcessor().equals(dialogueUI.getStage()))
                         dialogueUI.getStage().scrolled(-1);
                 }
                 lastScroll = System.currentTimeMillis();
             }
         }
+
+        if(game.getPlayer().getTurnsToProcess() > 0) game.getPlayer().processTurns();
 
         stage.act(delta);
         ui.act(delta);
@@ -897,14 +990,6 @@ public class PlayScreen extends ScreenAdapter {
 
     public void setUi(UI ui) {
         this.ui = ui;
-    }
-
-    public InventoryScreen getInventoryScreen() {
-        return inventoryScreen;
-    }
-
-    public void setInventoryScreen(InventoryScreen inventoryScreen) {
-        this.inventoryScreen = inventoryScreen;
     }
 
     public boolean isShift() {

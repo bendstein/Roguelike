@@ -17,7 +17,7 @@ public class DesktopLauncher {
 
 		if(choice == 0) {
 			config.title = "Roguelike";
-			System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
+			//System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
 			new LwjglApplication(new Main(), config);
 		}
 		else {

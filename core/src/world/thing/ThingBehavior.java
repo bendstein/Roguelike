@@ -11,7 +11,7 @@ public class ThingBehavior {
 
     public ThingBehavior(Thing thing) {
         this.thing = thing;
-        thing.setBehavior(this);
+        if(thing != null) thing.setBehavior(this);
     }
 
     public void onInteract() {
@@ -23,13 +23,19 @@ public class ThingBehavior {
         return false;
     }
 
+    public ThingBehavior copy() {
+        return new ThingBehavior(thing);
+    }
+
     //<editor-fold desc="Getters and Setters">
     public Thing getThing() {
         return thing;
     }
 
-    public void setThing(Thing thing) {
+    public ThingBehavior setThing(Thing thing) {
         this.thing = thing;
+        if(thing != null && (thing.getBehavior() == null || !thing.getBehavior().equals(this))) thing.setBehavior(this);
+        return this;
     }
     //</editor-fold>
 }

@@ -1,6 +1,7 @@
 package creatureitem.effect;
 
 import creatureitem.Creature;
+import world.Level;
 
 import java.util.Objects;
 
@@ -33,6 +34,14 @@ public abstract class Effect {
      * What the effect does when it is active
      */
     public abstract void affect();
+
+    /**
+     * What the effect does when it is active
+     * @param x X location
+     * @param y Y location
+     * @param l The level to effect
+     */
+    public abstract void affect(int x, int y, Level l);
 
     /**
      * What the effect does when it is active

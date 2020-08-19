@@ -1,6 +1,7 @@
 package creatureitem.effect;
 
 import creatureitem.Creature;
+import world.Level;
 
 import java.util.Objects;
 
@@ -31,6 +32,11 @@ public class HungerEffect extends Effect {
     @Override
     public void affect() {
 
+    }
+
+    @Override
+    public void affect(int x, int y, Level l) {
+        if(l.getCreatureAt(x, y) != null) affect(l.getCreatureAt(x, y));
     }
 
     @Override

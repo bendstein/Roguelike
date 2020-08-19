@@ -17,10 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import creatureitem.Player;
-import creatureitem.item.Equipable;
-import creatureitem.item.Food;
-import creatureitem.item.Item;
-import creatureitem.item.Potion;
+import creatureitem.item.*;
 import game.Main;
 
 import java.util.ArrayList;
@@ -43,7 +40,9 @@ public class InventoryScreen extends ScreenAdapter {
     /**
      * Mapping from the letter index to the item
      */
-    private TreeMap<String, Item> inventory;
+    private TreeMap<String, Item> inventoryMap;
+
+    private Inventory inventory;
 
     /**
      * Variables related to the main stage
@@ -70,7 +69,8 @@ public class InventoryScreen extends ScreenAdapter {
 
     public InventoryScreen(Main game) {
         this.game = game;
-        this.inventory = new TreeMap<>();
+        this.inventoryMap = new TreeMap<>();
+        this.inventory = null;
 
         camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         viewport = new ScreenViewport(camera);
@@ -187,6 +187,16 @@ public class InventoryScreen extends ScreenAdapter {
                 l = new Label(String.format(Locale.getDefault(),"%s, %s (E)", entry.getKey(), entry.getValue().toString()), skin);
             else
                 l = new Label(String.format(Locale.getDefault(),"%s, %s", entry.getKey(), entry.getValue().toString()), skin);
+
+            l.addListener(new InputListener() {
+                @Override
+                public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                    String s = l.toString();
+                    String[] key = s.split("\\s|:|,");
+                    use(key[2]);
+                    return true;
+                }
+            });
             l.setWrap(true);
             l.pack();
             listTable.add(l).width(9f * getViewport().getScreenWidth()/10f);
@@ -200,13 +210,13 @@ public class InventoryScreen extends ScreenAdapter {
 
         if(!selection.equals("")) {
             filtered = new TreeMap<>();
-            for(Map.Entry<String, Item> entry : inventory.entrySet()) {
+            for(Map.Entry<String, Item> entry : inventoryMap.entrySet()) {
                 if(entry.getKey().contains(selection)) filtered.put(entry.getKey(), entry.getValue());
             }
         }
 
         else
-            filtered = inventory;
+            filtered = inventoryMap;
 
         if(filtered.size() == 0)
             selection = "";
@@ -220,34 +230,42 @@ public class InventoryScreen extends ScreenAdapter {
      */
     public void use(String index) {
         if(currentVerb.equals("drop")) {
-            Item i = inventory.get(index);
+            Item i = inventoryMap.get(index);
             game.getPlayer().drop(i);
-            inventory.remove(index);
+            inventoryMap.remove(index);
             selection = "";
+            game.getPlayer().increaseTurnsToProcess(1);
         }
         else if(currentVerb.equals("throw")) {
-            game.getPlayer().prepThrow(inventory.get(index));
+            game.getPlayer().prepThrow(inventoryMap.get(index));
             game.setScreen(game.getPlayScreen());
             selection = "";
+            //game.getPlayer().increaseTurnsToProcess(1);
         }
         else if(currentVerb.equals("eat")) {
-            Food i = new Food(inventory.get(index));
+            Food i = new Food(inventoryMap.get(index));
             game.getPlayer().eat(i);
             selection = "";
-            if(game.getPlayer().getInventory().contains(i) == -1) inventory.remove(index);
-            else inventory.replace(index, game.getPlayer().getInventory().getItems()[game.getPlayer().getInventory().contains(i)]);
+            if(inventory.contains(i) == -1) inventoryMap.remove(index);
+            else inventoryMap.replace(index, inventory.getItems()[inventory.contains(i)]);
         }
         else if(currentVerb.equals("equip")) {
-            if(getPlayer().isEquipped(inventory.get(index))) getPlayer().unequip(inventory.get(index));
-            else getPlayer().equip(inventory.get(index));
+            if(getPlayer().isEquipped(inventoryMap.get(index))) getPlayer().unequip(inventoryMap.get(index));
+            else getPlayer().equip(inventoryMap.get(index));
             selection = "";
         }
         else if(currentVerb.equals("quaff")) {
-            Potion p = (Potion)inventory.get(index);
+            Potion p = (Potion) inventoryMap.get(index);
             game.getPlayer().drink(p);
             selection = "";
-            if(game.getPlayer().getInventory().contains(p) == -1) inventory.remove(index);
-            else inventory.replace(index, game.getPlayer().getInventory().getItems()[game.getPlayer().getInventory().contains(p)]);
+            if(inventory.contains(p) == -1) inventoryMap.remove(index);
+            else inventoryMap.replace(index, inventory.getItems()[inventory.contains(p)]);
+        }
+        else if(currentVerb.equals("pickup")) {
+            game.getPlayer().pickUp(inventoryMap.get(index));
+            selection = "";
+            inventoryMap.remove(index);
+            game.getPlayer().increaseTurnsToProcess(1);
         }
     }
 
@@ -256,10 +274,9 @@ public class InventoryScreen extends ScreenAdapter {
      */
     public void filterProperty(String ... keywords) {
         ArrayList<Item> filtered = new ArrayList<>();
+        if(inventory.getCount() == 0) return;
 
-        if(game.getPlayer().getInventory().getCount() == 0) return;
-
-        for(Item i : game.getPlayer().getInventory().asList()) {
+        for(Item i : inventory.asList()) {
             if(i == null) continue;
             if(keywords.length == 0 || keywords[0].equals("") || i.hasProperty(keywords))
                 filtered.add(i);
@@ -282,7 +299,7 @@ public class InventoryScreen extends ScreenAdapter {
 
             } while (times > 0);
 
-            inventory.put(s.toString(), filtered.get(i));
+            inventoryMap.put(s.toString(), filtered.get(i));
         }
     }
 
@@ -291,7 +308,7 @@ public class InventoryScreen extends ScreenAdapter {
      * @return The item who's index is associated with the string given
      */
     public Item getItemAt(String key) {
-        return inventory.get(key);
+        return inventoryMap.get(key);
     }
 
     @Override
@@ -319,7 +336,7 @@ public class InventoryScreen extends ScreenAdapter {
     public void show() {
         Gdx.input.setInputProcessor(stage);
         listTable.clearChildren();
-        inventory.clear();
+        inventoryMap.clear();
         selection = "";
         turnsElapsed = 0;
         filterProperty(currentFilter);
@@ -332,6 +349,47 @@ public class InventoryScreen extends ScreenAdapter {
     }
 
     //<editor-fold desc="Getters and Setters">
+
+    public Inventory getInventory() {
+        return inventory;
+    }
+
+    public void setInventory(Inventory inventory) {
+        this.inventory = inventory;
+    }
+
+    public Label getVerbLabel() {
+        return verbLabel;
+    }
+
+    public void setVerbLabel(Label verbLabel) {
+        this.verbLabel = verbLabel;
+    }
+
+    public String getSelection() {
+        return selection;
+    }
+
+    public void setSelection(String selection) {
+        this.selection = selection;
+    }
+
+    public boolean isShift() {
+        return shift;
+    }
+
+    public void setShift(boolean shift) {
+        this.shift = shift;
+    }
+
+    public int getTurnsElapsed() {
+        return turnsElapsed;
+    }
+
+    public void setTurnsElapsed(int turnsElapsed) {
+        this.turnsElapsed = turnsElapsed;
+    }
+
     public Player getPlayer() {
         return game.getPlayer();
     }
@@ -348,12 +406,12 @@ public class InventoryScreen extends ScreenAdapter {
         return LETTERS;
     }
 
-    public TreeMap<String, Item> getInventory() {
-        return inventory;
+    public TreeMap<String, Item> getInventoryMap() {
+        return inventoryMap;
     }
 
-    public void setInventory(TreeMap<String, Item> inventory) {
-        this.inventory = inventory;
+    public void setInventoryMap(TreeMap<String, Item> inventoryMap) {
+        this.inventoryMap = inventoryMap;
     }
 
     public Stage getStage() {

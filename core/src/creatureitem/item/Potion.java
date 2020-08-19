@@ -1,9 +1,8 @@
 package creatureitem.item;
 
-import creatureitem.effect.Damage;
+import creatureitem.effect.damage.Damage;
 import creatureitem.effect.Effect;
 
-import java.util.Locale;
 import java.util.Objects;
 
 public class Potion extends Item {

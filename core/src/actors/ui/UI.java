@@ -1,10 +1,8 @@
 package actors.ui;
 
-import actors.world.MinimapActor;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -13,11 +11,13 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import game.Main;
+import sun.nio.ch.Util;
 import utility.Utility;
 import world.Level;
 import world.Tile;
 import world.geometry.Point;
 import world.thing.Light;
+import world.thing.Stairs;
 
 import java.util.Locale;
 
@@ -45,8 +45,9 @@ public class UI {
     private Table innerMinimapTable;
     private float minimapScale;
     private Point currentPlayerLocation;
-    private Stack[][] stacks;
-    private Stack currentPlayerStack;
+    private MinimapStack[][] stacks;
+    private MinimapStack currentPlayerStack;
+    private boolean requestMinimapUpdate;
 
     public UI(Main game) {
         this.game = game;
@@ -54,7 +55,7 @@ public class UI {
         viewport = new ScreenViewport();
         viewport.setScreenPosition(0, Gdx.graphics.getHeight());
         stage = new Stage(viewport, game.getBatch());
-
+        requestMinimapUpdate = false;
     }
 
     /**
@@ -111,7 +112,7 @@ public class UI {
         outerMinimapTable.add(minimap);
         minimapScale = .25f;
         currentPlayerLocation = new Point(-1, -1);
-        currentPlayerStack = new Stack();
+        currentPlayerStack = new MinimapStack(currentPlayerLocation);
 
         minimap.addListener(new InputListener() {
 
@@ -132,6 +133,7 @@ public class UI {
                             return scrolled(event, x, y, 1);
                         }
                         System.out.println(minimapScale);
+                        requestMinimapUpdate = true;
                         return true;
                     }
                     case 1: {
@@ -148,6 +150,7 @@ public class UI {
                             return scrolled(event, x, y, -1);
                         }
                         System.out.println(minimapScale);
+                        requestMinimapUpdate = true;
                         return true;
                     }
                     default: {
@@ -194,12 +197,63 @@ public class UI {
     }
 
     public void initMinimap() {
-        stacks = new Stack[game.getLevel().getWidth()][game.getLevel().getHeight()];
+        stacks = new MinimapStack[game.getLevel().getWidth()][game.getLevel().getHeight()];
         Level level = game.getLevel();
         for(int j = level.getHeight() - 1; j >= 0 ; j--) {
             for(int i = 0; i < level.getWidth() ; i++) {
                 innerMinimapTable.add();
-                stacks[i][j] = new Stack();
+                MinimapStack s = new MinimapStack(i, j);
+                stacks[i][j] = s;
+                s.addListener(new InputListener() {
+
+                    @Override
+                    public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                        setMinimapCenter(s.getX(), s.getY());
+
+                        if(game.getPlayer().getCursor().isActive()) {
+                            if(game.getPlayer().getCursor().getX() == s.getPX() &&
+                                game.getPlayer().getCursor().getY() == s.getPY()) {
+                                if(game.getPlayer().getSeen(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY())) {
+                                    if(game.getPlayer().getCursor().getPurpose().equals("look") ||
+                                            game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                        game.getPlayer().getCursor().setActive(false);
+                                        game.getPlayer().setCurrentDestination(s.getP());
+                                    }
+                                }
+                            }
+                            else {
+                                game.getPlayer().getCursor().setLocation(s.getPX(), s.getPY());
+
+                                if(game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                    if(game.getPlayer().canSee(s.getP()) || game.getPlayer().getSeen(s.getPX(), s.getPY())) {
+                                        game.getPlayer().getCursor().setHasLine(true);
+                                        game.getPlayer().getCursor()
+                                                .setPath(Utility.aStarPathToLine(Utility.aStar(game.getLevel().getCosts(), Point.DISTANCE_MANHATTAN, game.getPlayer().getLocation(), game.getPlayer().getCursor())).getPoints());
+                                    }
+                                }
+                            }
+
+                        }
+                        else {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().getCursor().setPurpose("look");
+                            game.getPlayer().getCursor().setActive(true);
+                            game.getPlayer().getCursor().setFollow(true);
+                            game.getPlayer().getCursor().setHasRange(false);
+                            game.getPlayer().getCursor().clearPath();
+                            game.getPlayer().getCursor().setHasLine(false);
+                            game.getPlayer().getCursor().setConsiderObstacle(false);
+                            game.getPlayer().getCursor().setHasArea(false);
+                            game.getPlayer().getCursor().setLocation(s.getPX(), s.getPY());
+                            game.getPlayer().getCursor().setPositive(0);
+                            game.getPlayer().getCursor().setNegative(1);
+                            game.getPlayer().getCursor().setNeutral(2);
+                        }
+
+                        return true;
+                    }
+                });
             }
             innerMinimapTable.row();
         }
@@ -212,8 +266,39 @@ public class UI {
         stage.dispose();
     }
 
-
     //<editor-fold desc="Getters and Setters">
+
+    public Point getCurrentPlayerLocation() {
+        return currentPlayerLocation;
+    }
+
+    public void setCurrentPlayerLocation(Point currentPlayerLocation) {
+        this.currentPlayerLocation = currentPlayerLocation;
+    }
+
+    public Stack[][] getStacks() {
+        return stacks;
+    }
+
+    public void setStacks(MinimapStack[][] stacks) {
+        this.stacks = stacks;
+    }
+
+    public Stack getCurrentPlayerStack() {
+        return currentPlayerStack;
+    }
+
+    public void setCurrentPlayerStack(MinimapStack currentPlayerStack) {
+        this.currentPlayerStack = currentPlayerStack;
+    }
+
+    public boolean isRequestMinimapUpdate() {
+        return requestMinimapUpdate;
+    }
+
+    public void setRequestMinimapUpdate(boolean requestMinimapUpdate) {
+        this.requestMinimapUpdate = requestMinimapUpdate;
+    }
 
     public Table getTable1() {
         return table1;
@@ -374,80 +459,113 @@ public class UI {
         level.setText(String.format(Locale.getDefault(), "Level %d (%d to next)", game.getPlayer().getExpLevel(), game.getPlayer().getAi().expToNextLevel()));
         displayOutput();
 
-        innerMinimapTable.clear();
+        if(requestMinimapUpdate) {
+            innerMinimapTable.clear();
 
-        Level level = game.getLevel();
-        if(game != null && game.getPlayer() != null && game.getLevel() != null) {
-            Stack s;
+            Level level = game.getLevel();
+            if(game != null && game.getPlayer() != null && game.getLevel() != null) {
+                MinimapStack s;
 
-            innerMinimapTable.defaults().width(Main.getTileWidth() * minimapScale).height(Main.getTileHeight() * minimapScale).pad(0);
-            for(int j = level.getHeight() - 1; j >= 0 ; j--) {
+                innerMinimapTable.defaults().width(Main.getTileWidth() * minimapScale).height(Main.getTileHeight() * minimapScale).pad(0);
+                for(int j = level.getHeight() - 1; j >= 0 ; j--) {
 
-                for(int i = 0; i < level.getWidth() ; i++) {
-                    s = stacks[i][j];
-                    s.clearChildren();
-                    boolean canSee = level.getPlayer().canSee(i, j);
-                    boolean seen = level.getSeen(i, j);
+                    for(int i = 0; i < level.getWidth() ; i++) {
+                        s = stacks[i][j];
+                        s.clearChildren();
+                        boolean canSee = level.getPlayer().canSee(i, j);
+                        boolean seen = level.getSeen(i, j);
 
-                    if (canSee || seen) {
-                        Tile t = level.getTileAt(i, j);
-                        if(t == null) {
-                            Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
-                            im.setScaling(Scaling.fill);
-                            s.add(im);
+                        if (canSee || seen) {
+                            Tile t = level.getTileAt(i, j);
+                            if(t == null) {
+                                Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
+                                im.setScaling(Scaling.fill);
+                                s.add(im);
+                            }
+                            else {
+                                Image im = new Image(t.getSprite(t.getNeutral()));
+                                im.setScaling(Scaling.fill);
+                                s.add(im);
+                            }
+
+                            if(level.getThingAt(i, j) != null) {
+                                if(!level.getThingAt(i, j).isOpen()) {
+                                    t = level.getThingAt(i, j).getTile();
+                                    Image im = new Image(t.getSprite(t.getNeutral()));
+                                    im.setScaling(Scaling.fill);
+                                    s.add(im);
+                                }
+                                else if(level.getThingAt(i, j) instanceof Stairs) {
+                                    t = level.getThingAt(i, j).getTile();
+                                    Image im =
+                                            new Image(t.getSprite(((Stairs) level.getThingAt(i, j)).isUp()? 1 : 0));
+                                    im.setScaling(Scaling.fill);
+                                    s.add(im);
+                                }
+
+
+                            }
+
+                            if(level.getItemAt(i, j) != null) {
+                                Image im = new Image(level.getItemAt(i, j).getTexture());
+                                im.setScaling(Scaling.fill);
+                                s.add(im);
+                            }
+
+                            if(level.getCreatureAt(i, j) != null && (level.getPlayer() == null || level.getPlayer().canSee(i, j))) {
+                                if(level.getCreatureAt(i, j).equals(level.getPlayer()) && !level.getPlayer().getCursor().isActive()) {
+                                    currentPlayerStack = s;
+                                }
+                                Image im = new Image(level.getCreatureAt(i, j).getTexture());
+                                im.setScaling(Scaling.fill);
+                                s.add(im);
+                            }
                         }
                         else {
-                            Image im = new Image(t.getSprite(t.getNeutral()));
+                            Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
+                            im.setColor(Color.BLACK);
                             im.setScaling(Scaling.fill);
                             s.add(im);
                         }
 
-                        if(level.getThingAt(i, j) != null) {
-                            t = level.getThingAt(i, j).getTile();
-                            Image im = new Image(t.getSprite(t.getNeutral()));
-                            im.setScaling(Scaling.fill);
-                            s.add(im);
+                        if(level.getPlayer().getCursor().isActive() && level.getPlayer().getCursor().getX() == i &&
+                            level.getPlayer().getCursor().getY() == j) {
+                            currentPlayerStack = s;
                         }
-
-                        if(level.getItemAt(i, j) != null) {
-                            Image im = new Image(level.getItemAt(i, j).getTexture());
-                            im.setScaling(Scaling.fill);
-                            s.add(im);
-                        }
-
-                        if(level.getCreatureAt(i, j) != null && (level.getPlayer() == null || level.getPlayer().canSee(i, j))) {
-                            if(level.getCreatureAt(i, j).equals(level.getPlayer())) {
-                                currentPlayerStack = s;
-                            }
-                            Image im = new Image(level.getCreatureAt(i, j).getTexture());
-                            im.setScaling(Scaling.fill);
-                            s.add(im);
-                        }
+                        innerMinimapTable.add(s);
                     }
-                    else {
-                        Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
-                        im.setColor(Color.BLACK);
-                        im.setScaling(Scaling.fill);
-                        s.add(im);
-                    }
-                    innerMinimapTable.add(s);
+
+                    innerMinimapTable.row();
                 }
+            }
 
-                innerMinimapTable.row();
+            requestMinimapUpdate = false;
+        }
+
+        if(game.getPlayer() != null) {
+            if(game.getPlayer().getCursor().isActive()) {
+                if(currentPlayerLocation.equals(new Point(-1, -1)) || !currentPlayerLocation.equals((Point) game.getPlayer().getCursor())) {
+                    currentPlayerLocation = game.getPlayer().getCursor().point();
+                    setMinimapCenter();
+                }
+            }
+            else {
+                if(currentPlayerLocation.equals(new Point(-1, -1)) || !currentPlayerLocation.equals(game.getPlayer().getLocation())) {
+                    currentPlayerLocation = game.getPlayer().getLocation();
+                    setMinimapCenter();
+                }
             }
         }
 
-        if(game.getPlayer() != null && (currentPlayerLocation.equals(new Point(-1, 1)) || !game.getPlayer().getLocation().equals(currentPlayerLocation))) {
-            currentPlayerLocation = game.getPlayer().getLocation();
-            setMinimapCenter();
-            System.out.println("Player " + currentPlayerLocation.getX() + ", " + currentPlayerLocation.getY());
-            System.out.println("Other " + minimap.getScrollX() + ", " + minimap.getScrollY());
-        }
     }
 
     public void setMinimapCenter() {
-        minimap.setScrollX(currentPlayerStack.getX());
-        minimap.setScrollY((innerMinimapTable.getHeight() - Main.getTileHeight()) - currentPlayerStack.getY());
+        setMinimapCenter(currentPlayerStack.getX(), currentPlayerStack.getY());
+    }
+
+    public void setMinimapCenter(float x, float y) {
+        minimap.setScrollX(x);
+        minimap.setScrollY((innerMinimapTable.getHeight() - Main.getTileHeight()) - y);
     }
 
     /**

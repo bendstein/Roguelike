@@ -3,6 +3,10 @@ package world.geometry;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import world.Tile;
 
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Stack;
+
 public class Cursor extends Point {
 
     /**
@@ -50,11 +54,14 @@ public class Cursor extends Point {
      */
     private String purpose;
 
+    private Collection<Point> path;
+
     private int negative, neutral, positive;
 
     public Cursor(int x, int y) {
         super(x, y);
         hasLine = false;
+        path = null;
         isActive = false;
         follow = false;
         hasRange = false;
@@ -69,6 +76,7 @@ public class Cursor extends Point {
     public Cursor(int x, int y, boolean hasLine) {
         super(x, y);
         this.hasLine = hasLine;
+        path = null;
         isActive = false;
         follow = false;
         hasRange = false;
@@ -86,6 +94,22 @@ public class Cursor extends Point {
     }
 
     //<editor-fold desc="Getters and Setters">
+    public Collection<Point> getPath() {
+        return path;
+    }
+
+    public boolean hasPath() {
+        return path != null;
+    }
+
+    public void setPath(Collection<Point> path) {
+        this.path = path;
+    }
+
+    public void clearPath() {
+        this.path = null;
+    }
+
     public boolean isHasLine() {
         return hasLine;
     }
@@ -196,5 +220,10 @@ public class Cursor extends Point {
         this.positive = positive;
     }
 
+    public Point point() {
+        return new Point(x, y);
+    }
     //</editor-fold>
+
+
 }

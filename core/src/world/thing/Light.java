@@ -80,6 +80,7 @@ public class Light extends Thing {
 
     public Light(Tile tile, int[] color, Color tint, int range, float brightness, int intensity, boolean active) {
         super(tile);
+        this.open = true;
         this.color = color;
         this.range = range;
         this.brightness = brightness;

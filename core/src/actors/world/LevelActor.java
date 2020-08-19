@@ -6,24 +6,41 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.Group;
 import creatureitem.Creature;
 import creatureitem.ai.PlayerAi;
+import creatureitem.generation.CreatureItemFactory;
 import game.Main;
 import utility.Utility;
 import world.Level;
 import world.Tile;
 import world.geometry.Point;
+import world.geometry.floatPoint;
 import world.thing.*;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.NavigableSet;
+import java.util.concurrent.ConcurrentSkipListSet;
 
-public class LevelActor extends Actor {
+public class LevelActor extends Group {
 
     /**
      * Level this actor represents
      */
     protected Level level;
     protected Texture fogOfWar;
+    protected static NavigableSet<CreatureActor> cull =
+            new ConcurrentSkipListSet<>((o1, o2) -> {
+                if(o1 == null || o1.getCreature() == null) {
+                    if(o2 == null || o2.getCreature() == null) return 0;
+                    else return -1;
+                }
+
+                else if(o2 == null || o2.getCreature() == null) return 1;
+
+                return o1.getCreature().getName().compareTo(o2.getCreature().getName());
+            });
 
     public LevelActor(Level level) {
         this.level = level;
@@ -42,10 +59,14 @@ public class LevelActor extends Actor {
         super.act(delta);
         ArrayList<Creature> creatureQueue = level.addCreatureQueue();
 
+        if(!level.getCreatures().contains(level.getPlayer()))
+            level.addAt(level.getPlayer().getX(), level.getPlayer().getY(), level.getPlayer());
+
         //Add new actors to the world
         for(Creature c : creatureQueue)
-            getParent().addActor(c.getActor());
+            addActor(c.getActor());
 
+        ArrayList<Creature> marked = new ArrayList<>();
         for(Creature c : level.getCreatures()) {
             if(((CreatureActor)c.getActor()).getDestination() != null) {
                 ((CreatureActor)c.getActor()).moveTowardDestination(Main.getTileHeight()/(1f/.2f));
@@ -54,7 +75,38 @@ public class LevelActor extends Actor {
                 continue;
             if(((CreatureActor)c.getActor()).getDestination().equals(((CreatureActor)c.getActor()).getCurrentLocation()))
                 ((CreatureActor)c.getActor()).setDestination(null);
+
+            if(c.getActor() == null) {
+                CreatureActor ca = CreatureItemFactory.newActor(c);
+                ca.setCurrentLocation(new floatPoint(c.getX() * Main.getTileWidth(), c.getY() * Main.getTileHeight()));
+                marked.add(c);
+            }
+
+            if(!((CreatureActor)c.getActor()).getCreature().equals(c)) {
+
+                if(!((CreatureActor)c.getActor()).getCreature().getActor().equals(c.getActor())) {
+                    cull.add((CreatureActor)c.getActor());
+                }
+
+                CreatureActor ca = ((CreatureActor) c.getActor()).copy();
+                ca.setCreature(c);
+                ca.setCurrentLocation(new floatPoint(c.getX() * Main.getTileWidth(), c.getY() * Main.getTileHeight()));
+                marked.add(c);
+            }
         }
+
+        for(Creature c : marked) {
+            level.remove(c);
+            level.addAt(c.getX(), c.getY(), c);
+        }
+
+        for(CreatureActor ca : cull) {
+            ca.getParent().removeActor(ca);
+            cull.remove(ca);
+        }
+
+        if(level.isRequestLightingUpdate())
+            level.updateStaticLit();
 
         level.clearCreatureQueue();
     }
@@ -82,6 +134,25 @@ public class LevelActor extends Actor {
 
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
+
+                boolean not_on_screen = true;
+                for(int i1 = -1; i1 <= 1; i1 += 1) {
+                    for(int j1 = -1; j1 <= 1; j1 += 1) {
+                        if(level
+                                .getDungeon()
+                                .getGame()
+                                .getPlayScreen()
+                                .getCamera()
+                                .frustum
+                                .pointInFrustum((i + i1) * Main.getTileWidth(), (j + j1) * Main.getTileHeight(), 0)) {
+                            not_on_screen = false;
+                        }
+                    }
+                    if(!not_on_screen) break;
+                }
+
+                if(not_on_screen) continue;
+
                 boolean canSee = level.getPlayer().canSee(i, j);
                 boolean seen = level.getSeen(i, j);
 
@@ -100,6 +171,9 @@ public class LevelActor extends Actor {
                  * Set the tile as being seen by the player
                  */
                 if (canSee) {
+                    if(!level.getSeen(i, j)) {
+                        level.calculateOrientations();
+                    }
                     level.getPlayer().setSeen(i, j);
                 }
 
@@ -110,6 +184,11 @@ public class LevelActor extends Actor {
                     drawFOW(batch, Light.PURPLE, 8, i, j);
                 }
             }
+        }
+
+        for(Creature c : level.getCreatures()) {
+            if(level.getPlayer().canSee(c.getX(), c.getY()))
+                c.getActor().draw(batch, parentAlpha);
         }
 
         drawLighting(batch);
@@ -131,6 +210,13 @@ public class LevelActor extends Actor {
     }
 
     public void drawWall(Batch batch, int i, int j) {
+
+        Tile t = level.getTileAt(i, j);
+        for(int x : level.getOrientation(i, j)) {
+            batch.draw(t.getSprite(x), i * Main.getTileWidth(), j * Main.getTileHeight());
+        }
+
+        /*
         //If the player can see the tile, draw the tile and everything in it
 
         Tile t = level.getTileAt(i, j);
@@ -275,6 +361,8 @@ public class LevelActor extends Actor {
         }
         else
             batch.draw(level.getTileAt(i, j).getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
+
+         */
     }
 
     public void drawItem(Batch batch, int i, int j) {
@@ -282,6 +370,12 @@ public class LevelActor extends Actor {
     }
 
     public void drawThing(Batch batch, int i, int j) {
+        Thing t = level.getThingAt(i, j);
+        if(level.getThingAt(i, j) != null) {
+            if(t.getOrientation() != -1)
+                batch.draw(t.getTile().getSprite(t.getOrientation()), i * Main.getTileWidth(), j * Main.getTileHeight());
+        }
+        /*
         if(level.getThingAt(i, j) != null) {
             Thing th = level.getThingAt(i, j);
             if(th instanceof Stairs) {
@@ -355,6 +449,8 @@ public class LevelActor extends Actor {
                 batch.draw(level.getThingAt(i, j).getTile().getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
 
         }
+
+         */
     }
 
     public void drawLighting(Batch batch) {
@@ -365,6 +461,23 @@ public class LevelActor extends Actor {
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
 
+                boolean not_on_screen = true;
+                for(int i1 = -1; i1 <= 1; i1 += 1) {
+                    for(int j1 = -1; j1 <= 1; j1 += 1) {
+                        if(level
+                                .getDungeon()
+                                .getGame()
+                                .getPlayScreen()
+                                .getCamera()
+                                .frustum
+                                .pointInFrustum((i + i1) * Main.getTileWidth(), (j + j1) * Main.getTileHeight(), 0)) {
+                            not_on_screen = false;
+                        }
+                    }
+                    if(!not_on_screen) break;
+                }
+
+                if(not_on_screen) continue;
 
                 /*
                  * Get all lights shining on this tile
@@ -522,6 +635,25 @@ public class LevelActor extends Actor {
     public void drawDarkness(Batch batch) {
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
+
+                boolean not_on_screen = true;
+                for(int i1 = -1; i1 <= 1; i1 += 1) {
+                    for(int j1 = -1; j1 <= 1; j1 += 1) {
+                        if(level
+                                .getDungeon()
+                                .getGame()
+                                .getPlayScreen()
+                                .getCamera()
+                                .frustum
+                                .pointInFrustum((i + i1) * Main.getTileWidth(), (j + j1) * Main.getTileHeight(), 0)) {
+                            not_on_screen = false;
+                        }
+                    }
+                    if(!not_on_screen) break;
+                }
+
+                if(not_on_screen) continue;
+
                 if(!level.getPlayer().canSee(i, j) || !level.getStaticLit(i, j))
                     drawFOW(batch, Light.GREY3, 5, i, j);
             }
@@ -543,6 +675,36 @@ public class LevelActor extends Actor {
 
     public void setFogOfWar(Texture fogOfWar) {
         this.fogOfWar = fogOfWar;
+    }
+
+    public static NavigableSet<CreatureActor> getCull() {
+        return cull;
+    }
+
+    public static void setCull(NavigableSet<CreatureActor> cull) {
+        LevelActor.cull = cull;
+    }
+
+    public static void addCull(CreatureActor ca) {
+        cull.add(ca);
+    }
+
+    public void switchLevel(Level level, Level l) {
+        for(Creature c : level.getCreatures()) {
+            c.getActor().remove();
+        }
+
+        for(Creature c : l.getCreatures()) {
+            addActor(c.getActor());
+        }
+
+        if(l.getActor() != null) {
+            l.setActor(this);
+            level.setActor(null);
+            setLevel(l);
+        }
+
+        if(l != null) l.calculateOrientations();
     }
 
     //</editor-fold>

@@ -1,5 +1,6 @@
 package actors.creatures;
 
+import actors.world.LevelActor;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import game.Main;
@@ -42,10 +43,16 @@ public class CreatureActor extends Actor {
         //Only draw the creature if they're visible
         if(creature == null) return;
         if(creature.getLevel() == null) return;
-        if(creature.getLevel().getPlayer() != null && creature.getLevel().getPlayer().canSee(creature.getX(), creature.getY()))
-            batch.draw(creature.getTexture(), currentLocation.getX(), currentLocation.getY());
+
+        if(!creature.getActor().equals(this)) {
+            LevelActor.addCull(this);
+        }
+
+        batch.draw(creature.getTexture(), currentLocation.getX(), currentLocation.getY());
+
     }
 
+    //<editor-fold desc="Getters and Setters">
     public Creature getCreature() {
         return creature;
     }
@@ -78,10 +85,12 @@ public class CreatureActor extends Actor {
     public void setDestination(floatPoint destination) {
         this.destination = destination;
     }
+    //</editor-fold>
 
     public void moveTowardDestination(float amount) {
         float dx = currentLocation.getX() - destination.getX();
         float dy = currentLocation.getY() - destination.getY();
+
         float angle = (float) Math.atan(dy/dx);
 
         float x = amount * (float) Math.cos(angle);
@@ -98,7 +107,7 @@ public class CreatureActor extends Actor {
             }
             else {
                 x *= -1;
-                y *= 1;
+                y = 0;
             }
         }
         else if(dx < 0) {
@@ -112,7 +121,7 @@ public class CreatureActor extends Actor {
             }
             else {
                 x *= 1;
-                y *= 1;
+                y = 0;
             }
         }
         else {
@@ -123,6 +132,10 @@ public class CreatureActor extends Actor {
             else if(dy < 0) {
                 x *= 1;
                 y *= -1;
+            }
+            else {
+                x = 0;
+                y = 0;
             }
         }
 

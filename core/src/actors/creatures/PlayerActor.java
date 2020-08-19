@@ -12,6 +12,8 @@ import world.geometry.Cursor;
 import world.geometry.Line;
 import world.geometry.Point;
 
+import java.util.Collection;
+
 public class PlayerActor extends CreatureActor {
 
     public PlayerActor(Player player) {
@@ -82,9 +84,19 @@ public class PlayerActor extends CreatureActor {
             if(((Player) creature).getCurrentDestination() == null && !((Player) creature).getDestinationQueue().isEmpty())
                 ((Player) creature).setCurrentDestination(((Player) creature).dequeueDestination());
 
-            if(((Player) creature).getCurrentDestination() != null)
-                if(!creature.getAi().moveToDestination(((Player) creature).getCurrentDestination()))
+            if(((Player) creature).getCurrentDestination() != null) {
+                if (!creature.getAi().moveToDestination(((Player) creature).getCurrentDestination())) {
                     ((Player) creature).setCurrentDestination(null);
+                    ((Player) creature).getCursor().clearPath();
+                    ((Player) creature).getCursor().setActive(false);
+                }
+
+                if(((Player) creature).getCursor().isHasLine() && ((Player) creature).getCursor().hasPath()) {
+                    ((Player) creature).getCursor().setPath(Utility.aStarPathToLine(Utility.aStar(creature.getLevel().getCosts(),
+                            Point.DISTANCE_MANHATTAN, creature.getLocation(), ((Player) creature).getCursor())).getPoints());
+                }
+
+            }
 
             //Stop automatic movement if there is an adjacent enemy
             boolean adjenemy = false;
@@ -129,7 +141,10 @@ public class PlayerActor extends CreatureActor {
 
             //Draw the line if the cursor has one
             if(cursor.isHasLine()) {
-                Line l = new Line(creature.getX(), cursor.getX(), creature.getY(), cursor.getY());
+                Collection<Point> l;
+
+                if(cursor.getPath() == null) l = new Line(creature.getX(), cursor.getX(), creature.getY(), cursor.getY()).getPoints();
+                else l = cursor.getPath();
 
                 int i = 0;
                 boolean obstacle = false;

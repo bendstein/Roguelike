@@ -1,6 +1,6 @@
 package creatureitem.item;
 
-import creatureitem.effect.Damage;
+import creatureitem.effect.damage.Damage;
 
 import java.util.Objects;
 

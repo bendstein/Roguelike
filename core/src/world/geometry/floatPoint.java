@@ -1,5 +1,7 @@
 package world.geometry;
 
+import java.util.Objects;
+
 public class floatPoint {
 
     //<editor-fold desc="Instance Variables">
@@ -41,4 +43,19 @@ public class floatPoint {
         this.y = y;
     }
     //</editor-fold>
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof floatPoint)) return false;
+        floatPoint that = (floatPoint) o;
+        return Float.compare(that.x, x) == 0 &&
+                Float.compare(that.y, y) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y);
+    }
 }

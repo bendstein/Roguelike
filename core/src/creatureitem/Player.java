@@ -2,20 +2,24 @@ package creatureitem;
 
 import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
+import com.badlogic.gdx.Gdx;
 import creatureitem.ai.NPCAi;
+import creatureitem.ai.PlayerAi;
 import creatureitem.item.*;
 import creatureitem.spell.AOESpell;
 import creatureitem.spell.LineSpell;
 import creatureitem.spell.PointSpell;
 import creatureitem.spell.Spell;
+import utility.Utility;
 import world.Level;
 import world.geometry.Cursor;
 import world.geometry.Point;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Objects;
 
 public class Player extends creatureitem.Creature {
-
 
     //<editor-fold desc="Instance Variables">
     /**
@@ -59,10 +63,10 @@ public class Player extends creatureitem.Creature {
 
     //</editor-fold>
 
-    public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence,
-                  Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor) {
-        super(maxHP, hungerMax, manaMax, exp, strength, agility, constitution, perception, intelligence,
-        level, texturePath, name, glyph, team, unarmedAttack, natArmor);
+    public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
+                  Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, String ... properties) {
+        super(maxHP, hungerMax, manaMax, exp, strength, agility, constitution, perception, intelligence, discipline, charisma,
+        level, texturePath, name, glyph, team, unarmedAttack, natArmor, properties);
 
         isDead = false;
         currentDestination = null;
@@ -104,6 +108,11 @@ public class Player extends creatureitem.Creature {
         level.setSeen(seenTiles);
     }
 
+    public void setSeenAllTiles() {
+        for(boolean[] b : getSeenTiles())
+            Arrays.fill(b, true);
+    }
+
     public void setSeen(int i, int j) {
         level.setSeen(i, j);
     }
@@ -125,6 +134,7 @@ public class Player extends creatureitem.Creature {
             this.level.remove(this);
             this.level.setActor(null);
             ((CreatureActor)getActor()).setDestination(null);
+            if(lactor != null) lactor.switchLevel(this.level, level);
             setLevel(level);
 
             if(level != null) {
@@ -136,6 +146,7 @@ public class Player extends creatureitem.Creature {
         else
             setLevel(level);
 
+        level.getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
     }
 
     public Point getCurrentDestination() {
@@ -226,19 +237,20 @@ public class Player extends creatureitem.Creature {
     public void moveBy(int mx, int my) {
 
         if(cursor.isActive()) moveCursorBy(mx, my);
+        else movePlayerBy(mx, my);
 
-        else {
-            if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
+    }
 
-            Creature foe = level.getCreatureAt(x + mx, y + my);
-            if(foe == null)
-                ai.onEnter(x + mx, y + my, level.getTileAt(x + mx, y + my));
-            else if(foe.team != team)
-                attack(foe);
-            level.update();
-            lastMovedTime = System.currentTimeMillis();
-        }
+    public void movePlayerBy(int mx, int my) {
+        if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
 
+        Creature foe = level.getCreatureAt(x + mx, y + my);
+        if(foe == null)
+            ai.onEnter(x + mx, y + my, level.getTileAt(x + mx, y + my));
+        else if(foe.team != team)
+            attack(foe);
+        level.update();
+        lastMovedTime = System.currentTimeMillis();
     }
 
     public void moveCursorBy(int mx, int my) {
@@ -248,13 +260,20 @@ public class Player extends creatureitem.Creature {
         if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
 
         cursor.moveBy(mx, my);
-        lastMovedTime = System.currentTimeMillis();
 
+        if(cursor.isHasLine() && cursor.hasPath()) {
+            cursor.setPath(Utility
+                    .aStarPathToLine(Utility
+                            .aStar(level.getCosts(), Point.DISTANCE_MANHATTAN, getLocation(), cursor)).getPoints());
+        }
+
+        lastMovedTime = System.currentTimeMillis();
+        level.getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
     }
 
     public void throwItem() {
         super.throwItem(toThrow, cursor);
-        level.update();
+        increaseTurnsToProcess(1);
     }
 
     public void prepThrow(Item i) {
@@ -262,6 +281,7 @@ public class Player extends creatureitem.Creature {
         cursor.setPurpose("throw");
         cursor.setLocation(x, y);
         cursor.setActive(true);
+        cursor.clearPath();
         cursor.setHasLine(true);
         cursor.setConsiderObstacle(true);
         cursor.setRange(getThrowRange());
@@ -277,6 +297,7 @@ public class Player extends creatureitem.Creature {
         cursor.setPurpose("shoot");
         cursor.setLocation(x, y);
         cursor.setActive(true);
+        cursor.clearPath();
         cursor.setHasLine(true);
         cursor.setConsiderObstacle(true);
         cursor.setRange(rangedWeapon.getRange());
@@ -293,8 +314,9 @@ public class Player extends creatureitem.Creature {
             cursor.setPurpose("zap");
             cursor.setLocation(x, y);
             cursor.setActive(true);
+            cursor.clearPath();
             cursor.setHasLine(true);
-            cursor.setConsiderObstacle(true);
+            cursor.setConsiderObstacle(!s.isIgnoreObstacle());
             cursor.setRange(((PointSpell)s).getRange());
 
             cursor.setPositive(0);
@@ -311,13 +333,13 @@ public class Player extends creatureitem.Creature {
 
     public void shoot() {
         super.shootRangedWeapon(cursor);
-        level.update();
+        increaseTurnsToProcess(1);
     }
 
     @Override
     public void cast(Spell s) {
 
-        doAction("cast %s.", s.getName());
+        //doAction("cast %s.", s.getName());
 
         if(s instanceof LineSpell) {
             ((LineSpell)s).cast(getLocation(), cursor);
@@ -329,6 +351,7 @@ public class Player extends creatureitem.Creature {
             ((PointSpell)s).cast(cursor);
         }
         toCast = null;
+        increaseTurnsToProcess(1);
     }
 
     public void processTurns() {
@@ -539,5 +562,20 @@ public class Player extends creatureitem.Creature {
     public void talkTo(Creature c) {
         if(!(c.getAi() instanceof NPCAi)) return;
         talkingTo = c;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Player)) return false;
+        if (!super.equals(o)) return false;
+        Player player = (Player) o;
+        return isDead == player.isDead &&
+                (ai instanceof PlayerAi? player.getAi() instanceof PlayerAi : true);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), ai, isDead);
     }
 }

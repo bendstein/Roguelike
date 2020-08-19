@@ -6,6 +6,8 @@ import game.Main;
 import world.Tile;
 import world.geometry.Point;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -26,23 +28,33 @@ public class Thing {
 
     protected ThingBehavior behavior;
 
+    protected ArrayList<String> properties;
+
     protected int x, y;
 
-    public Thing(Tile tile) {
+    protected int orientation;
+
+    public Thing(Tile tile, String ... properties) {
         open = false;
         this.tile = tile;
+        this.properties = new ArrayList<>(Arrays.asList(properties));
         x = y = 0;
+        orientation = 0;
     }
 
-    public Thing(Tile tile, boolean open) {
+    public Thing(Tile tile, boolean open, String ... properties) {
         this.open = open;
         this.tile = tile;
+        this.properties = new ArrayList<>(Arrays.asList(properties));
         x = y = 0;
+        orientation = 0;
     }
 
     public Thing(Thing thing) {
         this.open = thing.open;
         this.tile = thing.tile;
+        this.properties = new ArrayList<>(thing.properties);
+        orientation = thing.orientation;
     }
 
     public void interact() {
@@ -54,6 +66,23 @@ public class Thing {
     }
 
     //<editor-fold desc="Getters and Setters">
+
+    public int getOrientation() {
+        return orientation;
+    }
+
+    public void setOrientation(int orientation) {
+        this.orientation = orientation;
+    }
+
+    public ArrayList<String> getProperties() {
+        return properties;
+    }
+
+    public void setProperties(ArrayList<String> properties) {
+        this.properties = properties;
+    }
+
     public boolean isOpen() {
         return open;
     }

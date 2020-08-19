@@ -84,6 +84,16 @@ public class Inventory implements Iterable<Item>  {
         }
     }
 
+    public void remove(int i) {
+        if(i >= count) return;
+        remove(items[i]);
+    }
+
+    public boolean removeOne(int i) {
+        if(i >= count) return false;
+        return removeOne(items[i]);
+    }
+
     public void doubleInventory() {
         Item[] itemsNew = new Item[items.length * 2];
 
@@ -123,6 +133,17 @@ public class Inventory implements Iterable<Item>  {
         return count == 0;
     }
 
+    public Item top() {
+        if(isEmpty()) return null;
+        return items[count - 1];
+    }
+
+    public Item pop() {
+        Item i = top();
+        remove(i);
+        return i;
+    }
+
     public Inventory prune() {
         HashSet<Item> pruned = new HashSet<>(asList()
                 .stream()
@@ -146,10 +167,14 @@ public class Inventory implements Iterable<Item>  {
     }
 
     public Item[] filterRarity(double raritymin, double raritymax) {
-        ArrayList<Item> it = new ArrayList<Item>(asList()
-                .stream()
-                .filter(i -> (i != null && i.rarity <= raritymax && i.rarity >= raritymin))
-                .collect(Collectors.toList()));
+        ArrayList<Item> it = new ArrayList<>();
+
+        for(Item i : asList()) {
+            if(i == null) continue;
+            if(i.rarity <= raritymax && i.rarity >= raritymin)
+                it.add(i);
+        }
+
         Item[] items = new Item[it.size()];
 
         for(Item item : it) {

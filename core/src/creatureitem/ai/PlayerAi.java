@@ -2,10 +2,12 @@ package creatureitem.ai;
 
 import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
+import com.badlogic.gdx.Gdx;
 import creatureitem.Creature;
 import creatureitem.Player;
 import game.Main;
 import world.Level;
+import world.geometry.Point;
 import world.geometry.floatPoint;
 import world.thing.DoorBehavior;
 import world.thing.Entrance;
@@ -42,7 +44,7 @@ public class PlayerAi extends CreatureAi {
          */
         if(creature.getLevel().getThingAt(x, y) != null && creature.getLevel().getThingAt(x, y).getBehavior() instanceof DoorBehavior
                 && !creature.getLevel().getThingAt(x, y).isOpen()) {
-            creature.getLevel().getThingAt(x, y).setOpen(true);
+            creature.getLevel().getThingAt(x, y).interact(creature);
         }
         else if(Creature.canEnter(x, y, creature.getLevel())) {
             if(creature.getActor() != null)
@@ -54,7 +56,10 @@ public class PlayerAi extends CreatureAi {
             }
 
             if(creature.getLevel().getItemAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).toString());
+                creature.doAction("step on %s.",
+                        creature.getLevel().getInventoryAt(x, y).getCount() == 1?
+                                creature.getLevel().getItemAt(x, y).toString() :
+                                creature.getLevel().getItemAt(x, y).toString() + ", amongst other things");
             }
             if(creature.getLevel().getThingAt(x, y) != null && creature.getLevel().getThingAt(x, y) instanceof Stairs) {
                 creature.doAction("step on %s.", ((Stairs)creature.getLevel().getThingAt(x, y)).isUp()? "the stairs going up" : "the stairs going down");
@@ -66,6 +71,9 @@ public class PlayerAi extends CreatureAi {
 
     }
 
+    /**
+     * Stuff to do when the creature dies
+     */
     @Override
     public void onDie() {
         ((Player)creature).setDead(true);
@@ -81,24 +89,38 @@ public class PlayerAi extends CreatureAi {
         messages.add(message);
     }
 
+    /**
+     * @return The creature's message queue
+     */
     @Override
     public ArrayList<String> getMessages() {
         return messages;
     }
 
+    /**
+     * Mark all tiles on the player's current level as seen
+     */
     public void seenAll() {
         for(int i = 0; i < creature.getLevel().getSeen().length; i++)
             for(int j = 0; j < creature.getLevel().getSeen()[0].length; j++)
                 creature.getLevel().setSeen(i, j);
+        creature.getLevel().getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
     }
 
+    /**
+     * Called when the creature tries to use stairs.
+     * @return true if the player successfully used the stairs.
+     */
     @Override
     public boolean useStairs() {
+
+        Point p = new Point(-1, -1);
 
         if(creature.getLevel().getThingAt(creature.getX(), creature.getY()) instanceof Entrance) {
             Entrance e = (Entrance) creature.getLevel().getThingAt(creature.getX(), creature.getY());
             ((Player)creature).moveLevel(e.getDestination().getLevel());
             creature.getLevel().addAt(e.getDestination().getX(), e.getDestination().getY(), creature);
+            p.setLocation(e.getDestination().getX(), e.getDestination().getY());
         }
 
         else {
@@ -113,12 +135,17 @@ public class PlayerAi extends CreatureAi {
 
                 ((Player)creature).moveLevel(s.getDestination().getLevel());
                 creature.getLevel().addAt(s.getDestination().getX(), s.getDestination().getY(), creature);
+                p.setLocation(s.getDestination().getX(), s.getDestination().getY());
             }
         }
 
+        creature.getLevel().getDungeon().getGame().getPlayScreen().getUi().setCurrentPlayerLocation(p);
         return true;
     }
 
+    /**
+     * @return A deep copy of this
+     */
     @Override
     public CreatureAi copy() {
         return new PlayerAi((Player)creature, messages);

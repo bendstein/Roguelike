@@ -1,9 +1,10 @@
 package creatureitem.effect;
 
 import creatureitem.Creature;
+import creatureitem.effect.damage.Damage;
+import world.Level;
 
 import java.util.Objects;
-import java.util.Random;
 
 public class HealthEffect extends Effect {
 
@@ -39,6 +40,11 @@ public class HealthEffect extends Effect {
     @Override
     public void affect() {
 
+    }
+
+    @Override
+    public void affect(int x, int y, Level l) {
+        if(l.getCreatureAt(x, y) != null) affect(l.getCreatureAt(x, y));
     }
 
     @Override

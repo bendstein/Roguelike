@@ -22,12 +22,13 @@ public class Town extends Dungeon {
     @Override
     public void generate() {
         Level t = builder.fill(Tile.FLOOR).build();
+        t.setTileAt(10, 5, Tile.WALL);
         t.setDungeon(this);
         root = t;
 
         this.player = CreatureItemFactory.newPlayer(new ArrayList<>());
         player.setLevel(root);
-        player.setCanSeeEverything(true);
+        //player.setCanSeeEverything(true);
         root.setPlayer(player);
         root.addAtEmptyLocation(player);
         levelActor = new LevelActor(root);
@@ -59,7 +60,7 @@ public class Town extends Dungeon {
         new EntranceBehavior(e);
         root.addAtEmptyLocation(e);
 
-        Entrance e2 = new Entrance(new Dungeon(builder, random, game, Dungeon.DUNGEON, 10, 0), root);
+        Entrance e2 = new Entrance(new Dungeon(builder, random, game, Dungeon.DUNGEON, 10, 0, "Dungeon"), root);
         new EntranceBehavior(e2);
         root.addAtEmptyLocation(e2);
 

@@ -53,7 +53,7 @@ public class ZombieAi extends CreatureAi {
             for(int i = -1; i < 2; i++) {
                 for(int j = -1; j < 2; j++) {
                     Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                    if(foe != null && foe.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
+                    if(foe != null && creature.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
                         creature.attack(foe);
                         attack = true;
                     }

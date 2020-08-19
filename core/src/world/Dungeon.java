@@ -96,14 +96,14 @@ public class Dungeon {
     public void generate() {
     }
 
-    public Stairs generate(Entrance e, Creature cr) {
+    public Stairs generateNextFloor(Stairs s, Creature cr) {
         if(type != 1 && type != 2) return null;
         setPlayer((Player)cr);
 
         if(type == 1)
-            return generateDungeon0(e, cr);
+            return generateNextFloor0(s, cr);
         else if(type == 2)
-            return generateDungeon1(e, cr);
+            return generateNextFloor1(s, cr);
         /*
         for(int i = 0; i < floors; i++) {
             builder.clear();
@@ -146,32 +146,31 @@ public class Dungeon {
         return null;
     }
 
-    public Stairs generateDungeon0(Entrance e, Creature cr) {
-
-        Level previous = e.getLevel();
+    /**
+     * Player went up/down the stairs to a non-existing level
+     * @param st Stairs the player went down
+     * @param cr The player
+     * @return The stairs the player arrives at
+     */
+    public Stairs generateNextFloor0(Stairs st, Creature cr) {
+        Level previous = st.getLevel();
         setPlayer((Player)cr);
-        Level current;
-        Stairs first = null;
-        ArrayList<Stairs> stairs = new ArrayList<>();
+        Level next;
+        Stairs arriving;
 
-        for(int i = 0; i < floors; i++) {
-            builder.clear();
-            current = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
-            current.setDungeon(this);
-            current.setFloor_number(i + 1);
-            current.setDangerLevel(dangerLevel + Math.max(0, i/5));
-            if(i == 0) {
-                root = current;
-                first = connect(e, current, e.isUp()).getDestination();
-                stairs.add(first);
-                levelActor = new LevelActor(current);
-                current.setActor(levelActor);
-            }
-            else
-                stairs.add(connect(current, previous, true).getDestination());
+        builder.clear();
+        next = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
+        next.setDungeon(this);
+        next.setFloor_number(previous.getFloor_number() + 1);
+        next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
 
-            previous = current;
+        if(st instanceof Entrance) {
+            root = next;
+            next.setFloor_number(0);
         }
+        arriving = connect(st, next, st.isUp()).getDestination();
+        levelActor = new LevelActor(next);
+        next.setActor(levelActor);
 
         Light[] lights = new Light[]{
                 new LightRandom(Tile.BRAZIER, true, 6, .5f, 3, true, random, 2000L, 0,
@@ -181,58 +180,49 @@ public class Dungeon {
                         }),
         };
 
-        for(Stairs s : stairs) {
-            builder.generateCreatures(s.getLevel(), 1);
-            //s.getLevel().addCreatureQueue();
-            builder.generateItems(s.getLevel(), 1);
-            builder.generateLightThings(s.getLevel(), lights);
-        }
+        builder.generateCreatures(arriving.getLevel(), 1);
+        builder.generateItems(arriving.getLevel(), 1);
+        builder.generateLightThings(arriving.getLevel(), lights);
 
-        return first;
+        if(next.getFloor_number() < floors)
+            connect(next, null, st.isUp());
 
+        return arriving;
     }
 
-    public Stairs generateDungeon1(Entrance e, Creature cr) {
-        Level previous = e.getLevel();
+    public Stairs generateNextFloor1(Stairs st, Creature cr) {
+        Level previous = st.getLevel();
         setPlayer((Player)cr);
-        Level current;
-        Stairs first = null;
-        ArrayList<Stairs> stairs = new ArrayList<>();
+        Level next;
+        Stairs arriving;
 
-        for(int i = 0; i < floors; i++) {
-            builder.clear();
-            current = builder.generate().build();
-            current.setDungeon(this);
-            current.setFloor_number(i + 1);
-            current.setDangerLevel(dangerLevel + Math.max(0, i/5));
-            if(i == 0) {
-                root = current;
-                first = connect(e, current, e.isUp()).getDestination();
-                stairs.add(first);
-                levelActor = new LevelActor(current);
-                current.setActor(levelActor);
-            }
-            else
-                stairs.add(connect(current, previous, true).getDestination());
+        builder.clear();
+        next = builder.generate().build();
 
-            previous = current;
+        next.setDungeon(this);
+        next.setFloor_number(previous.getFloor_number() + 1);
+        next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
+
+        if(st instanceof Entrance) {
+            root = next;
+            next.setFloor_number(0);
         }
+        arriving = connect(st, next, st.isUp()).getDestination();
+        levelActor = new LevelActor(next);
+        next.setActor(levelActor);
 
         Light[] lights = new Light[]{
-                new LightRandom(Tile.BRAZIER, true, 6, .6f, 3, true, random, 1000L, .2,
-                        new int[][]{
-                                {Light.YELLOW, Light.WHITE},
-                                {Light.WHITE, Light.ORANGE},
-                        }, Color.CORAL)
+                new Light(Tile.BRAZIER, new int[]{Light.YELLOW, Light.WHITE}, Color.CORAL, 6, .8f, 3, true)
         };
 
-        for(Stairs s : stairs) {
-            builder.generateCreatures(s.getLevel(), 2);
-            builder.generateItems(s.getLevel(), 2);
-            builder.generateLightThings(s.getLevel(), lights);
-        }
+        builder.generateCreatures(arriving.getLevel(), 2);
+        builder.generateItems(arriving.getLevel(), 2);
+        builder.generateLightThings(arriving.getLevel(), lights);
 
-        return first;
+        if(next.getFloor_number() < floors)
+            connect(next, null, st.isUp());
+
+        return arriving;
     }
 
     /**

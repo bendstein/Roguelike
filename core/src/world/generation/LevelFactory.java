@@ -1,20 +1,13 @@
 package world.generation;
 
-import actors.creatures.CreatureActor;
-import com.badlogic.gdx.graphics.Color;
 import creatureitem.Creature;
-import creatureitem.ai.NPCAi;
-import creatureitem.ai.monster.BatAi;
-import creatureitem.effect.Damage;
 import creatureitem.generation.CreatureItemFactory;
 import creatureitem.item.*;
-import screens.Dialogue;
 import utility.Utility;
 import utility.WeightedRandom;
 import world.Level;
 import world.Tile;
 import world.geometry.AStarPoint;
-import world.geometry.Line;
 import world.geometry.Point;
 import world.thing.*;
 import world.room.*;
@@ -190,177 +183,97 @@ public class LevelFactory {
      */
     public LevelFactory generate() {
 
-        //First, fill the map completely with wall.
-        fill(Tile.WALL);
-
-        Room root;
-        int w, wi;
-        int h, hi;
-
-        int minx, maxx, miny, maxy;
-
-        //Randomly select a room type with the given weights
-        TreeMap<Integer, Float> roomTypeWeights = new TreeMap<Integer, Float>() {
-            {
-                put(0, 1f); //Rectangle
-                put(1, 1f); //L-Shaped
-                put(2, 1f); //Cellular Automata
-                put(3, 1f); //Ellipse
-                put(4, 1f); //Rectangular donut
-                put(5, 1f); //Elliptical donut
-                put(6, 0f); //T-shaped
-            }
-        };
-        TreeMap<Integer, Float> rectWeights = new TreeMap<Integer, Float>() {
-            {
-                put(3,0.5f);
-                put(4,0.75f);
-                put(5,1f);
-                put(6,1f);
-                put(7,1f);
-                put(8,0.75f);
-                put(9,0.5f);
-                put(10,0.3f);
-                put(11,0.2f);
-            }
-        };
-        TreeMap<Integer, Float> ellipseWeights = new TreeMap<Integer, Float>() {
-            {
-                put(5,1f);
-                put(6,1f);
-                put(7,1f);
-                put(8,0.75f);
-                put(9,0.75f);
-                put(10,0.5f);
-                put(11,0.5f);
-                put(12,0.5f);
-                put(13,0.4f);
-                put(14,0.4f);
-                put(15,0.2f);
-                put(16,0.2f);
-                put(17,0.1f);
-                put(18,0.1f);
-                put(19,0.05f);
-                put(20,0.05f);
-            }
-        };
-        TreeMap<Integer, Float> caWeights = new TreeMap<Integer, Float>() {
-            {
-                put(5,1f);
-                put(6,1f);
-                put(7,1f);
-                put(8,0.75f);
-                put(9,0.75f);
-                put(10,0.5f);
-                put(11,0.5f);
-                put(12,0.5f);
-                put(13,0.4f);
-                put(14,0.4f);
-                put(15,0.2f);
-                put(16,0.2f);
-                put(17,0.1f);
-                put(18,0.1f);
-                put(19,0.05f);
-                put(20,0.05f);
-            }
-        };
-
-        int choice = wrandom.next(roomTypeWeights);
-
-        switch (choice) {
-            case 1: {
-                w = wrandom.next(rectWeights);
-                h = wrandom.next(rectWeights);
-                root = new LRoom(w, h, random.nextInt(w - 2) + 2, random.nextInt(h - 2) + 2, random.nextInt(7));
-                break;
-            }
-            case 2: {
-                w = wrandom.next(caWeights);
-                h = wrandom.next(caWeights);
-                root = new CellularAutomataRoom(w, h, random);
-                break;
-            }
-            case 3: {
-                w = wrandom.next(ellipseWeights);
-                w = w % 2 == 0 ? w - 1 : w;
-                h = wrandom.next(ellipseWeights);
-                h = h % 2 == 0 ? h - 1 : h;
-                root = new EllipseRoom(w, h);
-                break;
-            }
-            case 4: {
-                w = wrandom.next(ellipseWeights);
-                h = wrandom.next(ellipseWeights);
-                wi = random.nextInt(w - 3) + 2;
-                hi = random.nextInt(h - 3) + 2;
-                root = new RectLoopRoom(w, h, wi, hi);
-                break;
-            }
-            case 5: {
-                w = wrandom.next(ellipseWeights);
-                w = w % 2 == 0 ? w - 1 : w;
-                h = wrandom.next(ellipseWeights);
-                h = h % 2 == 0 ? h - 1 : h;
-                wi = random.nextInt(w - 2) + 3;
-                wi = wi % 2 == 0 ? wi - 1 : wi;
-                hi = random.nextInt(h - 2) + 3;
-                hi = hi % 2 == 0 ? hi - 1 : hi;
-                root = new DonutRoom(0, 0, w, h, wi, hi);
-                break;
-            }
-            case 6: {
-                wi = wrandom.next(rectWeights);
-                w = random.nextInt(wi - 2) + 2;
-                h = wrandom.next(rectWeights);
-                hi = random.nextInt(h - 2) + 2;
-                root = new TRoom(w, h, wi, hi, random.nextInt(7));
-                break;
-            }
-            default: {
-                w = wrandom.next(rectWeights);
-                h = wrandom.next(rectWeights);
-                root = new RectRoom(w, h);
-                break;
-            }
-        }
-
-
-        int x = width/2;
-        int y = height/2;
-
-        //Add the root to the map
-        rooms.add(root);
-        cutOutRoom(root, x, y);
-        minx = x;
-        miny = y;
-        maxx = x + root.getWidth();
-        maxy = y + root.getHeight();
-
-        /*
-         * For the rest of the rooms, generate a random room like before, but now, also:
-         * Generate a hallway sometimes, with a door at the end. If we don't, place a random door.
-         * Then, slide the room around the map until we find a place where the door has floor on both
-         * sides, and the room doesn't overlap with any others.
-         */
-
-
-        Room next;
-        int tries = 0;
-
+        boolean try_again;
         do {
-            choice = wrandom.next(roomTypeWeights);
+            try_again = false;
+            //First, fill the map completely with wall.
+            fill(Tile.WALL);
+
+            Room root;
+            int w, wi;
+            int h, hi;
+
+            int minx, maxx, miny, maxy;
+
+            //Randomly select a room type with the given weights
+            TreeMap<Integer, Float> roomTypeWeights = new TreeMap<Integer, Float>() {
+                {
+                    put(0, 1f); //Rectangle
+                    put(1, 1f); //L-Shaped
+                    put(2, 1f); //Cellular Automata
+                    put(3, 1f); //Ellipse
+                    put(4, 1f); //Rectangular donut
+                    put(5, 1f); //Elliptical donut
+                    put(6, 0f); //T-shaped
+                }
+            };
+            TreeMap<Integer, Float> rectWeights = new TreeMap<Integer, Float>() {
+                {
+                    put(3,0.5f);
+                    put(4,0.75f);
+                    put(5,1f);
+                    put(6,1f);
+                    put(7,1f);
+                    put(8,0.75f);
+                    put(9,0.5f);
+                    put(10,0.3f);
+                    put(11,0.2f);
+                }
+            };
+            TreeMap<Integer, Float> ellipseWeights = new TreeMap<Integer, Float>() {
+                {
+                    put(5,1f);
+                    put(6,1f);
+                    put(7,1f);
+                    put(8,0.75f);
+                    put(9,0.75f);
+                    put(10,0.5f);
+                    put(11,0.5f);
+                    put(12,0.5f);
+                    put(13,0.4f);
+                    put(14,0.4f);
+                    put(15,0.2f);
+                    put(16,0.2f);
+                    put(17,0.1f);
+                    put(18,0.1f);
+                    put(19,0.05f);
+                    put(20,0.05f);
+                }
+            };
+            TreeMap<Integer, Float> caWeights = new TreeMap<Integer, Float>() {
+                {
+                    put(5,1f);
+                    put(6,1f);
+                    put(7,1f);
+                    put(8,0.75f);
+                    put(9,0.75f);
+                    put(10,0.5f);
+                    put(11,0.5f);
+                    put(12,0.5f);
+                    put(13,0.4f);
+                    put(14,0.4f);
+                    put(15,0.2f);
+                    put(16,0.2f);
+                    put(17,0.1f);
+                    put(18,0.1f);
+                    put(19,0.05f);
+                    put(20,0.05f);
+                }
+            };
+
+            int choice = wrandom.next(roomTypeWeights);
 
             switch (choice) {
                 case 1: {
                     w = wrandom.next(rectWeights);
                     h = wrandom.next(rectWeights);
-                    next = new LRoom(w, h, random.nextInt(w - 2) + 2, random.nextInt(h - 2) + 2, random.nextInt(7));
+                    root = new LRoom(w, h, random.nextInt(w - 2) + 2, random.nextInt(h - 2) + 2, random.nextInt(7));
                     break;
                 }
                 case 2: {
                     w = wrandom.next(caWeights);
                     h = wrandom.next(caWeights);
-                    next = new CellularAutomataRoom(w, h, random);
+                    root = new CellularAutomataRoom(w, h, random);
                     break;
                 }
                 case 3: {
@@ -368,7 +281,7 @@ public class LevelFactory {
                     w = w % 2 == 0 ? w - 1 : w;
                     h = wrandom.next(ellipseWeights);
                     h = h % 2 == 0 ? h - 1 : h;
-                    next = new EllipseRoom(w, h);
+                    root = new EllipseRoom(w, h);
                     break;
                 }
                 case 4: {
@@ -376,7 +289,7 @@ public class LevelFactory {
                     h = wrandom.next(ellipseWeights);
                     wi = random.nextInt(w - 3) + 2;
                     hi = random.nextInt(h - 3) + 2;
-                    next = new RectLoopRoom(w, h, wi, hi);
+                    root = new RectLoopRoom(w, h, wi, hi);
                     break;
                 }
                 case 5: {
@@ -388,7 +301,7 @@ public class LevelFactory {
                     wi = wi % 2 == 0 ? wi - 1 : wi;
                     hi = random.nextInt(h - 2) + 3;
                     hi = hi % 2 == 0 ? hi - 1 : hi;
-                    next = new DonutRoom(0, 0, w, h, wi, hi);
+                    root = new DonutRoom(0, 0, w, h, wi, hi);
                     break;
                 }
                 case 6: {
@@ -396,71 +309,158 @@ public class LevelFactory {
                     w = random.nextInt(wi - 2) + 2;
                     h = wrandom.next(rectWeights);
                     hi = random.nextInt(h - 2) + 2;
-                    next = new TRoom(w, h, wi, hi, random.nextInt(7));
+                    root = new TRoom(w, h, wi, hi, random.nextInt(7));
                     break;
                 }
                 default: {
                     w = wrandom.next(rectWeights);
                     h = wrandom.next(rectWeights);
-                    next = new RectRoom(w, h);
+                    root = new RectRoom(w, h);
                     break;
                 }
             }
 
-            ArrayList<Point> points = new ArrayList<>();
 
-            boolean corridor = random.nextDouble() < .35;
-            if(corridor) points.addAll(next.placeRandomCorridor(random));
-            else if(!corridor || points.isEmpty())
-                points.addAll(next.getDoorLocations(random));
+            int x = width/2;
+            int y = height/2;
 
-            boolean placed = false;
-            boolean overlap;
+            //Add the root to the map
+            rooms.add(root);
+            cutOutRoom(root, x, y);
+            minx = x;
+            miny = y;
+            maxx = x + root.getWidth();
+            maxy = y + root.getHeight();
 
-            for(int i = Math.max(0, minx - (2 * w) - 1); i < Math.min(width, (2 * w) + maxx + 1); i++) {
-                for(int j = Math.max(0, miny - (2 * h) - 1); j < Math.min(height, (2 * h) + maxy + 1); j++) {
-                    if(tiles[i][j] == Tile.WALL) {
-                        Tile[][] adj = Utility.getAdjacentTiles(tiles, i, j);
-                        int count = 0;
+            /*
+             * For the rest of the rooms, generate a random room like before, but now, also:
+             * Generate a hallway sometimes, with a door at the end. If we don't, place a random door.
+             * Then, slide the room around the map until we find a place where the door has floor on both
+             * sides, and the room doesn't overlap with any others.
+             */
 
-                        for(int i1 = 0; i1 < adj.length; i1++) {
-                            for(int j1 = 0; j1 < adj[0].length; j1++) {
-                                if(adj[i1][j1] == Tile.FLOOR)
-                                    count++;
-                            }
-                        }
 
-                        if(count > 1) {
+            Room next;
+            int tries = 0;
 
-                            for(Point p : points) {
-                                next.setTileAt(p.getX(), p.getY(), Tile.DOOR);
-                                next.coordinatesCenteredAt(i, j, p.getX(), p.getY());
+            do {
+                choice = wrandom.next(roomTypeWeights);
 
-                                overlap = overlap(next, minx, maxx, miny, maxy);
+                switch (choice) {
+                    case 1: {
+                        w = wrandom.next(rectWeights);
+                        h = wrandom.next(rectWeights);
+                        next = new LRoom(w, h, random.nextInt(w - 2) + 2, random.nextInt(h - 2) + 2, random.nextInt(7));
+                        break;
+                    }
+                    case 2: {
+                        w = wrandom.next(caWeights);
+                        h = wrandom.next(caWeights);
+                        next = new CellularAutomataRoom(w, h, random);
+                        break;
+                    }
+                    case 3: {
+                        w = wrandom.next(ellipseWeights);
+                        w = w % 2 == 0 ? w - 1 : w;
+                        h = wrandom.next(ellipseWeights);
+                        h = h % 2 == 0 ? h - 1 : h;
+                        next = new EllipseRoom(w, h);
+                        break;
+                    }
+                    case 4: {
+                        w = wrandom.next(ellipseWeights);
+                        h = wrandom.next(ellipseWeights);
+                        wi = random.nextInt(w - 3) + 2;
+                        hi = random.nextInt(h - 3) + 2;
+                        next = new RectLoopRoom(w, h, wi, hi);
+                        break;
+                    }
+                    case 5: {
+                        w = wrandom.next(ellipseWeights);
+                        w = w % 2 == 0 ? w - 1 : w;
+                        h = wrandom.next(ellipseWeights);
+                        h = h % 2 == 0 ? h - 1 : h;
+                        wi = random.nextInt(w - 2) + 3;
+                        wi = wi % 2 == 0 ? wi - 1 : wi;
+                        hi = random.nextInt(h - 2) + 3;
+                        hi = hi % 2 == 0 ? hi - 1 : hi;
+                        next = new DonutRoom(0, 0, w, h, wi, hi);
+                        break;
+                    }
+                    case 6: {
+                        wi = wrandom.next(rectWeights);
+                        w = random.nextInt(wi - 2) + 2;
+                        h = wrandom.next(rectWeights);
+                        hi = random.nextInt(h - 2) + 2;
+                        next = new TRoom(w, h, wi, hi, random.nextInt(7));
+                        break;
+                    }
+                    default: {
+                        w = wrandom.next(rectWeights);
+                        h = wrandom.next(rectWeights);
+                        next = new RectRoom(w, h);
+                        break;
+                    }
+                }
 
-                                if(!overlap) {
-                                    placed = true;
-                                    rooms.add(next);
-                                    cutOutRoom(next, next.getX(), next.getY());
-                                    break;
+                ArrayList<Point> points = new ArrayList<>();
+
+                boolean corridor = random.nextDouble() < .35;
+                if(corridor) points.addAll(next.placeRandomCorridor(random));
+                else if(!corridor || points.isEmpty())
+                    points.addAll(next.getDoorLocations(random));
+
+                boolean placed = false;
+                boolean overlap;
+
+                for(int i = Math.max(0, minx - (2 * w) - 1); i < Math.min(width, (2 * w) + maxx + 1); i++) {
+                    for(int j = Math.max(0, miny - (2 * h) - 1); j < Math.min(height, (2 * h) + maxy + 1); j++) {
+                        if(tiles[i][j] == Tile.WALL) {
+                            Tile[][] adj = Utility.getAdjacentTiles(tiles, i, j);
+                            int count = 0;
+
+                            for(int i1 = 0; i1 < adj.length; i1++) {
+                                for(int j1 = 0; j1 < adj[0].length; j1++) {
+                                    if(adj[i1][j1] == Tile.FLOOR)
+                                        count++;
                                 }
-                                else
-                                    next.setTileAt(p.getX(), p.getY(), null);
-
                             }
 
+                            if(count > 1) {
+
+                                for(Point p : points) {
+                                    next.setTileAt(p.getX(), p.getY(), Tile.DOOR);
+                                    next.coordinatesCenteredAt(i, j, p.getX(), p.getY());
+
+                                    overlap = overlap(next, minx, maxx, miny, maxy);
+
+                                    if(!overlap) {
+                                        placed = true;
+                                        rooms.add(next);
+                                        cutOutRoom(next, next.getX(), next.getY());
+                                        break;
+                                    }
+                                    else
+                                        next.setTileAt(p.getX(), p.getY(), null);
+
+                                }
+
+                            }
                         }
+
+                        if(placed) break;
                     }
 
                     if(placed) break;
                 }
 
-                if(placed) break;
-            }
+                if(!placed) tries++;
+                else tries = 0;
+            } while(getArea()/((double)width * height) < 0.4 && tries < 10);
 
-            if(!placed) tries++;
-            else tries = 0;
-        } while(getArea()/((double)width * height) < 0.4 && tries < 30);
+            if(tries >= 10) try_again = true;
+        } while(try_again);
+
 
         /*
         for(int r = 0; r < 22; r++) {
@@ -793,32 +793,40 @@ public class LevelFactory {
 
                     if(potentialItems[index] instanceof Equipable) {
                         if(potentialItems[index] instanceof Ammo) {
-                            l.getItems()[i][j] = new Ammo((Ammo)potentialItems[index]);
-                            l.getItems()[i][j].setCount(random.nextInt(11) + 1);
+                            Ammo a = new Ammo((Ammo)potentialItems[index]);
+                            a.setCount(random.nextInt(11) + 1);
+                            l.addAt(i, j, a);
                         }
                         else if(potentialItems[index] instanceof Armor) {
-                            l.getItems()[i][j] = new Armor((Armor)potentialItems[index]);
+                            Armor a = new Armor((Armor)potentialItems[index]);
+                            l.addAt(i, j, a);
                         }
                         else if(potentialItems[index] instanceof Weapon) {
                             if(potentialItems[index] instanceof RangedWeapon) {
-                                l.getItems()[i][j] = new RangedWeapon((RangedWeapon)potentialItems[index]);
+                                RangedWeapon a = new RangedWeapon((RangedWeapon)potentialItems[index]);
+                                l.addAt(i, j, a);
                             }
                             else {
-                                l.getItems()[i][j] = new Weapon((Weapon)potentialItems[index]);
+                                Weapon a = new Weapon((Weapon)potentialItems[index]);
+                                l.addAt(i, j, a);
                             }
                         }
                         else {
-                            l.getItems()[i][j] = new Equipable(potentialItems[index]);
+                            Equipable a = new Equipable(potentialItems[index]);
+                            l.addAt(i, j, a);
                         }
                     }
                     else if(potentialItems[index] instanceof Potion) {
-                        l.getItems()[i][j] = new Potion((Potion)potentialItems[index]);
+                        Potion a = new Potion((Potion)potentialItems[index]);
+                        l.addAt(i, j, a);
                     }
                     else if(potentialItems[index] instanceof Food) {
-                        l.getItems()[i][j] = new Food(potentialItems[index]);
+                        Food a = new Food(potentialItems[index]);
+                        l.addAt(i, j, a);
                     }
                     else {
-                        l.getItems()[i][j] = new Item(potentialItems[index]);
+                        Item a = new Item(potentialItems[index]);
+                        l.addAt(i, j, a);
                     }
 
                 }
@@ -869,7 +877,7 @@ public class LevelFactory {
                  * Logistic CDF, mean 15, sd 3 and max .01.
                  */
                 //double probability = .015 * 1/((Math.pow(Math.E, (-(d - 15)/3))) + 1);
-                double probability = 0.03;
+                double probability = 0.015;
 
 
                 /*
@@ -987,7 +995,7 @@ public class LevelFactory {
                         (LightRandom)lights[random.nextInt(lights.length)] : lights[random.nextInt(lights.length)];
 
                 //Don't place if there is another close-by light
-                ArrayList<Thing> adjThings = l.getAdjThings(i, j, (int) Math.floor(4d/5 * maxRange), false, true);
+                ArrayList<Thing> adjThings = l.getAdjThings(i, j, (int) Math.ceil(5d/4 * maxRange), false, true);
                 boolean found = false;
                 for(Thing t : adjThings) {
                     if(t instanceof Light) {
@@ -1163,6 +1171,7 @@ public class LevelFactory {
 
         try {
             i = itemPools.getOrDefault(s, new ArrayList<>()).get(lvl);
+            System.out.println();
         } catch (Exception e) {
             i = new Inventory();
         }
@@ -1174,7 +1183,9 @@ public class LevelFactory {
         Inventory i = new Inventory();
         for(String p : properties)
             for(int l : lvls)
-                i.addAll(getItemPool(p, l));
+                for(Item it : getItemPool(p, l))
+                    i.add(it);
+                //i.addAll(getItemPool(p, l));
 
         return i;
     }
@@ -1216,11 +1227,16 @@ public class LevelFactory {
 
     public static ArrayList<Creature> getCreaturePool(String[] properties, int[] lvls) {
         ArrayList<Creature> creatures = new ArrayList<>();
-        for(String p : properties)
+        for(String p : properties) {
+            ArrayList<ArrayList<Creature>> current = creaturePools.getOrDefault(p, new ArrayList<>());
+            if(current.isEmpty()) continue;
             for(int l : lvls) {
-                for(Creature c : creaturePools.getOrDefault(p, new ArrayList<>()).get(Math.max(0, l)))
+                if(l >= current.size()) continue;
+                for(Creature c : current.get(Math.max(0, l)))
                     if(!creatures.contains(c)) creatures.add(c);
             }
+        }
+
 
 
         return creatures;
@@ -1274,9 +1290,53 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i = new Item(CreatureItemFactory.newItem(item));
-                                    i.setRarity(s.get(item));
-                                    add(i);
+
+                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
+                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
+                                            Ammo i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
+                                            i.setRarity(s.get(item));
+                                            add(i);
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
+                                            Armor i = new Armor((Armor)CreatureItemFactory.newItem(item));
+                                            i.setRarity(s.get(item));
+                                            add(i);
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
+                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
+                                                RangedWeapon i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
+                                                i.setRarity(s.get(item));
+                                                add(i);
+                                            }
+                                            else {
+                                                Weapon i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
+                                                i.setRarity(s.get(item));
+                                                add(i);
+                                            }
+                                        }
+                                        else {
+                                            Equipable i = new Equipable(CreatureItemFactory.newItem(item));
+                                            i.setRarity(s.get(item));
+                                            add(i);
+                                        }
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
+                                        Potion i = new Potion((Potion)CreatureItemFactory.newItem(item));
+                                        i.setRarity(s.get(item));
+                                        add(i);
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
+                                        Food i = new Food((Food)CreatureItemFactory.newItem(item));
+                                        i.setRarity(s.get(item));
+                                        add(i);
+                                    }
+                                    else {
+                                        Item i = new Item(CreatureItemFactory.newItem(item));
+                                        i.setRarity(s.get(item));
+                                        add(i);
+                                    }
+
+
                                 }
                             }
                         }
@@ -1305,7 +1365,37 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i = new Item(CreatureItemFactory.newItem(item));
+                                    Item i;
+
+                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
+                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
+                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
+                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
+                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
+                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
+                                            }
+                                            else {
+                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
+                                            }
+                                        }
+                                        else {
+                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                        }
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
+                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
+                                        i = new Food((Food)CreatureItemFactory.newItem(item));
+                                    }
+                                    else {
+                                        i = new Item(CreatureItemFactory.newItem(item));
+                                    }
+
                                     i.setRarity(s.get(item));
                                     add(i);
                                 }
@@ -1328,7 +1418,37 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i = new Item(CreatureItemFactory.newItem(item));
+                                    Item i;
+
+                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
+                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
+                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
+                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
+                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
+                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
+                                            }
+                                            else {
+                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
+                                            }
+                                        }
+                                        else {
+                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                        }
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
+                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
+                                        i = new Food((Food)CreatureItemFactory.newItem(item));
+                                    }
+                                    else {
+                                        i = new Item(CreatureItemFactory.newItem(item));
+                                    }
+
                                     i.setRarity(s.get(item));
                                     add(i);
                                 }
@@ -1342,6 +1462,120 @@ public class LevelFactory {
                     }
                 });
             }
+
+            //Dungeon
+            {
+                Inventory[] pools = new Inventory[] {
+                        new Inventory() {
+                            {
+                                HashMap<String, Double> s = new HashMap<String, Double>() {
+                                    {
+                                        put("Dagger", Item.COMMON);
+                                        put("Sling", Item.COMMON);
+                                        put("Cloth Armor", Item.AVERAGE);
+                                        put("Poison Potion", Item.AVERAGE + .8);
+                                    }
+                                };
+
+                                for(String item : s.keySet()) {
+                                    Item i;
+
+                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
+                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
+                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
+                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
+                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
+                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
+                                            }
+                                            else {
+                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
+                                            }
+                                        }
+                                        else {
+                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                        }
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
+                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
+                                        i = new Food((Food)CreatureItemFactory.newItem(item));
+                                    }
+                                    else {
+                                        i = new Item(CreatureItemFactory.newItem(item));
+                                    }
+
+                                    i.setRarity(s.get(item));
+                                    add(i);
+                                }
+                            }
+                        },
+                        new Inventory() {
+                            {
+                                HashMap<String, Double> s = new HashMap<String, Double>() {
+                                    {
+                                        put("Longsword", Item.AVERAGE + .8);
+                                        put("Shortbow", Item.AVERAGE + .8);
+                                        put("Arrow", Item.AVERAGE);
+                                        put("Leather Armor", Item.RARE);
+                                        put("Regeneration Potion", Item.RARE);
+                                        put("Poison Potion", Item.RARE);
+                                        put("Heroism Potion", Item.RARE + .5);
+                                        put("Health Potion", Item.RARE);
+
+                                    }
+                                };
+
+                                for(String item : s.keySet()) {
+                                    Item i;
+
+                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
+                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
+                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
+                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
+                                        }
+                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
+                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
+                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
+                                            }
+                                            else {
+                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
+                                            }
+                                        }
+                                        else {
+                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                        }
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
+                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
+                                    }
+                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
+                                        i = new Food((Food)CreatureItemFactory.newItem(item));
+                                    }
+                                    else {
+                                        i = new Item(CreatureItemFactory.newItem(item));
+                                    }
+
+                                    i.setRarity(s.get(item));
+                                    add(i);
+                                }
+                            }
+                        }
+                };
+
+                put("Dungeon", new ArrayList<Inventory>() {
+                    {
+                        this.addAll(Arrays.asList(pools));
+                    }
+                });
+            }
+
         }
     };
 
@@ -1426,6 +1660,36 @@ public class LevelFactory {
                     }
                 };
                 put("Cave", new ArrayList<ArrayList<Creature>>() {
+                    {
+                        this.addAll(pools);
+                    }
+                });
+            }
+
+            //Dungeon
+            {
+                ArrayList<ArrayList<Creature>> pools = new ArrayList<ArrayList<Creature>>() {
+                    {
+                        add(new ArrayList<Creature>() {
+                            {
+                                HashMap<String, Double> s = new HashMap<String, Double>() {
+                                    {
+                                        put("Looter", Creature.COMMON);
+                                    }
+                                };
+
+                                for(String c : s.keySet()) {
+                                    Creature cr = new Creature(CreatureItemFactory.newCreature(c));
+                                    cr.setAi(CreatureItemFactory.newAi(c));
+                                    cr.setActor(CreatureItemFactory.newActor(c));
+                                    cr.setRarity(s.get(c));
+                                    add(cr);
+                                }
+                            }
+                        });
+                    }
+                };
+                put("Dungeon", new ArrayList<ArrayList<Creature>>() {
                     {
                         this.addAll(pools);
                     }

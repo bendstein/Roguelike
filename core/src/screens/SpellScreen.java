@@ -187,6 +187,16 @@ public class SpellScreen extends ScreenAdapter {
 
             l = new Label(String.format(Locale.getDefault(), "%s, %s, %d Mana", entry.getKey(), entry.getValue().getName(), entry.getValue().getCost()), skin);
 
+            l.addListener(new InputListener() {
+                @Override
+                public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                    String s = l.toString();
+                    String[] key = s.split("\\s|:|,");
+                    use(key[2]);
+                    return true;
+                }
+            });
+
             l.setWrap(true);
             l.pack();
             listTable.add(l).width(9f * getViewport().getScreenWidth()/10f);

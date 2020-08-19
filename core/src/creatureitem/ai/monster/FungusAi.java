@@ -78,7 +78,9 @@ public class FungusAi extends CreatureAi {
         if(!Creature.canEnter(x, y, creature.getLevel()))
             return;
 
-        Creature child = CreatureItemFactory.newFungus();
+        Creature child = CreatureItemFactory.newCreature("Fungus");
+        CreatureItemFactory.newAi("Fungus", child);
+        CreatureItemFactory.newActor("Fungus", child);
         creature.getLevel().addAt(x, y, child);
         spread++;
 

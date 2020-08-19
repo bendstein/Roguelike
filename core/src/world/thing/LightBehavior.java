@@ -19,4 +19,8 @@ public class LightBehavior extends ThingBehavior {
     public void onInteract() {
         ((Light)thing).setActive(!((Light)thing).isActive());
     }
+
+    public ThingBehavior copy() {
+        return new LightBehavior((Light)thing);
+    }
 }

@@ -80,14 +80,6 @@ public abstract class LevelInterface {
         tiles[x][y] = t;
     }
 
-    public int getHeight() {
-        return tiles[0].length;
-    }
-
-    public int getWidth() {
-        return tiles.length;
-    }
-
     /**
      * If the tile at (x, y) in the level's coordinate system is diggable, dig it out.
      * @param x X coordinate
@@ -95,7 +87,15 @@ public abstract class LevelInterface {
      */
     public void dig(int x, int y) {
         if(tiles[x][y].isDiggable())
-            tiles[x][y] = Tile.FLOOR;
+            setTileAt(x, y, Tile.FLOOR);
+    }
+
+    public int getHeight() {
+        return tiles[0].length;
+    }
+
+    public int getWidth() {
+        return tiles.length;
     }
 
     public boolean isOutOfBounds(int x, int y) {

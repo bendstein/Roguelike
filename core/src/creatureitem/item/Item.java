@@ -3,7 +3,7 @@ package creatureitem.item;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.physics.box2d.BodyDef;
-import creatureitem.effect.Damage;
+import creatureitem.effect.damage.Damage;
 
 import java.util.ArrayList;
 import java.util.Arrays;

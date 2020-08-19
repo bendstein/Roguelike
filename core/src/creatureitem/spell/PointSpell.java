@@ -5,6 +5,8 @@ import creatureitem.effect.Effect;
 import utility.Utility;
 import world.geometry.Point;
 
+import java.util.ArrayList;
+
 /**
  * A spell which targets a specific point.
  */
@@ -19,10 +21,9 @@ public class PointSpell extends Spell {
 
     }
 
-    public PointSpell(Effect effect, String name, int cost, int range) {
-        super(effect, name, cost);
+    public PointSpell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, int range, Effect ... effects) {
+        super(name, cost, requiresCreatureTarget, ignoreObstacle, effects);
         this.range = range;
-
     }
 
     public PointSpell(PointSpell spell) {
@@ -31,18 +32,38 @@ public class PointSpell extends Spell {
     }
 
     public void cast(int x, int y) {
-        Creature target = caster.getLevel().getCreatureAt(x, y);
-
         if(Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
             caster.doAction("attempt to invoke %s, but the target is too far away.", name);
             return;
         }
 
-        if(target == null || caster.getMana() - cost < 0)
+        if(caster.getMana() - cost < 0) {
             caster.doAction("invoke %s, but it does nothing.", name);
-        else {
-            target.applyEffect(effect.makeCopy(effect));
+            return;
         }
+
+        if(!ignoreObstacle && !caster.getLevel().getTileAt(x, y).isPassable()) {
+            caster.doAction("invoke %s, but it does nothing.", name);
+            return;
+        }
+        caster.doAction("cast %s!", name);
+
+        if(requiresCreatureTarget) {
+            Creature target = caster.getLevel().getCreatureAt(x, y);
+
+            if(target == null)
+                caster.notify("...but nothing happens!");
+            else {
+                for(Effect effect : effects)
+                    target.applyEffect(effect.makeCopy(effect));
+            }
+        }
+        else {
+            for(Effect effect : effects) {
+                effect.affect(x, y, caster.getLevel());
+            }
+        }
+
         caster.modifyMana(-cost);
     }
 
@@ -61,7 +82,11 @@ public class PointSpell extends Spell {
     @Override
     public PointSpell copyOf(Spell s) {
         PointSpell copy = new PointSpell();
-        copy.effect = s.effect.makeCopy(s.effect);
+        copy.effects = new ArrayList<>();
+        for(Effect e : s.effects)
+            copy.effects.add(e.makeCopy(e));
+        copy.requiresCreatureTarget = s.requiresCreatureTarget;
+        copy.ignoreObstacle = s.ignoreObstacle;
         copy.name = s.name;
         copy.cost = s.cost;
 

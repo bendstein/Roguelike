@@ -58,6 +58,7 @@ public class GoblinAi extends CreatureAi {
                 Cursor cursor = new Cursor(player_x, player_y, true);
                 cursor.setPurpose("shoot");
                 cursor.setActive(true);
+                cursor.clearPath();
                 cursor.setHasLine(true);
                 cursor.setConsiderObstacle(true);
                 cursor.setRange(creature.getRangedWeapon().getRange());

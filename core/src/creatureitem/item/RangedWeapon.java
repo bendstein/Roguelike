@@ -1,6 +1,6 @@
 package creatureitem.item;
 
-import creatureitem.effect.Damage;
+import creatureitem.effect.damage.Damage;
 
 public class RangedWeapon extends Weapon {
 

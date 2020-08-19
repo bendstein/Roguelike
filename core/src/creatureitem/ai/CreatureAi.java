@@ -56,7 +56,10 @@ public class CreatureAi {
 
             creature.setCoordinates(x, y);
             if(creature.getLevel().getItemAt(x, y) != null) {
-                creature.doAction("step on %s.", creature.getLevel().getItemAt(x, y).toString());
+                creature.doAction("step on %s.",
+                        creature.getLevel().getInventoryAt(x, y).getCount() == 1?
+                                creature.getLevel().getItemAt(x, y).toString() :
+                                creature.getLevel().getItemAt(x, y).toString() + ", amongst other things");
             }
 
             if(creature.getActor() != null)
@@ -69,7 +72,7 @@ public class CreatureAi {
      */
     public void onDie() {
 
-        if(creature.getLevel().getRandom().nextDouble() < .3) creature.leaveCorpse();
+        creature.leaveCorpse();
         creature.getLevel().remove(creature);
     }
 
@@ -81,6 +84,7 @@ public class CreatureAi {
         if(creature.getLevel().getTurn() % creature.getHungerRate() == creature.getHungerRate() - 1) creature.modifyHunger(-1);
         if(creature.getLevel().getTurn() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
         if(creature.getLevel().getTurn() % creature.getManaRegenRate() == creature.getManaRegenRate() -1) creature.modifyMana(1);
+        creature.update_Extra_vision();
     }
 
     /**
@@ -103,6 +107,9 @@ public class CreatureAi {
         if(creature instanceof Player) {
             if(((Player) creature).canSeeEverything()) return true;
         }
+
+        if(creature.get_Extra_vision(x, y))
+            return true;
 
         /*
          * If the tile is outside of your range of sight and is not lit up, you can't see it.
@@ -154,10 +161,17 @@ public class CreatureAi {
         return true;
     }
 
+    /**
+     * @see public void wander(int times)
+     */
     public void wander() {
         wander(1);
     }
 
+    /**
+     * Move by a chebychev distance of 1 tile
+     * @param times the number of times to move
+     */
     public void wander(int times) {
         int mx = 0;
         int my = 0;
@@ -169,6 +183,11 @@ public class CreatureAi {
         creature.moveBy(mx, my);
     }
 
+    /**
+     * Move toward the next point in the shortest path to the destination
+     * @param destination The point the creature is moving toward
+     * @return true if the creature successfully moved.
+     */
     public boolean moveToDestination(Point destination) {
 
         if(destination == null) return false;
@@ -178,10 +197,28 @@ public class CreatureAi {
         Point me = new Point(creature.getX(), creature.getY());
         Stack<AStarPoint> path = Utility.aStar(creature.getLevel().getCosts(), Point.DISTANCE_MANHATTAN, me, destination);
 
+        for(int i = 0; i < creature.getLevel().getWidth(); i++) {
+            for(int j = 0; j < creature.getLevel().getHeight(); j++) {
+
+                if(i == creature.getX() && j == creature.getY())
+                    System.out.print(" @");
+                else {
+                    System.out.print(creature.getLevel().getCosts()[i][j] < 0?
+                            creature.getLevel().getCosts()[i][j] : " " + creature.getLevel().getCosts()[i][j]);
+                }
+
+                System.out.print(" ");
+            }
+            System.out.println();
+        }
+
+        System.out.println();
+
         Point next;
         try {
             next = path.pop();
             while(next.equals(me))
+
                 next = path.pop();
         } catch (EmptyStackException e) {
             destination = null;
@@ -192,10 +229,16 @@ public class CreatureAi {
         return true;
     }
 
+    /**
+     * @return The creature's message queue (always empty)
+     */
     public ArrayList<String> getMessages() {
         return new ArrayList<String>();
     }
 
+    /**
+     * Eat a random food item from inventory
+     */
     public void eatRandom() {
         int i;
         do {
@@ -208,6 +251,9 @@ public class CreatureAi {
 
     }
 
+    /**
+     * @return The creature's level, based off of their experience and level function
+     */
     public int calculateLevel() {
         int i = 1;
 
@@ -217,14 +263,25 @@ public class CreatureAi {
         return i;
     }
 
+    /**
+     * @return The number of experience points for the creature to gain a level
+     */
     public int expToNextLevel() {
         return (int)levelFunction(creature.getExpLevel()) - creature.getExp();
     }
 
+    /**
+     * @param i The creature's current level
+     * @return The minimum amount of experience to be at level i
+     */
     protected double levelFunction(int i) {
         return (20 * Math.pow(i, 1.5)) + 1;
     }
 
+    /**
+     * Calculate stat improvements for gaining levels
+     * @param lvlold The level the creature was before gaining the levels
+     */
     public void gainLevels(int lvlold) {
         for(int i = lvlold + 1; i <= creature.getExpLevel(); i++) {
             creature.modifyMaxHp((i * 2) + creature.getAttributeBonus(creature.getConstitution()));
@@ -235,24 +292,41 @@ public class CreatureAi {
 
     }
 
+    /**
+     * Called when the creature tries to use stairs.
+     * @return false
+     */
     public boolean useStairs() {
         return false;
     }
 
+    /**
+     * @return LIGHT_VISION_FACTOR
+     */
     public double getLightVisionFactor() {
         return LIGHT_VISION_FACTOR;
     }
 
+    /**
+     * @return The creature associated with this instance of CreatureAi
+     */
     public Creature getCreature() {
         return creature;
     }
 
+    /**
+     * @param creature The creature associated with this instance of CreatureAi
+     * @return this
+     */
     public CreatureAi setCreature(Creature creature) {
         this.creature = creature;
         if(creature != null && (creature.getAi() == null || !creature.getAi().equals(this))) creature.setAi(this);
         return this;
     }
 
+    /**
+     * @return A deep copy of this
+     */
     public CreatureAi copy() {
         return new CreatureAi(creature);
     }

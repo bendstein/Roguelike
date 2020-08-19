@@ -1,36 +1,55 @@
-package creatureitem.effect;
+package creatureitem.effect.damage;
 
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 public class Damage {
 
     /**
      * Number of times the die is rolled
      */
-    int numberOfDice;
+    private int numberOfDice;
 
     /**
      * Number of faces on the die
      */
-    int dieType;
+    private int dieType;
 
     /**
      * Number added to the total damage after the roll
      */
-    int modifier;
+    private int modifier;
+
+    /**
+     * The type of damage this deals
+     */
+    private Damage_Type type;
 
     public Damage(int numberOfDice, int dieType, int modifier) {
         this.numberOfDice = numberOfDice;
         this.dieType = dieType;
         this.modifier = modifier;
+        this.type = null;
+    }
+
+    public Damage(int numberOfDice, int dieType, int modifier, Damage_Type type) {
+        this.numberOfDice = numberOfDice;
+        this.dieType = dieType;
+        this.modifier = modifier;
+        this.type = type;
+    }
+
+    public Damage(int numberOfDice, int dieType, int modifier, String type) {
+        this.numberOfDice = numberOfDice;
+        this.dieType = dieType;
+        this.modifier = modifier;
+        this.type = Damage_Type.getType(type);
     }
 
     public Damage(Damage damage) {
         this.numberOfDice = damage.numberOfDice;
         this.dieType = damage.dieType;
         this.modifier = damage.modifier;
+        this.type = damage.type;
     }
 
     /**
@@ -74,21 +93,31 @@ public class Damage {
     public void setModifier(int modifier) {
         this.modifier = modifier;
     }
+
+    public Damage_Type getType() {
+        return type;
+    }
+
+    public void setType(Damage_Type type) {
+        this.type = type;
+    }
+
     //</editor-fold>
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (!(o instanceof Damage)) return false;
         Damage damage = (Damage) o;
         return numberOfDice == damage.numberOfDice &&
                 dieType == damage.dieType &&
-                modifier == damage.modifier;
+                modifier == damage.modifier &&
+                type.equals(((Damage) o).type);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(numberOfDice, dieType, modifier);
+        return Objects.hash(numberOfDice, dieType, modifier, type);
     }
 
     @Override
@@ -100,6 +129,10 @@ public class Damage {
         }
         else if(modifier > 0) {
             s = s.concat(String.format(Locale.getDefault(), " + %d", modifier));
+        }
+
+        if(type != null) {
+            s = s.concat(String.format(Locale.getDefault(), " %s", type.getName()));
         }
 
         return s;
