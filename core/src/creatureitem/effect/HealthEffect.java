@@ -23,11 +23,13 @@ public class HealthEffect extends Effect {
     }
 
     public HealthEffect(Damage amount, boolean positive) {
+        super();
         this.amount = amount;
         this.positive = positive;
     }
 
     public HealthEffect(int duration, Damage amount, boolean positive) {
+        super();
         this.duration = this.remainingDuration = duration;
         this.amount = amount;
         this.positive = positive;

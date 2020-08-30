@@ -1,6 +1,7 @@
 package utility;
 
 import creatureitem.Creature;
+import creatureitem.Player;
 import game.Main;
 import world.Level;
 import world.Tile;
@@ -155,7 +156,7 @@ public class Utility {
         while (!heap.isEmpty()) {
             current = heap.remove();
 
-            if (current.equals(destination)) break;
+            if(current.equals(destination)) break;
 
             for (int i = -1; i <= 1; i++) {
                 for (int j = -1; j <= 1; j++) {
@@ -163,15 +164,19 @@ public class Utility {
                     int y = current.getY() + j;
                     if (x < 0 || x >= tileCosts.length || y < 0 || y >= tileCosts[0].length)
                         continue;
-                    if (tileCosts[x][y] < 0)
-                        continue;
 
                     next = new AStarPoint(x, y);
-                    newCost = costSoFar.get(current) + tileCosts[x][y];
+                    boolean ignorecost = tileCosts[destination.getX()][destination.getY()] < 0;
+
+                    if (tileCosts[x][y] < 0 && !ignorecost)
+                        continue;
+
+                    newCost = costSoFar.get(current) + (ignorecost? 1 : tileCosts[x][y]);
 
                     if (!costSoFar.containsKey(next) || newCost < costSoFar.get(next)) {
                         costSoFar.put(next, newCost);
                         double heuristic_cost;
+
                         switch (heuristic) {
                             case Point.DISTANCE_CHEBYCHEV: {
                                 heuristic_cost = next.chebychevDistanceFrom(destination);
@@ -194,8 +199,99 @@ public class Utility {
                         heap.add(next);
                         cameFrom.put(next, current);
                     }
+
                 }
+
             }
+            
+        }
+
+        Stack<AStarPoint> points = new Stack<>();
+        while(current != null) {
+            points.push(current);
+            current = cameFrom.get(current);
+        }
+
+        if(!points.contains(destination))
+            System.out.println();
+
+        return points;
+
+    }
+
+    public static Stack<AStarPoint> aStarWithVision(int[][] tileCosts, Creature c, int heuristic, Point p0, Point p1) {
+
+        AStarPoint initial = new AStarPoint(p0.getX(), p0.getY());
+        AStarPoint destination = new AStarPoint(p1.getX(), p1.getY());
+
+        //Map from each point to the point preceding it
+        HashMap<AStarPoint, AStarPoint> cameFrom = new HashMap<>();
+        cameFrom.put(initial, null);
+
+        //Map from each point to the cost it took to get there
+        HashMap<AStarPoint, Integer> costSoFar = new HashMap<>();
+        costSoFar.put(initial, 0);
+
+        //Points to visit
+        PriorityQueue<AStarPoint> heap = new PriorityQueue<>();
+        heap.add(initial);
+
+        AStarPoint current = null, next;
+        int newCost;
+        while (!heap.isEmpty()) {
+            current = heap.remove();
+
+            if(current.equals(destination)) break;
+
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    int x = current.getX() + i;
+                    int y = current.getY() + j;
+                    if (x < 0 || x >= tileCosts.length || y < 0 || y >= tileCosts[0].length)
+                        continue;
+
+                    next = new AStarPoint(x, y);
+                    boolean ignorecost = tileCosts[destination.getX()][destination.getY()] < 0;
+
+                    if ((tileCosts[x][y] < 0 && !ignorecost))
+                        continue;
+
+                    if(c instanceof Player && !((Player) c).getSeen(x, y))
+                        continue;
+
+                    newCost = costSoFar.get(current) + (ignorecost? 1 : tileCosts[x][y]);
+
+                    if (!costSoFar.containsKey(next) || newCost < costSoFar.get(next)) {
+                        costSoFar.put(next, newCost);
+                        double heuristic_cost;
+
+                        switch (heuristic) {
+                            case Point.DISTANCE_CHEBYCHEV: {
+                                heuristic_cost = next.chebychevDistanceFrom(destination);
+                                break;
+                            }
+                            case Point.DISTANCE_EUCLIDEAN: {
+                                heuristic_cost = next.euclideanDistanceFrom(destination);
+                                break;
+                            }
+                            case Point.DISTANCE_MANHATTAN: {
+                                heuristic_cost = next.manhattanDistanceFrom(destination);
+                                break;
+                            }
+                            default: {
+                                heuristic_cost = 0;
+                                break;
+                            }
+                        }
+                        next.setPriority(newCost + (int)heuristic_cost);
+                        heap.add(next);
+                        cameFrom.put(next, current);
+                    }
+
+                }
+
+            }
+
         }
 
         Stack<AStarPoint> points = new Stack<>();
@@ -295,5 +391,76 @@ public class Utility {
             }
             System.out.println(s);
         }
+    }
+
+    public static <T> String findMostSimilarKey(HashMap<String, T> map, String key) {
+
+        if(map.containsKey(key)) return key;
+
+        else {
+            //If key not in map, find the most similar one
+
+            double maxStringSimilarity = Double.MIN_VALUE;
+            double minValueDifference = Double.MAX_VALUE;
+            String similar = "";
+            for(String str : map.keySet()) {
+                boolean sLonger = key.length() >= str.length();
+
+                /*
+                 * Split all keys, and the given key, on the delimeter "_"
+                 */
+                String[] longer = sLonger? key.split("_") : str.split("_");
+                String[] shorter = !sLonger? key.split("_") : str.split("_");
+
+                /*
+                 * Calculate string similarity by dividing the cardinality of the intersection between the 2 strings by
+                 * their union
+                 */
+                boolean[] intersect = new boolean[longer.length];
+                int union = longer.length + shorter.length;
+
+                for(int i = 0; i < longer.length; i++)
+                    intersect[i] = i < shorter.length && longer[i].equals(shorter[i]);
+
+                double strOverlap = ((double)intersect.length)/union;
+
+                //If the string has an overlap at least that of the recorded max, check distance between numeric values
+                if(strOverlap >= maxStringSimilarity) {
+                    double valOverlap = 0d;
+                    for(int i = 0; i < intersect.length; i++) {
+                        if(!intersect[i]) {
+                            double v1, v2;
+                            try {
+                                v1 = Double.parseDouble(longer[i]);
+                                v2 = i < shorter.length? Double.parseDouble(shorter[i]) : 0d;
+                            } catch (NumberFormatException ex) {
+                                continue;
+                            }
+
+                            valOverlap += Math.pow(v1 - v2, 2);
+                        }
+                    }
+
+                    if(Math.sqrt(valOverlap) < minValueDifference) {
+                        maxStringSimilarity = strOverlap;
+                        minValueDifference = valOverlap;
+                        similar = str;
+                    }
+
+                }
+
+            }
+
+            /*
+             * If there are any keys in the map, return the most similar one.
+             */
+            if(map.containsKey(similar)) {
+                return similar;
+            }
+            else {
+                return null;
+            }
+        }
+
     }
 }

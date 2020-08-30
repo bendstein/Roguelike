@@ -185,7 +185,7 @@ public class SpellScreen extends ScreenAdapter {
         for(Map.Entry<String, Spell> entry : filtered.entrySet()) {
             Label l;
 
-            l = new Label(String.format(Locale.getDefault(), "%s, %s, %d Mana", entry.getKey(), entry.getValue().getName(), entry.getValue().getCost()), skin);
+            l = new Label(String.format(Locale.getDefault(), "%s, %s", entry.getKey(), entry.getValue().getName()), skin);
 
             l.addListener(new InputListener() {
                 @Override

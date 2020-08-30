@@ -812,7 +812,7 @@ public class LevelFactory {
                             }
                         }
                         else {
-                            Equipable a = new Equipable(potentialItems[index]);
+                            Equipable a = new Equipable((Equipable)potentialItems[index]);
                             l.addAt(i, j, a);
                         }
                     }
@@ -944,6 +944,7 @@ public class LevelFactory {
 
                     int index = random.nextInt(potentialCreatures.size());
                     Creature cr = new Creature(potentialCreatures.get(index));
+                    CreatureItemFactory.stockCreature(cr, 1, random);
                     l.addAt(i, j, cr);
 
                 }
@@ -1315,7 +1316,7 @@ public class LevelFactory {
                                             }
                                         }
                                         else {
-                                            Equipable i = new Equipable(CreatureItemFactory.newItem(item));
+                                            Equipable i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
                                             i.setRarity(s.get(item));
                                             add(i);
                                         }
@@ -1383,7 +1384,7 @@ public class LevelFactory {
                                             }
                                         }
                                         else {
-                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
                                         }
                                     }
                                     else if(CreatureItemFactory.newItem(item) instanceof Potion) {
@@ -1436,7 +1437,7 @@ public class LevelFactory {
                                             }
                                         }
                                         else {
-                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
                                         }
                                     }
                                     else if(CreatureItemFactory.newItem(item) instanceof Potion) {
@@ -1496,7 +1497,7 @@ public class LevelFactory {
                                             }
                                         }
                                         else {
-                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
                                         }
                                     }
                                     else if(CreatureItemFactory.newItem(item) instanceof Potion) {
@@ -1549,7 +1550,7 @@ public class LevelFactory {
                                             }
                                         }
                                         else {
-                                            i = new Equipable(CreatureItemFactory.newItem(item));
+                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
                                         }
                                     }
                                     else if(CreatureItemFactory.newItem(item) instanceof Potion) {

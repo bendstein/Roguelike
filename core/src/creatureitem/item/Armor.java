@@ -1,6 +1,8 @@
 package creatureitem.item;
 
+import creatureitem.effect.Effect;
 import creatureitem.effect.damage.Damage;
+import creatureitem.spell.Spell;
 
 import java.util.Objects;
 
@@ -23,6 +25,21 @@ public class Armor extends Equipable {
 
     public Armor(char glyph, String texturePath, String name, int worth, Damage throwDamage, int armor, String... properties) {
         super(glyph, texturePath, name, worth, throwDamage, properties);
+        this.armor = armor;
+    }
+
+    public Armor(char glyph, String texturePath, int armor, String name, Spell[] spells, Effect onEquip, int worth) {
+        super(glyph, texturePath, name, spells, onEquip, worth);
+        this.armor = armor;
+    }
+
+    public Armor(char glyph, String texturePath, String name, int worth, int armor, Spell[] spells, Effect onEquip, String... properties) {
+        super(glyph, texturePath, name, worth, spells, onEquip, properties);
+        this.armor = armor;
+    }
+
+    public Armor(char glyph, String texturePath, String name, int worth, Damage throwDamage, int armor, Spell[] spells, Effect onEquip, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, spells, onEquip, properties);
         this.armor = armor;
     }
 

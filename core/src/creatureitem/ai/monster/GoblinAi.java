@@ -2,17 +2,13 @@ package creatureitem.ai.monster;
 
 import creatureitem.Creature;
 import creatureitem.ai.CreatureAi;
+import creatureitem.ai.types.TrackerAi;
 import creatureitem.item.*;
 import world.geometry.Cursor;
 import world.geometry.Point;
 
 
-public class GoblinAi extends CreatureAi {
-
-    /**
-     * Last known location of the player
-     */
-    private Point player_loc;
+public class GoblinAi extends TrackerAi {
 
     /**
      * Assign the AI to its creature
@@ -23,91 +19,63 @@ public class GoblinAi extends CreatureAi {
         super(creature);
     }
 
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
     @Override
-    public void onUpdate() {
+    public void onAct() {
 
-        super.onUpdate();
         //Get the player location
         int player_x = creature.getLevel().getPlayer().getX();
         int player_y = creature.getLevel().getPlayer().getY();
 
-        //If the creature can't see the player, move to its last location. If it can't, wander around.
-        if(!creature.canSee(player_x, player_y)) {
-            if(player_loc != null)
-                if(!moveToDestination(player_loc)) wander();
-                else wander();
+        //Whether or not the creature has acted
+        boolean act = false;
+
+        //If they can see the player, mark its location
+        if(creature.canSee(player_x, player_y))
+            dest = new Point(player_x, player_y);
+
+        //Attack the player, if they are adjacent
+        act = attackTarget();
+
+        //If they didn't act, attack a random, enemy creature who is adjacent
+        if(!act)
+            act = attackRandom();
+
+        //If they didn't act, try to do a ranged attack on the player.
+        if(!act)
+            act = shootTarget();
+
+        //If they didn't act, use a random item.
+        if(!act)
+            act = useRandomItem();
+
+        //If they didn't act, move toward the player's last known location
+        if(!act) {
+            if(dest != null)
+                act = moveToDestination(dest);
         }
-        else {
 
-            //Attack a random, enemy creature who is adjacent
-            player_loc = new Point(player_x, player_y);
-            boolean attack = false;
-            for(int i = -1; i < 2; i++) {
-                for(int j = -1; j < 2; j++) {
-                    Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                    if(foe != null && foe.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
-                        creature.attack(foe);
-                        attack = true;
-                    }
-                }
-
-            }
-
-            //If no adj enemies, try to do a ranged attack on the player.
-            if(!attack) {
-                Cursor cursor = new Cursor(player_x, player_y, true);
-                cursor.setPurpose("shoot");
-                cursor.setActive(true);
-                cursor.clearPath();
-                cursor.setHasLine(true);
-                cursor.setConsiderObstacle(true);
-                cursor.setRange(creature.getRangedWeapon().getRange());
-
-                if (creature.canShoot(cursor)) {
-                    creature.shootRangedWeapon(cursor);
-                    attack = true;
-                }
-            }
-
-            //If they didn't attack, try to move towards the player, or move randomly if it can't.
-            if(!attack) {
-
-                boolean useItem = false;
-                for(Item i : creature.getInventory().getItems()) {
-                    if(creature.isEquipped(i)) continue;
-                    if(i instanceof Equipable) {
-                        if(i instanceof Weapon && i.hasProperty("main hand") && (creature.getMainHand() == null || ((Weapon)i).getWeaponDamage().getAverage() > creature.getMainHand().getWeaponDamage().getAverage())) {
-                            creature.equip(i);
-                            useItem = true;
-                        }
-                        else if(i instanceof RangedWeapon && (i.hasProperty("ranged") && (creature.getRangedWeapon() == null || ((Weapon)i).getWeaponDamage().getAverage() > creature.getRangedWeapon().getWeaponDamage().getAverage()))) {
-                            creature.equip(i);
-                            useItem = true;
-                        }
-                        else if(i instanceof Ammo && (i.hasProperty(creature.getRangedWeapon().getAmmoType()) && (creature.getQuiver() == null || ((Ammo)i).getAmmoDamage().getAverage() > creature.getQuiver().getAmmoDamage().getAverage()))) {
-                            creature.equip(i);
-                            useItem = true;
-                        }
-                    }
-                    else if(i instanceof Food && (double)creature.getHunger()/creature.getHungerMax() < 0.5) {
-                        creature.eat((Food)i);
-                        useItem = true;
-                    }
-                    if(useItem) break;
-                }
-
-                if(!useItem) {
-                    if(creature.getLevel().getItemAt(creature.getX(), creature.getY()) != null)
-                        creature.pickUp();
-                    else if(!moveToDestination(player_loc)) wander();
-                }
-
-            }
+        //If they didn't act, do a ranged attack on a random opponent
+        if(!act) {
+            act = shootRandom();
         }
+
+        //If they didn't act, pickup the item on the ground if it exists
+        if(!act)
+            act = pickup();
+
+
+        //If they still haven't acted, wander.
+        if(!act) {
+            wander();
+        }
+
     }
 
     @Override
-    public CreatureAi copy() {
+    public GoblinAi copy() {
         return new GoblinAi(creature);
     }
 

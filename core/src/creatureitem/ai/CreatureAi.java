@@ -3,14 +3,11 @@ package creatureitem.ai;
 import actors.creatures.CreatureActor;
 import creatureitem.Creature;
 import creatureitem.Player;
-import creatureitem.item.Food;
+import creatureitem.item.*;
 import game.Main;
 import utility.Utility;
 import world.Tile;
-import world.geometry.AStarPoint;
-import world.geometry.Line;
-import world.geometry.Point;
-import world.geometry.floatPoint;
+import world.geometry.*;
 
 import java.util.ArrayList;
 import java.util.EmptyStackException;
@@ -71,7 +68,6 @@ public class CreatureAi {
      * Stuff to do when the creature dies
      */
     public void onDie() {
-
         creature.leaveCorpse();
         creature.getLevel().remove(creature);
     }
@@ -81,10 +77,15 @@ public class CreatureAi {
      */
     public void onUpdate() {
 
-        if(creature.getLevel().getTurn() % creature.getHungerRate() == creature.getHungerRate() - 1) creature.modifyHunger(-1);
-        if(creature.getLevel().getTurn() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
-        if(creature.getLevel().getTurn() % creature.getManaRegenRate() == creature.getManaRegenRate() -1) creature.modifyMana(1);
-        creature.update_Extra_vision();
+        if(creature.getLevel().getTurnNumber() % creature.getHungerRate() == creature.getHungerRate() - 1) creature.modifyHunger(-1);
+        if(creature.getLevel().getTurnNumber() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
+    }
+
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
+    public void onAct() {
+        creature.spendEnergy(100);
     }
 
     /**
@@ -134,6 +135,7 @@ public class CreatureAi {
             /*
              * This next chunk just lets creatures see 1 tile through doors and similar Things
              */
+            /*
             boolean canSee = false;
             for(int i = -1; i <= 1; i++) {
                 for(int j = -1; j <= 1; j++) {
@@ -153,6 +155,8 @@ public class CreatureAi {
             }
 
             if(canSee) continue;
+
+             */
 
 
             return false;
@@ -184,7 +188,7 @@ public class CreatureAi {
     }
 
     /**
-     * Move toward the next point in the shortest path to the destination
+     * Move toward the next point in the shortest path (that the creature is aware of) to the destination
      * @param destination The point the creature is moving toward
      * @return true if the creature successfully moved.
      */
@@ -195,8 +199,11 @@ public class CreatureAi {
                 creature.getY() >= creature.getLevel().getHeight()) return false;
         if(creature.getLevel().getTileAt(destination.getX(), destination.getY()) == Tile.WALL) return false;
         Point me = new Point(creature.getX(), creature.getY());
-        Stack<AStarPoint> path = Utility.aStar(creature.getLevel().getCosts(), Point.DISTANCE_MANHATTAN, me, destination);
+        Stack<AStarPoint> path = Utility.aStarWithVision(creature.getLevel().getCosts(), creature, Point.DISTANCE_MANHATTAN, me, destination);
 
+        if(!Utility.aStarPathToLine(path).getPoints().contains(destination))
+            return false;
+        /*
         for(int i = 0; i < creature.getLevel().getWidth(); i++) {
             for(int j = 0; j < creature.getLevel().getHeight(); j++) {
 
@@ -214,11 +221,12 @@ public class CreatureAi {
 
         System.out.println();
 
+         */
+
         Point next;
         try {
             next = path.pop();
             while(next.equals(me))
-
                 next = path.pop();
         } catch (EmptyStackException e) {
             destination = null;
@@ -229,11 +237,175 @@ public class CreatureAi {
         return true;
     }
 
+    public boolean pickup() {
+        if(creature.getLevel().getItemAt(creature.getX(), creature.getY()) != null) {
+            creature.pickUp();
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean attackRandom() {
+        for(int i = -1; i < 2; i++) {
+            for(int j = -1; j < 2; j++) {
+                if(attackPoint(creature.getX() + i, creature.getY() + j))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean attackPoint(int x, int y) {
+        Creature foe = creature.getLevel().getCreatureAt(x, y);
+
+        if(foe == null)
+            return false;
+
+        if(!creature.canSee(foe.getX(), foe.getY()))
+            return false;
+
+        if(foe.getTeam() == creature.getTeam())
+            return false;
+
+        creature.attack(foe);
+        return true;
+    }
+
+    public boolean shootRandom() {
+        if(creature.getQuiver() == null || creature.getRangedWeapon() == null)
+            return false;
+
+        if(creature.getLevel() == null) return false;
+
+        ArrayList<Creature> targets = creature.getLevel().getAdjCreatures(creature, creature.getRangedWeapon().getRange(), Point.DISTANCE_EUCLIDEAN);
+
+        for(Creature c : targets) {
+
+            if(c.getTeam() == creature.getTeam()) continue;
+
+            if(!creature.canSee(c.getX(), c.getY())) continue;
+
+            if(shootPoint(c.getX(), c.getY())) return true;
+        }
+
+        return false;
+    }
+
+    public boolean shootPoint(int x, int y) {
+
+        Cursor cursor = new Cursor(x, y, true);
+        cursor.setPurpose("shoot");
+        cursor.setActive(true);
+        cursor.clearPath();
+        cursor.setHasLine(true);
+        cursor.setConsiderObstacle(true);
+        cursor.setRange(creature.getRangedWeapon().getRange());
+
+        if(creature.canShoot(cursor)) {
+            creature.shootRangedWeapon(cursor);
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean shootPoint(Point p) {
+        return shootPoint(p.getX(), p.getY());
+    }
+
+    public boolean useRandomItem() {
+        for(Item i : creature.getInventory()) {
+            if(creature.isEquipped(i)) continue;
+            if(i instanceof Equipable) {
+                if(i instanceof Weapon) {
+                    if(i instanceof RangedWeapon) {
+                        if(i.hasProperty("ranged")) {
+
+                            /*
+                             * If no ranged weapon or ammo equipped, equip this
+                             */
+                            if(creature.getRangedWeapon() == null) {
+                                if(creature.getQuiver() == null) {
+                                    creature.equip(i);
+                                    return true;
+                                }
+                            }
+
+                            /*
+                             * If no ammo is equipped, or the right type of ammo is equipped, equip if the average damage is greater than that of the equipped
+                             * weapon
+                             */
+                            if((creature.getQuiver() == null || creature.getQuiver().hasProperty(((RangedWeapon) i).getAmmoType())) &&
+                                    ((RangedWeapon) i).getWeaponDamage().getAverage() > creature.getRangedWeapon().getWeaponDamage().getAverage()) {
+                                creature.equip(i);
+                                return true;
+                            }
+
+                            /*
+                             * If there is acceptable ammo for the weapon in the inventory, and the average damage from the weapon and other ammo is
+                             * greater than the average damage from the equipped weapon and ammo (or 0 if no ammo is equipped).
+                             */
+                            Item[] ammo = creature.getInventory().filterProperty(((RangedWeapon) i).getAmmoType());
+                            for(Item it : ammo) {
+                                if(it instanceof Ammo && it.hasProperty(((RangedWeapon) i).getAmmoType())) {
+                                    if(((RangedWeapon) i).getWeaponDamage().getAverage() + ((Ammo) it).getAmmoDamage().getAverage() >
+                                            (creature.getQuiver() == null? 0 :
+                                            creature.getRangedWeapon().getWeaponDamage().getAverage() + creature.getQuiver().getAmmoDamage().getAverage())) {
+                                        creature.equip(i);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if(i.hasProperty("main hand")) {
+
+                        /*
+                         * If there is no weapon equipped, or the average damage for this is greater than that of the equipped, equip it.
+                         */
+                        if(creature.getMainHand() == null || ((Weapon)i).getWeaponDamage().getAverage() > creature.getMainHand().getWeaponDamage().getAverage()) {
+                            creature.equip(i);
+                            return true;
+                        }
+                    }
+
+                }
+                if(i instanceof Ammo) {
+
+                    /*
+                     * Equip the ammo if it is acceptable for the current weapon, and if the quiver is empty, or if the ammo in the quiver has lower
+                     * average damage than this
+                     */
+                    if(i.hasProperty(creature.getRangedWeapon().getAmmoType())) {
+                        if(creature.getQuiver() == null || ((Ammo)i).getAmmoDamage().getAverage() > creature.getQuiver().getAmmoDamage().getAverage()) {
+                            creature.equip(i);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            /*
+             * Eat food if hungry
+             */
+            if(i instanceof Food) {
+                if((double)creature.getHunger()/creature.getHungerMax() < 0.5) {
+                    creature.eat((Food)i);
+                    return true;
+                }
+            }
+
+        }
+
+        return false;
+    }
+
     /**
      * @return The creature's message queue (always empty)
      */
     public ArrayList<String> getMessages() {
-        return new ArrayList<String>();
+        return new ArrayList<>();
     }
 
     /**
@@ -286,8 +458,6 @@ public class CreatureAi {
         for(int i = lvlold + 1; i <= creature.getExpLevel(); i++) {
             creature.modifyMaxHp((i * 2) + creature.getAttributeBonus(creature.getConstitution()));
             creature.setHp(creature.getHpMax());
-            creature.modifyMana((i * 2) + creature.getAttributeBonus(creature.getIntelligence()));
-            creature.setMana(creature.getManaMax());
         }
 
     }

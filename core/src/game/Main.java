@@ -181,7 +181,7 @@ public class Main extends Game {
     //</editor-fold>
 
     public void start() {
-        LevelFactory builder = new LevelFactory(25, 25, random);
+        LevelFactory builder = new LevelFactory(90, 45, random);
         this.town = new Town(builder, random, this);
         town.generate();
         this.player = town.getPlayer();

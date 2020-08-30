@@ -78,6 +78,7 @@ public class Inventory implements Iterable<Item>  {
             if(items[i] == null) continue;
             if(items[i].equals(item)) {
                 items[i] = null;
+                item.assignCaster(null);
                 count--;
                 return;
             }
@@ -192,6 +193,25 @@ public class Inventory implements Iterable<Item>  {
         ArrayList<Item> it = new ArrayList<>(asList()
                 .stream()
                 .filter(i -> (i != null && i.worth <= worthmax && i.worth >= worthmin))
+                .collect(Collectors.toList()));
+
+        Item[] items = new Item[it.size()];
+
+        for(Item item : it) {
+            for(int i = 0; i < items.length; i++)
+                if(items[i] == null) {
+                    items[i] = item;
+                    break;
+                }
+        }
+
+        return items;
+    }
+
+    public Item[] filterProperty(String ... properties) {
+        ArrayList<Item> it = new ArrayList<>(asList()
+                .stream()
+                .filter(i -> (i != null && i.hasProperty(properties)))
                 .collect(Collectors.toList()));
 
         Item[] items = new Item[it.size()];

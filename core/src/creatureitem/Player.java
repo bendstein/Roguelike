@@ -2,18 +2,15 @@ package creatureitem;
 
 import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
-import com.badlogic.gdx.Gdx;
-import creatureitem.ai.NPCAi;
+import creatureitem.ai.types.NPCAi;
 import creatureitem.ai.PlayerAi;
 import creatureitem.item.*;
-import creatureitem.spell.AOESpell;
-import creatureitem.spell.LineSpell;
-import creatureitem.spell.PointSpell;
-import creatureitem.spell.Spell;
+import creatureitem.spell.*;
 import utility.Utility;
 import world.Level;
 import world.geometry.Cursor;
 import world.geometry.Point;
+import world.thing.DoorBehavior;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -52,8 +49,6 @@ public class Player extends creatureitem.Creature {
      */
     private Cursor cursor;
 
-    private int turnsToProcess;
-
     /**
      * Reference to the creature the player is speaking to
      */
@@ -61,21 +56,22 @@ public class Player extends creatureitem.Creature {
 
     private boolean canSeeEverything;
 
+    boolean allowed_to_act;
     //</editor-fold>
 
     public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
-                  Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, String ... properties) {
+                  Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, float energy_factor, String ... properties) {
         super(maxHP, hungerMax, manaMax, exp, strength, agility, constitution, perception, intelligence, discipline, charisma,
-        level, texturePath, name, glyph, team, unarmedAttack, natArmor, properties);
+        level, texturePath, name, glyph, team, unarmedAttack, natArmor, energy_factor, properties);
 
         isDead = false;
         currentDestination = null;
         destinationQueue = new ArrayDeque<>();
         toThrow = null;
         cursor = new Cursor(0, 0);
-        turnsToProcess = 0;
         canSeeEverything = false;
         talkingTo = null;
+        allowed_to_act = false;
     }
 
     public Player(Player player) {
@@ -86,12 +82,20 @@ public class Player extends creatureitem.Creature {
         destinationQueue = player.destinationQueue;
         toThrow = player.toThrow;
         cursor = player.cursor;
-        turnsToProcess = 0;
         canSeeEverything = player.canSeeEverything;
         talkingTo = player.talkingTo;
+        allowed_to_act = player.allowed_to_act;
     }
 
     //<editor-fold desc="Getters and Setters">
+    public boolean isAllowed_to_act() {
+        return allowed_to_act;
+    }
+
+    public void setAllowed_to_act(boolean allowed_to_act) {
+        this.allowed_to_act = allowed_to_act;
+    }
+
     public boolean isDead() {
         return isDead;
     }
@@ -124,7 +128,9 @@ public class Player extends creatureitem.Creature {
     @Override
     public void setLevel(Level level) {
         super.setLevel(level);
-        if(level != null) level.setPlayer(this);
+        if(level != null) {
+            level.setPlayer(this);
+        }
     }
 
     public void moveLevel(Level level) {
@@ -146,7 +152,13 @@ public class Player extends creatureitem.Creature {
         else
             setLevel(level);
 
-        level.getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
+        spendEnergy(150);
+
+        level.getDungeon().getGame().getPlayScreen().getUi().initMinimap();
+        clear_extra_sight();
+        update_Extra_vision();
+        requestVisionUpdate = true;
+        level.getTurn().act(level);
     }
 
     public Point getCurrentDestination() {
@@ -191,18 +203,6 @@ public class Player extends creatureitem.Creature {
         this.cursor = cursor;
     }
 
-    public int getTurnsToProcess() {
-        return turnsToProcess;
-    }
-
-    public void setTurnsToProcess(int turnsToProcess) {
-        this.turnsToProcess = turnsToProcess;
-    }
-
-    public void increaseTurnsToProcess(int i) {
-        this.turnsToProcess += i;
-    }
-
     public Spell getToCast() {
         return toCast;
     }
@@ -242,15 +242,8 @@ public class Player extends creatureitem.Creature {
     }
 
     public void movePlayerBy(int mx, int my) {
-        if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
+        moveTo(x + mx, y + my);
 
-        Creature foe = level.getCreatureAt(x + mx, y + my);
-        if(foe == null)
-            ai.onEnter(x + mx, y + my, level.getTileAt(x + mx, y + my));
-        else if(foe.team != team)
-            attack(foe);
-        level.update();
-        lastMovedTime = System.currentTimeMillis();
     }
 
     public void moveCursorBy(int mx, int my) {
@@ -264,18 +257,20 @@ public class Player extends creatureitem.Creature {
         if(cursor.isHasLine() && cursor.hasPath()) {
             cursor.setPath(Utility
                     .aStarPathToLine(Utility
-                            .aStar(level.getCosts(), Point.DISTANCE_MANHATTAN, getLocation(), cursor)).getPoints());
+                            .aStarWithVision(level.getCosts(), this, Point.DISTANCE_MANHATTAN, getLocation(), cursor)).getPoints());
         }
 
-        lastMovedTime = System.currentTimeMillis();
+        lastActTime = System.currentTimeMillis();
         level.getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
     }
 
     public void throwItem() {
         super.throwItem(toThrow, cursor);
-        increaseTurnsToProcess(1);
     }
 
+    /*
+     * The following methods are for setting up the player's cursor
+     */
     public void prepThrow(Item i) {
         setToThrow(i);
         cursor.setPurpose("throw");
@@ -283,7 +278,9 @@ public class Player extends creatureitem.Creature {
         cursor.setActive(true);
         cursor.clearPath();
         cursor.setHasLine(true);
+        cursor.setMustSee(false);
         cursor.setConsiderObstacle(true);
+        getCursor().setConsiderOneCreature(false);
         cursor.setRange(getThrowRange());
         cursor.setHasArea(false);
 
@@ -299,8 +296,27 @@ public class Player extends creatureitem.Creature {
         cursor.setActive(true);
         cursor.clearPath();
         cursor.setHasLine(true);
+        cursor.setMustSee(false);
         cursor.setConsiderObstacle(true);
+        getCursor().setConsiderOneCreature(true);
         cursor.setRange(rangedWeapon.getRange());
+        cursor.setHasArea(false);
+
+        cursor.setPositive(0);
+        cursor.setNegative(1);
+        cursor.setNeutral(2);
+    }
+
+    public void prepAttack() {
+        cursor.setPurpose("attack");
+        cursor.setLocation(x, y);
+        cursor.setActive(true);
+        cursor.clearPath();
+        cursor.setHasLine(true);
+        cursor.setMustSee(false);
+        cursor.setConsiderObstacle(true);
+        getCursor().setConsiderOneCreature(true);
+        cursor.setRange(mainHand == null? 1 : mainHand.getReach());
         cursor.setHasArea(false);
 
         cursor.setPositive(0);
@@ -316,7 +332,9 @@ public class Player extends creatureitem.Creature {
             cursor.setActive(true);
             cursor.clearPath();
             cursor.setHasLine(true);
+            cursor.setMustSee(true);
             cursor.setConsiderObstacle(!s.isIgnoreObstacle());
+            getCursor().setConsiderOneCreature(false);
             cursor.setRange(((PointSpell)s).getRange());
 
             cursor.setPositive(0);
@@ -324,223 +342,140 @@ public class Player extends creatureitem.Creature {
             cursor.setNeutral(2);
             cursor.setHasArea(false);
 
-            if(s instanceof LineSpell) cursor.setNeutral(0);
+            if(s instanceof LineSpell) {
+                cursor.setNeutral(0);
+                getCursor().setConsiderOneCreature(((LineSpell) s).isEffectOne());
+            }
             if(s instanceof AOESpell) cursor.setRadius(((AOESpell) s).getRadius());
 
             toCast = s;
         }
     }
 
+    public void prepLook() {
+        getCursor().setPurpose("look");
+        getCursor().setFollow(true);
+        getCursor().setHasRange(false);
+        getCursor().setHasLine(false);
+        getCursor().setMustSee(true);
+        getCursor().setConsiderObstacle(false);
+        getCursor().setConsiderOneCreature(false);
+        getCursor().setHasArea(false);
+        getCursor().setLocation(getX(), getY());
+        getCursor().setPositive(0);
+        getCursor().setNegative(1);
+        getCursor().setNeutral(2);
+        getCursor().setActive(true);
+    }
+
+    public void prepMove() {
+        getCursor().setPurpose("move");
+        getCursor().setFollow(true);
+        getCursor().setHasRange(false);
+        getCursor().clearPath();
+        getCursor().setHasLine(true);
+        getCursor().setMustSee(true);
+        getCursor().setConsiderObstacle(true);
+        getCursor().setConsiderOneCreature(false);
+        getCursor().setHasArea(false);
+        getCursor().setLocation(getX(), getY());
+        getCursor().setPositive(0);
+        getCursor().setNegative(1);
+        getCursor().setNeutral(2);
+        getCursor().setPath(Utility.aStarPathToLine(Utility.aStarWithVision(getLevel().getCosts(), this,
+                Point.DISTANCE_MANHATTAN, getLocation(), getCursor())).getPoints());
+        getCursor().setActive(true);
+    }
+
+    public void performCursorAction() {
+        switch (cursor.getPurpose().toLowerCase()) {
+            case "shoot": {
+                shoot();
+                break;
+            }
+            case "throw": {
+                throwItem();
+                break;
+            }
+            case "attack": {
+                attack(cursor);
+                break;
+            }
+            case "interact": {
+                if(level.getThingAt(cursor.getX(), cursor.getY()).getBehavior() != null) {
+                    level.getThingAt(cursor.getX(), cursor.getY()).interact(this);
+                }
+                break;
+            }
+            case "zap": {
+                cast();
+                break;
+            }
+            case "look":
+            case "move": {
+                enqueueDestination(cursor);
+                break;
+            }
+        }
+
+        deactivateCursor();
+    }
+
+    public void deactivateCursor() {
+        getCursor().setPurpose("");
+        getCursor().setActive(false);
+    }
+
     public void shoot() {
         super.shootRangedWeapon(cursor);
-        increaseTurnsToProcess(1);
+    }
+
+    /**
+     * Creature should do its turn
+     */
+    @Override
+    public void update() {
+        super.update();
+
+        if(level.getCreatureAt(x, y) == null) {
+            level.addAt(x, y, this);
+        }
     }
 
     @Override
-    public void cast(Spell s) {
-
-        //doAction("cast %s.", s.getName());
-
-        if(s instanceof LineSpell) {
-            ((LineSpell)s).cast(getLocation(), cursor);
-        }
-        else if(s instanceof AOESpell) {
-            ((AOESpell)s).cast(cursor.getX(), cursor.getY());
-        }
-        else if(s instanceof PointSpell) {
-            ((PointSpell)s).cast(cursor);
-        }
-        toCast = null;
-        increaseTurnsToProcess(1);
+    public void act(Level l) {
+        boolean changed = update_Extra_vision();
+        if(changed)
+            requestVisionUpdate = true;
+        allowed_to_act = true;
+        ai.onAct();
     }
 
-    public void processTurns() {
-        long time = System.currentTimeMillis();
-        while(turnsToProcess > 0) {
-            if(System.currentTimeMillis() - time >= 100) {
-                level.update();
-                turnsToProcess--;
-            }
-        }
+    @Override
+    public void process(Level l) {
+        allowed_to_act = false;
+        level.advance(this);
+    }
+
+    public void cast() {
+        super.cast(toCast, cursor);
+        toCast = null;
     }
 
     @Override
     public void eat(Food f) {
         String hungerOriginal = hungerToString();
-        modifyHunger(f.getFoodValue());
+
         doAction("eat %s.", f.getName());
+        f.assignCaster(this);
+
+        modifyHunger(f.getFoodValue());
 
         if(!hungerOriginal.equals(hungerToString()) && !(hungerToString().equals("Starving") || hungerToString().equals("Hungry")))
             doAction("feel %s.", hungerToString());
 
         inventory.removeOne(f);
-        increaseTurnsToProcess(1);
-    }
-
-    @Override
-    public void drink(Potion p) {
-        super.drink(p);
-        increaseTurnsToProcess(1);
-    }
-
-    @Override
-    public boolean equip(Item i) {
-        if(!(i instanceof Equipable)) return false;
-
-        if(i instanceof Weapon && i.hasProperty("main hand")) {
-            unequip(mainHand);
-            mainHand = (Weapon) i;
-            ((Weapon)i).setEquipped(true);
-            doAction("equip %s.", i.toString());
-            return true;
-        }
-
-        else if(i instanceof RangedWeapon) {
-            unequip(rangedWeapon);
-            rangedWeapon = (RangedWeapon) i;
-            ((RangedWeapon)i).setEquipped(true);
-            doAction("equip %s.", i.toString());
-
-            if(quiver != null && !quiver.hasProperty(rangedWeapon.getAmmoType()))
-                unequip(quiver);
-
-            return true;
-        }
-
-        else if(i instanceof Ammo && (rangedWeapon == null || i.hasProperty(rangedWeapon.getAmmoType()))) {
-            unequip(quiver);
-            quiver = (Ammo) i;
-            ((Ammo)i).setEquipped(true);
-            doAction("quiver %s.", i.toString());
-            return true;
-        }
-
-        else if(i instanceof Armor && i.hasProperty("body")) {
-            unequip(body);
-            body = (Armor)i;
-            ((Armor)i).setEquipped(true);
-            doAction("equip %s.", i.toString());
-            increaseTurnsToProcess(1);
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public boolean equip(Item i, boolean notify) {
-        if(!(i instanceof Equipable)) return false;
-
-        if(i instanceof Weapon && i.hasProperty("main hand")) {
-            unequip(mainHand);
-            mainHand = (Weapon) i;
-            ((Weapon)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
-            return true;
-        }
-
-        else if(i instanceof RangedWeapon) {
-            unequip(rangedWeapon);
-            rangedWeapon = (RangedWeapon) i;
-            ((RangedWeapon)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
-
-            if(quiver != null && !quiver.hasProperty(rangedWeapon.getAmmoType()))
-                unequip(quiver);
-
-            return true;
-        }
-
-        else if(i instanceof Ammo && (rangedWeapon == null || i.hasProperty(rangedWeapon.getAmmoType()))) {
-            unequip(quiver);
-            quiver = (Ammo) i;
-            ((Ammo)i).setEquipped(true);
-            if(notify) doAction("quiver %s.", i.toString());
-            return true;
-        }
-
-        else if(i instanceof Armor && i.hasProperty("body")) {
-            unequip(body);
-            body = (Armor)i;
-            ((Armor)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
-            increaseTurnsToProcess(1);
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public boolean unequip(Item i) {
-        if(!(i instanceof Equipable) || (!isEquipped(i) && !((Equipable)i).isEquipped())) return true;
-
-        ((Equipable)i).setEquipped(false);
-
-        if(mainHand != null && mainHand.equals(i)) {
-            mainHand = null;
-            doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(rangedWeapon != null && rangedWeapon.equals(i)) {
-            rangedWeapon = null;
-            doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(quiver != null && quiver.equals(i)) {
-            quiver = null;
-            doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(body != null && body.equals(i)) {
-            body = null;
-            doAction("unequip %s.", i.toString());
-            increaseTurnsToProcess(1);
-            return true;
-        }
-
-
-        return false;
-
-    }
-
-    @Override
-    public boolean unequip(Item i, boolean notify) {
-        if(!(i instanceof Equipable) || (!isEquipped(i) && !((Equipable)i).isEquipped())) return true;
-
-        ((Equipable)i).setEquipped(false);
-
-        if(mainHand != null && mainHand.equals(i)) {
-            mainHand = null;
-            if(notify) doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(rangedWeapon != null && rangedWeapon.equals(i)) {
-            rangedWeapon = null;
-            if(notify) doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(quiver != null && quiver.equals(i)) {
-            quiver = null;
-            if(notify) doAction("unequip %s.", i.toString());
-            return true;
-        }
-
-        else if(body != null && body.equals(i)) {
-            body = null;
-            if(notify) doAction("unequip %s.", i.toString());
-            increaseTurnsToProcess(1);
-            return true;
-        }
-
-
-        return false;
-
+        spendEnergy(100);
     }
 
     @Override

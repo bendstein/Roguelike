@@ -3,6 +3,7 @@ package creatureitem.ai.monster;
 import creatureitem.Creature;
 import creatureitem.ai.CreatureAi;
 import creatureitem.generation.CreatureItemFactory;
+import world.Tile;
 
 public class FungusAi extends CreatureAi {
 
@@ -50,21 +51,17 @@ public class FungusAi extends CreatureAi {
     }
     //</editor-fold>
 
-    public void onUpdate() {
-        super.onUpdate();
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
+    @Override
+    public void onAct() {
         //Low chance for the fungus to spread to a nearby tile
         if(creature.getLevel().getRandom().nextDouble() <= SPREAD_PROBABILITY && spread < MAX_SPREAD)
             spread();
-
-        //If there's an adjacent creature, attack it
-        for(int i = -1; i < 2; i++) {
-            for(int j = -1; j < 2; j++) {
-                Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                if(foe != null && foe.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
-                    creature.attack(foe);
-                    return;
-                }
-            }
+        else {
+            //If there's an adjacent creature, attack it
+            attackRandom();
         }
     }
 
@@ -75,20 +72,23 @@ public class FungusAi extends CreatureAi {
         int x = creature.getX() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;
         int y = creature.getY() + (creature.getLevel().getRandom().nextBoolean()? -1 : 1) * creature.getLevel().getRandom().nextInt(MAX_DIST - MIN_DIST) + MIN_DIST;
 
-        if(!Creature.canEnter(x, y, creature.getLevel()))
-            return;
+        if(!Creature.canEnter(x, y, creature.getLevel())) {
+        }
+        else {
+            Creature child = CreatureItemFactory.newCreature("Fungus");
+            CreatureItemFactory.newAi("Fungus", child);
+            CreatureItemFactory.newActor("Fungus", child);
+            creature.getLevel().addAt(x, y, child);
+            spread++;
 
-        Creature child = CreatureItemFactory.newCreature("Fungus");
-        CreatureItemFactory.newAi("Fungus", child);
-        CreatureItemFactory.newActor("Fungus", child);
-        creature.getLevel().addAt(x, y, child);
-        spread++;
+            creature.doAction("spread to a nearby tile!");
+        }
 
-        creature.doAction("spread to a nearby tile!");
+        creature.spendEnergy(150);
     }
 
     @Override
-    public CreatureAi copy() {
+    public FungusAi copy() {
         return new FungusAi(creature);
     }
 }

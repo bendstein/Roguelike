@@ -5,21 +5,27 @@ import creatureitem.effect.Effect;
 import world.geometry.Line;
 import world.geometry.Point;
 
+import java.util.ArrayList;
+
 /**
  * A spell that targets all points between two points
  */
 public class LineSpell extends PointSpell {
 
+    private boolean effectOne;
+
     public LineSpell() {
 
     }
 
-    public LineSpell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, int range, Effect ... effects) {
-        super(name, cost, requiresCreatureTarget, ignoreObstacle, range, effects);
+    public LineSpell(String name, boolean requiresCreatureTarget, boolean effectOne, boolean ignoreObstacle, boolean ignoreCaster, int range, int cast_energy, boolean notify, Effect ... effects) {
+        super(name, requiresCreatureTarget, ignoreObstacle, ignoreCaster, range, cast_energy, notify, effects);
+        this.effectOne = effectOne;
     }
 
     public LineSpell(LineSpell spell) {
         super(spell);
+        this.effectOne = spell.effectOne;
     }
 
     @Override
@@ -29,12 +35,15 @@ public class LineSpell extends PointSpell {
 
     public void cast(int x, int y, int x1, int y1) {
 
+        /*
         if(caster.getMana() - cost < 0) {
             caster.doAction("invoke %s, but it does nothing.", name);
             return;
         }
 
-        caster.doAction("cast %s!", name);
+         */
+
+        if(notify) caster.doAction("cast %s!", name);
 
         int c = 0;
 
@@ -48,10 +57,14 @@ public class LineSpell extends PointSpell {
 
             if(requiresCreatureTarget) {
                 Creature target = caster.getLevel().getCreatureAt(p.getX(), p.getY());
-                if(target != null) {
+                if(target != null && (!ignoreCaster || !target.equals(caster))) {
                     c++;
                     for(Effect effect : effects)
                         target.applyEffect(effect.makeCopy(effect));
+
+                    if(effectOne) {
+                        return;
+                    }
                 }
                 else if(!ignoreObstacle && !caster.getLevel().isPassable(p.getX(), p.getY()))
                     break;
@@ -65,8 +78,8 @@ public class LineSpell extends PointSpell {
 
         }
 
-        if(c == 0 && requiresCreatureTarget) caster.notify("...but nothing happens!");
-        caster.modifyMana(-cost);
+        if(c == 0 && requiresCreatureTarget) if(notify) caster.notify("...but nothing happens!");
+        //caster.modifyMana(-cost);
 
     }
 
@@ -82,4 +95,24 @@ public class LineSpell extends PointSpell {
         cast(p, c.getLocation());
     }
 
+    /**
+     * @param s The spell to copy
+     * @return A deep copy of the given spell
+     */
+    @Override
+    public LineSpell copyOf(Spell s) {
+        LineSpell copy = (LineSpell) super.copyOf(s);
+
+        copy.effectOne = !(s instanceof LineSpell) || ((LineSpell) s).effectOne;
+
+        return copy;
+    }
+
+    public boolean isEffectOne() {
+        return effectOne;
+    }
+
+    public void setEffectOne(boolean effectOne) {
+        this.effectOne = effectOne;
+    }
 }

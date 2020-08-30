@@ -54,8 +54,21 @@ public class Cursor extends Point {
      */
     private String purpose;
 
+    /**
+     * If the cursor must be in a place that has been seen for it to be visible
+     */
+    private boolean mustSee;
+
+    private boolean considerOneCreature;
+
+    /**
+     * The path the cursor trail follows if it is not just a line
+     */
     private Collection<Point> path;
 
+    /**
+     * Indices for the texture the cursor uses in different circumstances
+     */
     private int negative, neutral, positive;
 
     public Cursor(int x, int y) {
@@ -71,6 +84,9 @@ public class Cursor extends Point {
         negative = 1;
         neutral = 2;
         positive = 0;
+        mustSee = false;
+        path = null;
+        considerOneCreature = false;
     }
 
     public Cursor(int x, int y, boolean hasLine) {
@@ -86,6 +102,9 @@ public class Cursor extends Point {
         negative = 1;
         neutral = 2;
         positive = 0;
+        mustSee = false;
+        path = null;
+        considerOneCreature = false;
     }
 
     public void moveBy(int mx, int my) {
@@ -94,6 +113,22 @@ public class Cursor extends Point {
     }
 
     //<editor-fold desc="Getters and Setters">
+    public boolean isConsiderOneCreature() {
+        return considerOneCreature;
+    }
+
+    public void setConsiderOneCreature(boolean considerOneCreature) {
+        this.considerOneCreature = considerOneCreature;
+    }
+
+    public boolean isMustSee() {
+        return mustSee;
+    }
+
+    public void setMustSee(boolean mustSee) {
+        this.mustSee = mustSee;
+    }
+
     public Collection<Point> getPath() {
         return path;
     }

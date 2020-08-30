@@ -41,6 +41,13 @@ public class StatusEffect extends Effect {
         this.once = once;
     }
 
+    public StatusEffect(int[] amounts, boolean once, boolean infinite) {
+        this.infinite = infinite;
+        this.duration = this.remainingDuration = infinite? Integer.MAX_VALUE : 1;
+        this.amounts = amounts;
+        this.once = once;
+    }
+
     @Override
     public void affect() {
 
@@ -82,11 +89,19 @@ public class StatusEffect extends Effect {
                     break;
                 }
                 case 6: {
-                    c.setDamageBonus(c.getDamageBonus() + amounts[i]);
+                    c.setIntelligence(c.getIntelligence() + amounts[i]);
                     break;
                 }
                 case 7: {
+                    c.setDamageBonus(c.getDamageBonus() + amounts[i]);
+                    break;
+                }
+                case 8: {
                     c.setDefenseBonus(c.getDefenseBonus() + amounts[i]);
+                    break;
+                }
+                case 9: {
+                    c.setMagicBonus(c.getMagicBonus() + amounts[i]);
                     break;
                 }
                 default: {
@@ -114,38 +129,34 @@ public class StatusEffect extends Effect {
                     break;
                 }
                 case 2: {
-                    c.modifyManaMax(-amounts[i]);
-                    break;
-                }
-                case 3: {
                     c.setStrength(c.getStrength() - amounts[i]);
                     break;
                 }
-                case 4: {
+                case 3: {
                     c.setAgility(c.getAgility() - amounts[i]);
                     break;
                 }
-                case 5: {
+                case 4: {
                     c.setConstitution(c.getConstitution() - amounts[i]);
                     break;
                 }
-                case 6: {
+                case 5: {
                     c.setPerception(c.getPerception() - amounts[i]);
                     break;
                 }
-                case 7: {
+                case 6: {
                     c.setIntelligence(c.getIntelligence() - amounts[i]);
                     break;
                 }
-                case 8: {
+                case 7: {
                     c.setDamageBonus(c.getDamageBonus() - amounts[i]);
                     break;
                 }
-                case 9: {
+                case 8: {
                     c.setDefenseBonus(c.getDefenseBonus() - amounts[i]);
                     break;
                 }
-                case 10: {
+                case 9: {
                     c.setMagicBonus(c.getMagicBonus() - amounts[i]);
                     break;
                 }
@@ -162,6 +173,7 @@ public class StatusEffect extends Effect {
         copy.caster = effect.caster;
         copy.duration = effect.duration;
         copy.remainingDuration = effect.remainingDuration;
+        copy.infinite = effect.infinite;
         copy.amounts = effect instanceof StatusEffect? ((StatusEffect) effect).amounts : new int[]{};
         copy.once = effect instanceof StatusEffect? ((StatusEffect) effect).once : true;
 

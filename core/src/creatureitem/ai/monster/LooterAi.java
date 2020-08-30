@@ -3,16 +3,16 @@ package creatureitem.ai.monster;
 import actors.creatures.CreatureActor;
 import creatureitem.Creature;
 import creatureitem.ai.CreatureAi;
+import creatureitem.ai.types.TrackerAi;
 import creatureitem.item.Item;
 import game.Main;
 import world.Tile;
+import world.geometry.Cursor;
 import world.geometry.Point;
 import world.geometry.floatPoint;
 import world.thing.DoorBehavior;
 
-public class LooterAi extends CreatureAi {
-
-    private Point dest;
+public class LooterAi extends TrackerAi {
 
     private Creature destCreature;
 
@@ -54,15 +54,37 @@ public class LooterAi extends CreatureAi {
     }
 
     @Override
-    public void onUpdate() {
+    public boolean attackTarget() {
+        if(destCreature == null) return false;
+        if(!creature.canSee(destCreature.getX(), destCreature.getY())) return false;
+        if(creature.getLocation().chebychevDistanceFrom(destCreature.getLocation()) >= 2) return false;
+
+        return attackPoint(destCreature.getX(), destCreature.getY());
+    }
+
+    @Override
+    public boolean shootTarget() {
+        if(destCreature == null) return false;
+        if(!creature.canSee(destCreature.getX(), destCreature.getY())) return false;
+
+        return shootPoint(destCreature.getLocation());
+    }
+
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
+    @Override
+    public void onAct() {
         if(creature.getLevel().getItemAt(creature.getX(), creature.getY()) != null)
             creature.pickUp();
         else {
             if (dest != null) {
+
                 if(destCreature != null) {
                     if(creature.canSee(destCreature.getLocation())) {
                         dest = destCreature.getLocation();
                     }
+
                 }
                 else if (creature.getLocation().equals(dest)) {
                     dest = null;
@@ -132,46 +154,48 @@ public class LooterAi extends CreatureAi {
                 dest = max_point;
             }
 
-            //If adj to destination, and  creature at the destination, attack it.
-            Creature foe;
-            boolean attack = false;
+            boolean act = false;
 
-            if(dest != null && creature.getLocation().isAdjacent(dest)) {
-                foe = creature.getLevel().getCreatureAt(dest.getX(), dest.getY());
-                if(foe != null &&
-                        foe.getTeam() != creature.getTeam() &&
-                        creature.canSee(dest)) {
-                    attack = true;
-                    creature.attack(foe);
+            //If adj to destination, and creature at the destination, attack it.
+            act = attackTarget();
+
+            //Otherwise, if we can make a ranged attack on it, do it
+            if(!act) {
+                act = shootTarget();
+            }
+
+            //If no creature at destination, or not able to attack to destination, or no destination, but we're adjacent to a hostile creature, attack it
+            if(!act) {
+                act = attackRandom();
+            }
+
+            //Make a ranged attack on a random enemy in range
+            if(!act) {
+                act = shootRandom();
+            }
+
+            //If we didn't attack, use a random item
+            if(!act) {
+                act = useRandomItem();
+            }
+
+            //If we didn't act, move towards the destination
+            if(!act) {
+                if(dest != null) {
+                    creature.moveTowardsAStar(dest);
+                    act = true;
                 }
             }
 
-            //If no creature at destination, or not adj to destination, or no destination, but we're adjacent to a hostile creature, attack it
-            if(!attack) {
-                for(int i = -1; i < 2; i++) {
-                    for(int j = -1; j < 2; j++) {
-                        foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                        if(foe != null &&
-                                foe.getTeam() != creature.getTeam() &&
-                                creature.canSee(dest)) {
-                            attack = true;
-                            creature.attack(foe);
-                        }
-                    }
-
-                }
-            }
-
-            //If we didn't attack, move towards the destination
-            if(!attack) {
-                if(dest != null) creature.moveTowardsAStar(dest);
-                else wander();
+            //If all else fails, wander
+            if(!act) {
+                wander();
             }
         }
     }
 
     @Override
-    public CreatureAi copy() {
+    public LooterAi copy() {
         return new LooterAi(creature);
     }
 

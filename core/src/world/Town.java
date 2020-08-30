@@ -1,10 +1,8 @@
 package world;
 
-import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
 import com.badlogic.gdx.graphics.Color;
 import creatureitem.Creature;
-import creatureitem.ai.NPCAi;
 import creatureitem.generation.CreatureItemFactory;
 import game.Main;
 import world.generation.LevelFactory;
@@ -27,6 +25,7 @@ public class Town extends Dungeon {
         root = t;
 
         this.player = CreatureItemFactory.newPlayer(new ArrayList<>());
+        CreatureItemFactory.stockCreature(player, 1, random);
         player.setLevel(root);
         //player.setCanSeeEverything(true);
         root.setPlayer(player);

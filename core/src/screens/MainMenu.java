@@ -1,7 +1,9 @@
 package screens;
 
 import com.badlogic.gdx.*;
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -9,16 +11,21 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.badlogic.gdx.utils.viewport.Viewport;
 import game.Main;
 
 public class MainMenu extends ScreenAdapter {
 
     private Main game;
     private Stage stage;
+    private Viewport viewport;
+    private Camera camera;
 
     public MainMenu(Main game) {
         this.game = game;
-        this.stage = new Stage(new ScreenViewport());
+        this.camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        this.viewport = new ScreenViewport(camera);
+        this.stage = new Stage(viewport, this.game.getBatch());
     }
 
     @Override
@@ -69,7 +76,8 @@ public class MainMenu extends ScreenAdapter {
 
     @Override
     public void resize(int width, int height) {
-
+        viewport.update(width, height);
+        camera.update();
     }
 
     @Override

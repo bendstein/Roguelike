@@ -6,6 +6,21 @@ import world.Level;
 
 public class SeeMinds extends Effect {
 
+    boolean affected;
+
+    public SeeMinds(int duration) {
+        super();
+        affected = false;
+        this.duration = this.remainingDuration = duration;
+    }
+
+    public SeeMinds(boolean infinite) {
+        super();
+        affected = false;
+        this.duration = this.remainingDuration = Integer.MAX_VALUE;
+        this.infinite = infinite;
+    }
+
     /**
      * What the effect does when it is active
      */
@@ -37,8 +52,14 @@ public class SeeMinds extends Effect {
             return;
         }
 
+        if(affected)
+            return;
+
         if(caster instanceof Creature) {
-            ((Creature) caster).add_extra_sight(c);
+            if(!((Creature) caster).getExtra_sight().contains(c))
+                ((Creature) caster).add_extra_sight(c);
+            ((Creature) caster).setRequestVisionUpdate(true);
+            affected = true;
         }
 
     }
@@ -59,11 +80,12 @@ public class SeeMinds extends Effect {
     @Override
     public void done(Creature c) {
         ((Creature)caster).remove_extra_sight(c);
+        affected = false;
     }
 
     @Override
     public Effect makeCopy(Effect effect) {
-        Effect s = new SeeMinds();
+        Effect s = effect.isInfinite()? new SeeMinds(true) : new SeeMinds(duration);
         s.setCaster(caster);
         return s;
     }

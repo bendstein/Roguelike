@@ -17,10 +17,12 @@ public class HungerEffect extends Effect {
     }
 
     public HungerEffect(int amount) {
+        super();
         this.amount = amount;
     }
 
     public HungerEffect(int duration, int amount) {
+        super();
         this.duration = this.remainingDuration = duration;
         this.amount = amount;
     }

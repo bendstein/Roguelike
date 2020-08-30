@@ -2,23 +2,24 @@ package world;
 
 import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
-import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.Gdx;
 import creatureitem.Creature;
+import creatureitem.Entity;
 import creatureitem.Player;
 import creatureitem.item.Inventory;
 import creatureitem.item.Item;
 import game.Main;
+import utility.DynamicArray;
 import utility.Utility;
-import world.geometry.AStarPoint;
 import world.geometry.Point;
 import world.geometry.floatPoint;
 import world.thing.*;
 import world.room.Room;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.Stack;
+import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.PriorityBlockingQueue;
 
 public class Level extends LevelInterface {
 
@@ -26,7 +27,7 @@ public class Level extends LevelInterface {
     /**
      * List of all creatures on the map
      */
-    private ArrayList<Creature> creatures;
+    private CopyOnWriteArrayList<Creature> creatures;
 
     /**
      * Reference to player
@@ -38,7 +39,7 @@ public class Level extends LevelInterface {
      */
     private boolean[][] seen;
 
-    private ArrayList<Light>[][] emitting;
+    private DynamicArray<Light>[][] emitting;
 
     private boolean[][] staticLight;
 
@@ -105,29 +106,67 @@ public class Level extends LevelInterface {
      */
     private ArrayList<String> properties;
 
-    boolean requestLightingUpdate;
+    private boolean requestLightingUpdate;
+
+    private Entity turn;
+
+    private PriorityBlockingQueue<Entity> turnQueue;
+
+    private CopyOnWriteArrayList<Entity> acting;
+
+    boolean queue_paused;
+
+    private static final int ENERGY_PER_TURN = 100;
+
+    private static final long ACT_RATE = 100L;
 
     //</editor-fold>
 
     public Level(Tile[][] tiles, Random random, String ... properties) {
         super(tiles);
         this.random = random;
-        creatures = new ArrayList<>();
+        creatures = new CopyOnWriteArrayList<>();
         creatureQueue = new ArrayList<>();
         items = new Item[getWidth()][getHeight()];
         inventories = new Inventory[getWidth()][getHeight()];
         seen = new boolean[getWidth()][getHeight()];
         tile_orientations = new int[getWidth()][getHeight()][];
-        emitting = new ArrayList[getWidth()][getHeight()];
+        emitting = new DynamicArray[getWidth()][getHeight()];
         staticLight = new boolean[getWidth()][getHeight()];
         rooms = new ArrayList<>();
         floor_number = 0;
         requestLightingUpdate = false;
         costs = calculateCosts();
+        turn = new Entity(-1, -1, true);
+        turn.setCurrent_energy(ENERGY_PER_TURN);
+        acting = new CopyOnWriteArrayList<>();
+
+        turnQueue = new PriorityBlockingQueue<>(1, (e0, e1) -> {
+
+            /*
+             * If both entities have the same priority:
+             *  If either entity is the turn marker, prioritize it.
+             *  It either entity is the player, prioritize it.
+             *  Otherwise, prioritize based on their energy factor.
+             */
+            if(e0.getCurrent_energy() == e1.getCurrent_energy()) {
+                if(turn.equals(e0)) return 1;
+                else if(turn.equals(e1)) return -1;
+                else if(player == null)
+                    return Float.compare(e0.getEnergy_factor(), e1.getEnergy_factor());
+                else if(player.equals(e0)) return 1;
+                else if(player.equals(e1)) return -1;
+                else
+                    return Float.compare(e0.getEnergy_factor(), e1.getEnergy_factor());
+            }
+            return Integer.compare(e0.getCurrent_energy(), e1.getCurrent_energy());
+        });
+        turnQueue.add(turn);
+        queue_paused = true;
 
         for(int i = 0; i < getWidth(); i++) {
             for(int j = 0; j < getHeight(); j++) {
-                emitting[i][j] = new ArrayList<>();
+                emitting[i][j] = new DynamicArray<>(new Light[]{null});
                 inventories[i][j] = new Inventory();
                 tile_orientations[i][j] = new int[]{tiles[i][j].getNeutral()};
             }
@@ -189,6 +228,7 @@ public class Level extends LevelInterface {
             //Calculate creature level now that the ai has been created
             c.setExp(c.getExp(), false);
             creatureQueue.add(c);
+
             return true;
         }
 
@@ -207,6 +247,14 @@ public class Level extends LevelInterface {
             c.setExp(c.getExp(), false);
             creatures.add(c);
             c.setLevel(this);
+            c.updateVision();
+
+            if(c.isCan_act()) {
+                c.setEnergy_used(0);
+                c.setCurrent_energy(0);
+                if(!turnQueue.contains(c)) turnQueue.add(c);
+            }
+
             return true;
         }
 
@@ -309,7 +357,15 @@ public class Level extends LevelInterface {
         costs = calculateCosts();
         t.setLocation(x, y);
 
+        if(t.isCan_act()) {
+            t.setEnergy_used(0);
+            t.setCurrent_energy(0);
+            if(!turnQueue.contains(t)) turnQueue.add(t);
+        }
+
         if(t instanceof Light) {
+            requestLightingUpdate = true;
+            /*
             Light l = (Light)t;
             l.determinePosition(this);
             for(int i = -l.getRange(); i <= l.getRange(); i++) {
@@ -319,6 +375,8 @@ public class Level extends LevelInterface {
                     }
                 }
             }
+
+             */
         }
 
 
@@ -343,7 +401,15 @@ public class Level extends LevelInterface {
     public ArrayList<Creature> addCreatureQueue() {
         for(Creature c : creatureQueue) {
             creatures.add(c);
+
+            if(c.isCan_act()) {
+                c.setEnergy_used(0);
+                c.setCurrent_energy(0);
+                if(!turnQueue.contains(c)) turnQueue.add(c);
+            }
+
             c.setLevel(this);
+            c.updateVision();
         }
 
         costs = calculateCosts();
@@ -365,6 +431,7 @@ public class Level extends LevelInterface {
         creatures.remove(creature);
         if(creature != player) creature.getActor().remove();
 
+        turnQueue.remove(creature);
         //creature.setAttack(0);
     }
 
@@ -372,6 +439,8 @@ public class Level extends LevelInterface {
         Creature c = getCreatureAt(x, y);
         if(c == null) return null;
         remove(c);
+
+        turnQueue.remove(c);
         return c;
         //creature.setAttack(0);
     }
@@ -389,17 +458,7 @@ public class Level extends LevelInterface {
                 }
             }
         }
-        /*
-        for(int i = 0; i < items.length; i++) {
-            for(int j = 0; j < items[0].length; j++) {
-                if(items[i][j] == item) {
-                    items[i][j] = null;
-                    return;
-                }
-            }
-        }
 
-         */
     }
 
     /**
@@ -429,6 +488,8 @@ public class Level extends LevelInterface {
             requestLightingUpdate = true;
         }
 
+        turnQueue.remove(thing);
+
         calculateOrientations();
     }
 
@@ -442,6 +503,8 @@ public class Level extends LevelInterface {
             requestLightingUpdate = true;
         }
 
+        turnQueue.remove(t);
+
         calculateOrientations();
 
         return t;
@@ -449,18 +512,119 @@ public class Level extends LevelInterface {
     }
 
     /**
-     * Let all creatures do their turn
+     * Update everything that must be updated after every action
      */
     public void update() {
+
         ArrayList<Creature> toUpdate = new ArrayList<>(creatures);
-        for(Creature c : toUpdate) {
-            //Don't update if the creature has been removed
-            if(creatures.contains(c)) c.update();
-            //costs = Utility.toCostArray(this);
+        for(Creature c : toUpdate)
+            if(creatures.contains(c)) {
+                if(c.isRequestVisionUpdate())
+                    c.updateVision();
+            }
+
+        /*
+         * Update minimap
+         */
+        dungeon.getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
+    }
+
+    /**
+     * Update everything that must be updated after every turn
+     */
+    public void nextTurn() {
+
+        incrementTurnNumber();
+        acting.clear();
+
+
+        /*
+         * Update creature statuses, health, hunger, etc
+         */
+        ArrayList<Creature> toUpdate = new ArrayList<>(creatures);
+        for(Creature c : toUpdate)
+            if(creatures.contains(c)) {
+                c.update();
+            }
+
+        /*
+         * Update all entities' priorities
+         */
+        ArrayList<Entity> updated = new ArrayList<>();
+
+        while(!turnQueue.isEmpty())
+            if(!updated.contains(turnQueue.peek())) updated.add(turnQueue.poll());
+
+        for(Entity entity1 : updated) {
+            entity1.setCurrent_energy(Math.max(0, entity1.getCurrent_energy() - ENERGY_PER_TURN));
+            if(!turnQueue.contains(entity1)) turnQueue.add(entity1);
         }
 
-        dungeon.getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
-        incrementTurn();
+        advance(turn);
+    }
+
+    /**
+     * Advance the turn queue after an entity acts
+     * @param entity The entity that just acted
+     */
+    public void advance(Entity entity) {
+        /*
+         * If the entity is already in the queue for whatever reason, remove it.
+         */
+        acting.remove(entity);
+        turnQueue.remove(entity);
+
+        if(acting.isEmpty()) queue_paused = true;
+
+        /*
+         * Commit the energy used and insert the entity back into the queue.
+         */
+        entity.commitEnergy();
+        turnQueue.add(entity);
+
+        /*
+         * Update everything that must be updated after every action.
+         */
+        update();
+
+        if(queue_paused && turnQueue.contains(player)) {
+            try {
+                nextAct();
+            } catch (Exception e) {
+                queue_paused = true;
+                System.err.println(e.getMessage());
+            }
+        }
+
+    }
+
+    public void nextAct() throws NullPointerException {
+
+        if(!queue_paused) return;
+        queue_paused = false;
+
+        if(turnQueue.peek().equals(turn)) {
+            acting.add(turnQueue.poll());
+        }
+        else {
+            /*
+             * All creatures that act before the end of the turn will act
+             */
+            while(!turnQueue.isEmpty()) {
+                Entity e = turnQueue.peek();
+                if(e.equals(turn)) break;
+                acting.add(turnQueue.poll());
+            }
+        }
+
+
+        for(Entity entity : acting) {
+            Level l = this;
+
+            Gdx.app.postRunnable(() -> entity.act(l));
+
+        }
+
     }
 
     /**
@@ -537,14 +701,80 @@ public class Level extends LevelInterface {
                     thingList.add(t);
 
             }
-            /*
-            int astardistance = p.astarDistanceFrom(t.getLocation(), Point.DISTANCE_MANHATTAN, calculateCosts(-1));
-            if(astardistance != -1 && astardistance <= r) thingList.add(t);
 
-             */
         }
 
         return thingList;
+    }
+
+    public ArrayList<Creature> getAdjCreatures(int x, int y, int r, int heuristic) {
+        Point p = new Point(x, y);
+        ArrayList<Creature> creatureList = new ArrayList<>();
+
+        for(Creature c : creatures) {
+
+            double distance;
+
+            switch (heuristic) {
+                case Point.DISTANCE_CHEBYCHEV: {
+                    distance = p.chebychevDistanceFrom(c.getLocation());
+                    break;
+                }
+                case Point.DISTANCE_EUCLIDEAN: {
+                    distance = p.euclideanDistanceFrom(c.getLocation());
+                    break;
+                }
+                case Point.DISTANCE_MANHATTAN: {
+                    distance = p.manhattanDistanceFrom(c.getLocation());
+                    break;
+                }
+                default: {
+                    distance = Double.MAX_VALUE;
+                }
+            }
+
+            if(distance <= r)
+                creatureList.add(c);
+
+        }
+
+        return creatureList;
+    }
+
+    public ArrayList<Creature> getAdjCreatures(Creature cr, int r, int heuristic) {
+        Point p = cr.getLocation();
+        ArrayList<Creature> creatureList = new ArrayList<>();
+
+        for(Creature c : creatures) {
+
+            if(cr.equals(c)) continue;
+
+            double distance;
+
+            switch (heuristic) {
+                case Point.DISTANCE_CHEBYCHEV: {
+                    distance = p.chebychevDistanceFrom(c.getLocation());
+                    break;
+                }
+                case Point.DISTANCE_EUCLIDEAN: {
+                    distance = p.euclideanDistanceFrom(c.getLocation());
+                    break;
+                }
+                case Point.DISTANCE_MANHATTAN: {
+                    distance = p.manhattanDistanceFrom(c.getLocation());
+                    break;
+                }
+                default: {
+                    distance = Double.MAX_VALUE;
+                }
+            }
+
+            if(distance <= r)
+                creatureList.add(c);
+
+        }
+
+        return creatureList;
     }
 
     public Room getRoom(Point p) {
@@ -552,11 +782,11 @@ public class Level extends LevelInterface {
     }
 
     public Room getRoom(int x, int y) {
-        if(rooms.isEmpty() || rooms == null) return null;
+        if(rooms == null || rooms.isEmpty()) return null;
         for(Room r : rooms) {
             int rx = r.parentXtoX(x), ry = r.parentYtoY(y);
-            if(rx < 0 || ry < 0 || rx >= r.getWidth() || ry >= r.getHeight())
-                continue;
+            if(rx < 0 || ry < 0 || rx >= r.getWidth() || ry >= r.getHeight()) {
+            }
             else if(r.getTileAt(rx, ry) == Tile.FLOOR)
                 return r;
         }
@@ -565,6 +795,38 @@ public class Level extends LevelInterface {
     }
 
     //<editor-fold desc="Getters and Setters">
+
+    public boolean isQueue_paused() {
+        return queue_paused;
+    }
+
+    public void setQueue_paused(boolean queue_paused) {
+        this.queue_paused = queue_paused;
+    }
+
+    public static int getEnergyPerTurn() {
+        return ENERGY_PER_TURN;
+    }
+
+    public void setTurn(Entity turn) {
+        this.turn = turn;
+    }
+
+    public Entity getTurn() {
+        return turn;
+    }
+
+    public PriorityBlockingQueue<Entity> getTurnQueue() {
+        return turnQueue;
+    }
+
+    public void setTurnQueue(PriorityBlockingQueue<Entity> turnQueue) {
+        this.turnQueue = turnQueue;
+    }
+
+    public void addToTurnQueue(Entity e) {
+        turnQueue.add(e);
+    }
 
     public Inventory[][] getInventories() {
         return inventories;
@@ -582,11 +844,11 @@ public class Level extends LevelInterface {
         this.requestLightingUpdate = requestLightingUpdate;
     }
 
-    public ArrayList<Creature> getCreatures() {
+    public CopyOnWriteArrayList<Creature> getCreatures() {
         return creatures;
     }
 
-    public void setCreatures(ArrayList<Creature> creatures) {
+    public void setCreatures(CopyOnWriteArrayList<Creature> creatures) {
         this.creatures = creatures;
     }
 
@@ -676,8 +938,7 @@ public class Level extends LevelInterface {
     }
 
     public void setSeenAll() {
-        for(int i = 0; i < seen.length; i++)
-            Arrays.fill(seen[i], true);
+        for (boolean[] booleans : seen) Arrays.fill(booleans, true);
     }
 
     public boolean getSeen(int x, int y) {
@@ -704,15 +965,15 @@ public class Level extends LevelInterface {
             emitting[x][y].add(l);
     }
 
-    public ArrayList<Light>[][] getEmitting() {
+    public DynamicArray<Light>[][] getEmitting() {
         return emitting;
     }
 
-    public ArrayList<Light> getEmitting(int x, int y) {
+    public DynamicArray<Light> getEmitting(int x, int y) {
         return emitting[x][y];
     }
 
-    public void setEmitting(ArrayList<Light>[][] emitting) {
+    public void setEmitting(DynamicArray<Light>[][] emitting) {
         this.emitting = emitting;
     }
 
@@ -785,15 +1046,15 @@ public class Level extends LevelInterface {
         this.costs = costs;
     }
 
-    public int getTurn() {
+    public int getTurnNumber() {
         return dungeon.getGame().getTurn();
     }
 
-    public void setTurn(int turnNumber) {
+    public void setTurnNumber(int turnNumber) {
         dungeon.getGame().setTurn(turnNumber);
     }
 
-    public void incrementTurn() {
+    public void incrementTurnNumber() {
         dungeon.getGame().incrementTurn();
     }
 
@@ -811,6 +1072,10 @@ public class Level extends LevelInterface {
                     }
                 }
             }
+        }
+
+        for(Creature c : creatures) {
+            c.updateVision();
         }
 
         calculateOrientations();
@@ -855,8 +1120,8 @@ public class Level extends LevelInterface {
     public boolean hasProperty(String property, boolean withDungeon) {
         if(withDungeon) {
             if(properties == null && dungeon.properties == null) return false;
-            else if(properties == null && dungeon.properties != null) return dungeon.hasProperty(property);
-            else if(properties != null && dungeon.properties == null) return properties.contains(property);
+            else if(properties == null) return dungeon.hasProperty(property);
+            else if(dungeon.properties == null) return properties.contains(property);
             else return properties.contains(property) || dungeon.hasProperty(property);
         }
         else {
@@ -1122,7 +1387,10 @@ public class Level extends LevelInterface {
         }
     }
 
-    //</editor-fold>
+    public static long getActRate() {
+        return ACT_RATE;
+    }
 
+    //</editor-fold>
 
 }

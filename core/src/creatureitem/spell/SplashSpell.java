@@ -16,14 +16,14 @@ import java.util.HashSet;
 /**
  * AOE Spells that flood out from the origin instead of stopping when obstructed
  */
-public class SplashSpell extends AOESpell{
+public class SplashSpell extends AOESpell {
 
     public SplashSpell() {
         super();
     }
 
-    public SplashSpell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, int range, int radius, Effect ... effects) {
-        super(name, cost, requiresCreatureTarget, ignoreObstacle, range, radius, effects);
+    public SplashSpell(String name, boolean requiresCreatureTarget, boolean ignoreObstacle, boolean ignoreCaster, int range, int radius, int cast_energy, boolean notify, Effect ... effects) {
+        super(name, requiresCreatureTarget, ignoreObstacle, ignoreCaster, range, radius, cast_energy, notify, effects);
     }
 
     public SplashSpell(AOESpell spell) {
@@ -32,17 +32,20 @@ public class SplashSpell extends AOESpell{
 
     @Override
     public void cast(int x, int y) {
-        if(Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
-            caster.doAction("attempt to invoke %s, but the target is too far away.", name);
+        if(!ignoreRange && Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
+            if(notify) caster.doAction("attempt to invoke %s, but the target is too far away.", name);
             return;
         }
 
+        /*
         if(caster.getMana() - cost < 0) {
             caster.doAction("invoke %s, but it does nothing.", name);
             return;
         }
 
-        caster.doAction("cast %s!", name);
+         */
+
+        if(notify) caster.doAction("cast %s!", name);
 
         HashSet<Point> visited = new HashSet<>();
         ArrayDeque<Point> hit = new ArrayDeque<>();
@@ -92,7 +95,7 @@ public class SplashSpell extends AOESpell{
 
                 if(requiresCreatureTarget) {
                     Creature target = caster.getLevel().getCreatureAt(p.getX(), p.getY());
-                    if (target != null) {
+                    if (target != null && (!ignoreCaster || !target.equals(caster))) {
                         c++;
                         for(Effect effect : effects)
                             target.applyEffect(effect.makeCopy(effect));
@@ -121,9 +124,18 @@ public class SplashSpell extends AOESpell{
 
         } finally {
             if(c == 0 && requiresCreatureTarget)
-                caster.notify("...but nothing happens!");
-            caster.modifyMana(-cost);
+                if(notify) caster.notify("...but nothing happens!");
+            //caster.modifyMana(-cost);
         }
 
+    }
+
+    /**
+     * @param s The spell to copy
+     * @return A deep copy of the given spell
+     */
+    @Override
+    public SplashSpell copyOf(Spell s) {
+        return (SplashSpell)super.copyOf(s);
     }
 }

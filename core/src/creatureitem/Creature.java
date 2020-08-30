@@ -7,9 +7,10 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import creatureitem.ai.CreatureAi;
 import creatureitem.effect.Effect;
 import creatureitem.item.*;
-import creatureitem.spell.Spell;
+import creatureitem.spell.*;
 import utility.Utility;
 import world.Level;
+import world.Tile;
 import world.geometry.AStarPoint;
 import world.geometry.Cursor;
 import world.geometry.Line;
@@ -17,7 +18,7 @@ import world.geometry.Point;
 
 import java.util.*;
 
-public class Creature {
+public class Creature extends Entity {
 
     //<editor-fold desc="Instance Variables">
 
@@ -45,18 +46,6 @@ public class Creature {
      * Max Satiation
      */
     protected int hungerMax;
-
-
-    /**
-     * Measure of the creature's magic power
-     */
-    protected int mana;
-
-    /**
-     * Max mana
-     */
-    protected int manaMax;
-
 
     /**
      * The amount of experience this creature has
@@ -124,16 +113,6 @@ public class Creature {
      * Movement/Location
      */
 
-    /**
-     * The creature's x coordinate
-     */
-    protected int x;
-
-    /**
-     * The creature's y coordinate
-     */
-    protected int y;
-
     protected double rarity;
 
     public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
@@ -143,6 +122,7 @@ public class Creature {
      */
     protected Level level;
 
+    protected boolean[][] vision;
 
     /*
      * Other
@@ -166,7 +146,7 @@ public class Creature {
     /**
      * The behaviors the creature follows
      */
-    protected creatureitem.ai.CreatureAi ai;
+    protected CreatureAi ai;
 
     /**
      * Creatures are hostile to creatures on different teams
@@ -177,11 +157,6 @@ public class Creature {
      * Actor associated with this creature
      */
     protected Actor actor;
-
-    /**
-     * The system time last time this creature moved
-     */
-    protected long lastMovedTime;
 
     /**
      * Direction the creature is moving, based off of the numpad. If 0, not moving
@@ -239,23 +214,22 @@ public class Creature {
      */
     protected ArrayList<Effect> activeEffects;
 
-    protected ArrayList<String> properties;
-
     /**
      * All creatures/tiles the creature can see due to magic
      */
     protected ArrayList<Creature> extra_sight;
 
-    protected ArrayList<Point> extra_vision;
+    protected boolean[][] extra_vision;
+
+    protected boolean requestVisionUpdate;
 
     //</editor-fold>
 
     public Creature(int hpMax, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
-                    Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, String ... properties) {
-
+                    Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, float energy_factor, String ... properties) {
+        super(-1, -1, true, properties);
         this.hp = this.hpMax = hpMax + getAttributeBonus(constitution);
         this.hunger = this.hungerMax = hungerMax;
-        this.manaMax = this.mana = manaMax;
         this.exp = exp;
         this.expLevel = 1;
 
@@ -286,17 +260,27 @@ public class Creature {
         this.unarmedAttack = unarmedAttack;
         this.natArmor = new Armor(natArmor);
 
+        this.energy_factor = energy_factor;
+
         this.spells = new ArrayList<>();
         this.activeEffects = new ArrayList<>();
-        this.properties = new ArrayList<>(Arrays.asList(properties));
-        extra_sight = new ArrayList<>();
-        extra_vision = new ArrayList<>();
+        this.extra_sight = new ArrayList<>();
+
+        this.vision = new boolean[level == null? 0 : level.getWidth()][level == null? 0 : level.getHeight()];
+
+        for (boolean[] sight : vision)
+            Arrays.fill(sight, false);
+
+        clear_Extra_vision();
+
+        requestVisionUpdate = true;
     }
 
     public Creature(Creature creature) {
+        super(creature);
+
         this.hp = this.hpMax = creature.hpMax;
         this.hunger = this.hungerMax = creature.hungerMax;
-        this.mana = this.manaMax = creature.manaMax;
 
         this.exp = creature.exp;
         this.expLevel = 1;
@@ -312,9 +296,6 @@ public class Creature {
         this.damageBonus = creature.damageBonus;
         this.magicBonus = creature.magicBonus;
         this.defenseBonus = creature.defenseBonus;
-
-        this.x = creature.x;
-        this.y = creature.y;
 
         this.level = creature.level;
         this.rarity = creature.rarity;
@@ -332,7 +313,6 @@ public class Creature {
         this.actor = creature.actor == null? null : ((CreatureActor)creature.actor).copy();
         if(this.actor != null) ((CreatureActor)this.actor).setCreature(this);
 
-        this.lastMovedTime = 0L;
         this.moveDirection = 0;
 
         this.unarmedAttack = creature.unarmedAttack;
@@ -347,48 +327,143 @@ public class Creature {
 
         this.spells = new ArrayList<>(creature.spells);
         this.activeEffects = new ArrayList<>(creature.activeEffects);
-        this.properties = new ArrayList<>(creature.properties);
 
         this.extra_sight = new ArrayList<>();
-        this.extra_vision = new ArrayList<>();
+
+        this.vision = new boolean[creature.vision.length][creature.vision.length == 0? 0 : creature.vision[0].length];
+
+        for(int i = 0; i < vision.length; i++)
+            for(int j = 0; j < vision[0].length; j++)
+                this.vision[i][j] = creature.vision[i][j];
+
+        if(creature.extra_vision == null) {
+            clear_Extra_vision();
+        }
+        else {
+            this.extra_vision = new boolean[creature.extra_vision.length][creature.extra_vision.length == 0? 0 : creature.extra_vision[0].length];
+
+            for(int i = 0; i < extra_vision.length; i++)
+                for(int j = 0; j < extra_vision[0].length; j++)
+                    this.extra_vision[i][j] = creature.extra_vision[i][j];
+        }
+
+        requestVisionUpdate = creature.requestVisionUpdate;
     }
 
     //<editor-fold desc="Getters and Setters">
-    public void addProperty(String s, String ... properties) {
-        this.properties.add(s);
-        this.properties.addAll(Arrays.asList(properties));
+
+    public boolean isRequestVisionUpdate() {
+        return requestVisionUpdate;
     }
 
-    public boolean hasProperty(String s) {
-        return properties.contains(s);
+    public void setRequestVisionUpdate(boolean requestVisionUpdate) {
+        this.requestVisionUpdate = requestVisionUpdate;
     }
 
-    public ArrayList<String> getProperties() {
-        return properties;
+    public boolean[][] getVision() {
+        return vision;
     }
 
-    public void setProperties(ArrayList<String> properties) {
-        this.properties = properties;
+    public void setVision(boolean[][] vision) {
+        this.vision = vision;
+    }
+
+    public ArrayList<Item> equipped() {
+        ArrayList<Item> equipped = new ArrayList<>();
+        if(quiver != null) equipped.add(quiver);
+        if(mainHand != null) equipped.add(mainHand);
+        if(rangedWeapon != null) equipped.add(rangedWeapon);
+        if(body != null) equipped.add(body);
+        return equipped;
+    }
+
+    /**
+     * @param exp Modifier to experience
+     */
+    public void modifyExp(int exp) {
+        setExp(this.exp + exp);
+    }
+
+    /**
+     * @param exp Modifer to experience
+     * @param notify Whether or not to notify the creature that their experience changed
+     */
+    public void modifyExp(int exp, boolean notify) {
+        setExp(this.exp + exp, notify);
+    }
+
+    /**
+     * Change the creature's current HP
+     * @param mod Amount to change HP by
+     * @return true if the creature died
+     */
+    public boolean modifyHP(int mod) {
+        if(hp + mod <= 0) {
+            die();
+            return true;
+        }
+        else {
+            hp = Math.min(hpMax, hp + mod);
+            return false;
+        }
+    }
+
+    /**
+     * Change the creature's current HP
+     * @param mod Amount to change HP by
+     * @param notifyOnDie Whether to notify if the creature died
+     * @return true if the creature died
+     */
+    public boolean modifyHP(int mod, boolean notifyOnDie) {
+        if(hp + mod <= 0) {
+            if(notifyOnDie) doAction("collapse to the floor.");
+            die();
+            return true;
+        }
+        else {
+            hp = Math.min(hpMax, hp + mod);
+            return false;
+        }
+    }
+
+    /**
+     * Change the creature's max HP
+     * @param mod The amount to change maxHP by
+     * @return true if the creature died
+     */
+    public boolean modifyMaxHp(int mod) {
+        if(hpMax + mod <= 0) {
+            die();
+            return true;
+        }
+        else {
+            hpMax += mod;
+            return false;
+        }
+    }
+
+    public void modifyHunger(int mod) {
+        String hungerOriginal = hungerToString();
+        int hungerTotal = hunger + mod;
+        hunger = Math.max(Math.min(hungerTotal, hungerMax), 0);
+        if(!hungerToString().equals(hungerOriginal) && (hungerToString().equals("Starving") || hungerToString().equals("Hungry")))
+            doAction("feel %s.", hungerToString());
+
+        if(hungerTotal > hungerMax) {
+            hungerMax += hungerTotal/2;
+            doAction("look a little heavier!");
+        }
+
+        if(hunger < 1 && getLevel().getTurnNumber() % 5 == 0)
+            modifyHP(-1);
+    }
+
+    public void modifyMaxHunger(int mod) {
+        hungerMax = Math.max(hungerMax, 0);
     }
 
     public Level getLevel() {
         return level;
-    }
-
-    public int getX() {
-        return x;
-    }
-
-    public void setX(int x) {
-        this.x = x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void setY(int y) {
-        this.y = y;
     }
 
     public CreatureAi getAi() {
@@ -486,14 +561,6 @@ public class Creature {
         this.y = y;
     }
 
-    public long getLastMovedTime() {
-        return lastMovedTime;
-    }
-
-    public void setLastMovedTime(long lastMovedTime) {
-        this.lastMovedTime = lastMovedTime;
-    }
-
     public int getMoveDirection() {
         return moveDirection;
     }
@@ -517,10 +584,6 @@ public class Creature {
 
     public void setLevel(Level level) {
         this.level = level;
-    }
-
-    public Point getLocation() {
-        return new Point(x, y);
     }
 
     public int getHunger() {
@@ -715,22 +778,6 @@ public class Creature {
         this.defenseBonus = defenseBonus;
     }
 
-    public int getMana() {
-        return mana;
-    }
-
-    public void setMana(int mana) {
-        this.mana = mana;
-    }
-
-    public int getManaMax() {
-        return manaMax;
-    }
-
-    public void setManaMax(int manaMax) {
-        this.manaMax = manaMax;
-    }
-
     public int getIntelligence() {
         return intelligence;
     }
@@ -784,147 +831,95 @@ public class Creature {
         extra_sight.remove(c);
     }
 
-    public ArrayList<Point> getExtra_vision() {
+    public boolean[][] getExtra_vision() {
         return extra_vision;
     }
 
-    public void setExtra_vision(ArrayList<Point> extra_vision) {
+    public void setExtra_vision(boolean[][] extra_vision) {
         this.extra_vision = extra_vision;
     }
 
-    public void add_Extra_vision(Point p) {
-        extra_vision.add(p);
-    }
-
-    public void remove_Extra_vision(Point p) {
-        extra_vision.remove(p);
-    }
-
     public void clear_Extra_vision() {
-        extra_vision.clear();
+        if(level == null)
+            return;
+
+        this.extra_vision = new boolean[level.getWidth()][level.getHeight()];
+
+        for (boolean[] sight : extra_vision)
+            Arrays.fill(sight, false);
     }
 
-    public void update_Extra_vision() {
+    public boolean update_Extra_vision() {
+
+        if(extra_vision == null) {
+            clear_Extra_vision();
+
+            if(extra_vision == null) {
+                return false;
+            }
+        }
+
+        if(extra_vision.length == 0)
+            return false;
+
+        if(extra_sight == null)
+            return false;
+
+        boolean changed = false;
+        boolean[][] copy = new boolean[extra_vision.length][extra_vision[0].length];
+
+        for(int i = 0; i < copy.length; i++) {
+            System.arraycopy(extra_vision[i], 0, copy[i], 0, copy[0].length);
+        }
+
         clear_Extra_vision();
 
-        for(Creature c : extra_sight) {
-            if(c.equals(this)) continue;
-
-            for(int i = -c.getVisionRadius(); i <= c.getVisionRadius(); i++) {
-                for(int j = -c.getVisionRadius(); j <= c.getVisionRadius(); j++) {
-                    if(c.canSee(c.getX() + i, c.getY() + j)) extra_vision.add(new Point(c.getX() + i, c.getY() + j));
+        ArrayList<Creature> toRemove = new ArrayList<>();
+        for(int i = 0; i < extra_vision.length; i++) {
+            for(int j = 0; j < extra_vision[0].length; j++) {
+                for(Creature c : extra_sight) {
+                    if(c.equals(this)) continue;
+                    if(c.getLevel() == null || c.getLevel().getCreatureAt(c.getX(), c.getY()) == null ||
+                            !c.getLevel().getCreatureAt(c.getX(), c.getY()).equals(c)) {
+                        toRemove.add(c);
+                        continue;
+                    }
+                    extra_vision[i][j] |= c.canSee(i, j);
+                    if(extra_vision[i][j] != copy[i][j])
+                        changed = true;
+                    if(extra_vision[i][j])
+                        break;
                 }
             }
-
-            extra_vision.addAll(c.getExtra_vision());
         }
+
+        extra_sight.removeAll(toRemove);
+
+        if(requestVisionUpdate) {
+            updateVision();
+            changed = false;
+        }
+
+        return changed;
 
     }
 
     public boolean get_Extra_vision(int x, int y) {
         if(extra_vision == null) return false;
-        return extra_vision.contains(new Point(x, y));
+
+        try {
+            return extra_vision[x][y];
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
     }
 
     public boolean get_Extra_vision(Point p) {
-        if(extra_vision == null || p == null) return false;
-        return extra_vision.contains(p);
+        return get_Extra_vision(p.getX(), p.getY());
     }
 
     //</editor-fold>
-
-    /**
-     * @param exp Modifier to experience
-     */
-    public void modifyExp(int exp) {
-        setExp(this.exp + exp);
-    }
-
-    /**
-     * @param exp Modifer to experience
-     * @param notify Whether or not to notify the creature that their experience changed
-     */
-    public void modifyExp(int exp, boolean notify) {
-        setExp(this.exp + exp, notify);
-    }
-
-    /**
-     * Change the creature's current HP
-     * @param mod Amount to change HP by
-     * @return true if the creature died
-     */
-    public boolean modifyHP(int mod) {
-        if(hp + mod <= 0) {
-            die();
-            return true;
-        }
-        else {
-            hp = Math.min(hpMax, hp + mod);
-            return false;
-        }
-    }
-
-    /**
-     * Change the creature's current HP
-     * @param mod Amount to change HP by
-     * @param notifyOnDie Whether to notify if the creature died
-     * @return true if the creature died
-     */
-    public boolean modifyHP(int mod, boolean notifyOnDie) {
-        if(hp + mod <= 0) {
-            if(notifyOnDie) doAction("collapse to the floor.");
-            die();
-            return true;
-        }
-        else {
-            hp = Math.min(hpMax, hp + mod);
-            return false;
-        }
-    }
-
-    /**
-     * Change the creature's max HP
-     * @param mod The amount to change maxHP by
-     * @return true if the creature died
-     */
-    public boolean modifyMaxHp(int mod) {
-        if(hpMax + mod <= 0) {
-            die();
-            return true;
-        }
-        else {
-            hpMax += mod;
-            return false;
-        }
-    }
-
-    public void modifyHunger(int mod) {
-        String hungerOriginal = hungerToString();
-        int hungerTotal = hunger + mod;
-        hunger = Math.max(Math.min(hungerTotal, hungerMax), 0);
-        if(!hungerToString().equals(hungerOriginal) && (hungerToString().equals("Starving") || hungerToString().equals("Hungry")))
-            doAction("feel %s.", hungerToString());
-
-        if(hungerTotal > hungerMax) {
-            hungerMax += hungerTotal/2;
-            doAction("look a little heavier!");
-        }
-
-        if(hunger < 1 && getLevel().getTurn() % 5 == 0)
-            modifyHP(-1);
-    }
-
-    public void modifyMaxHunger(int mod) {
-        hungerMax = Math.max(hungerMax, 0);
-    }
-
-    public void modifyMana(int mod) {
-        mana = Math.max(0, Math.min(mana + mod, manaMax));
-    }
-
-    public void modifyManaMax(int mod) {
-        manaMax = Math.max(0, manaMax + mod);
-    }
 
     /**
      * Move the creature through a wall by (wx, wy)
@@ -935,6 +930,7 @@ public class Creature {
         modifyHunger(-10);
         doAction("dig out %s.", level.getTileAt(wx, wy).getName());
         level.dig(wx, wy);
+        spendEnergy(200);
     }
 
     public boolean toHit(Item w, Creature c) {
@@ -951,30 +947,120 @@ public class Creature {
      * @param foe The creature to attack
      */
     public void attack(Creature foe) {
+
         int damage;
-        boolean miss = toHit(foe.getMainHand(), foe);
+        boolean miss = !toHit(getMainHand(), foe);
 
         if(miss) {
             doAction("attack %s.", foe.name);
             foe.doAction("dodge the attack!");
-            return;
         }
 
-        if(mainHand == null) damage = unarmedAttack.getWeaponDamage().getDamage(getLevel().getRandom()) +
-                getAttributeBonus(strength) + damageBonus;
-        else damage = mainHand.getWeaponDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength) + damageBonus;
+        else {
+            if(mainHand == null) damage = unarmedAttack.getWeaponDamage().getDamage(getLevel().getRandom()) +
+                    getAttributeBonus(strength) + damageBonus;
+            else damage = mainHand.getWeaponDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength) + damageBonus;
 
-        damage = Math.max(0, damage - foe.getArmor());
-        damage *= -1;
+            damage = Math.max(0, damage - foe.getArmor());
+            damage *= -1;
 
-        boolean died = foe.modifyHP(damage);
-        doAction("attack %s for %d damage.", foe.name, Math.abs(damage));
+            boolean died = foe.modifyHP(damage);
+            doAction("attack %s for %d damage.", foe.name, Math.abs(damage));
 
-        if(died) {
-            doAction("kill %s.", foe.name);
-            modifyExp(foe.getExp());
+            if(getMainHand() != null && getMainHand().getOnHit() != null && level.getRandom().nextDouble() < getMainHand().getImpactSpellProbability()) {
+                getMainHand().getOnHit().setCaster(this);
+                cast(getMainHand().getOnHit(), foe.getLocation());
+            }
+
+            if(died) {
+                doAction("kill %s.", foe.name);
+                modifyExp(foe.getExp());
+            }
         }
 
+        spendEnergy(100);
+
+    }
+
+    public void attack(Point p) {
+
+        int px = p.getX(), py = p.getY();
+        Creature foe = null;
+
+        for(int i = 1; i <= (mainHand == null? 1 : mainHand.getReach()); i++) {
+            if(this.x < px) {
+                if(this.y < py) {
+                    foe = level.getCreatureAt(x + i, y + i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else if(this.y > py) {
+                    foe = level.getCreatureAt(x + i, y - i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else {
+                    foe = level.getCreatureAt(x + i, y);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+            }
+            else if(this.x > px) {
+                if(this.y < py) {
+                    foe = level.getCreatureAt(x - i, y + i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else if(this.y > py) {
+                    foe = level.getCreatureAt(x - i, y - i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else {
+                    foe = level.getCreatureAt(x - i, y);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+            }
+            else {
+                if(this.y < py) {
+                    foe = level.getCreatureAt(x, y + i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else if(this.y > py) {
+                    foe = level.getCreatureAt(x, y - i);
+
+                    if(foe != null) {
+                        break;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        if(foe != null) {
+            attack(foe);
+        }
+        else {
+            doAction("swing at the air!");
+        }
     }
 
     /**
@@ -984,24 +1070,20 @@ public class Creature {
      */
     public void doAction(String message, Object ... params) {
         if(level == null) return;
-        int r = 9;
 
-        for(int ox = -r; ox < r + 1; ox++) {
-            for(int oy = -r; oy < r + 1; oy++) {
-                //if(Math.pow(ox, 2) + Math.pow(oy, 2) > Math.pow(r, 2))
-                if(Math.abs(ox) + Math.abs(oy) > r)
-                    continue;
+        for(Creature other : level.getCreatures()) {
 
-                Creature other = level.getCreatureAt(x + ox, y + oy);
+            if(other == null)
+                continue;
 
-                if(other == null)
-                    continue;
-                else if(other == this)
-                    other.notify(String.format(Locale.getDefault(), "You %s", message), params);
-                else if(other.canSee(x, y))
-                    other.notify(String.format(Locale.getDefault(), "%s %s", name, Utility.makeSecondPerson(message)), params);
+            if(other.equals(this)) {
+                notify(String.format(Locale.getDefault(), "You %s", message), params);
+            }
+            else if(other.canSee(getLocation())) {
+                other.notify(String.format(Locale.getDefault(), "%s %s", name, Utility.makeSecondPerson(message)), params);
             }
         }
+
     }
 
     /**
@@ -1011,25 +1093,107 @@ public class Creature {
      * @param my Y distance
      */
     public void moveBy(int mx, int my) {
-        if(x + mx < 0 || x + mx >= level.getWidth() || y + my < 0 || y + my >= level.getHeight()) return;
-
-        Creature foe = level.getCreatureAt(x + mx, y + my);
-        if(foe == null)
-            ai.onEnter(x + mx, y + my, level.getTileAt(x + mx, y + my));
-        else if(foe.team != team)
-            attack(foe);
-        lastMovedTime = System.currentTimeMillis();
+        moveTo(x + mx, y + my);
     }
 
     public void moveTo(Point p) {
-        if(p.getX() < 0 || p.getX() >= level.getWidth() || p.getY() < 0 || p.getY() >= level.getHeight()) return;
+        moveTo(p.getX(), p.getY());
+    }
 
-        Creature foe = level.getCreatureAt(p.getX(), p.getY());
-        if(foe == null)
-            ai.onEnter(p.getX(), p.getY(), level.getTileAt(p.getX(), p.getY()));
-        else if(foe.team != team)
+    public void moveTo(int x, int y) {
+        if(x < 0 || x >= level.getWidth() || y < 0 || y >= level.getHeight()) return;
+
+        Creature foe = null;
+        boolean ignore = false;
+
+        for(int i = 0; i < (mainHand == null? 1 : mainHand.getReach()); i++) {
+            if(this.x < x) {
+                if(this.y < y) {
+                    foe = level.getCreatureAt(x + i, y + i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else if(this.y > y) {
+                    foe = level.getCreatureAt(x + i, y - i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else {
+                    foe = level.getCreatureAt(x + i, y);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+            }
+            else if(this.x > x) {
+                if(this.y < y) {
+                    foe = level.getCreatureAt(x - i, y + i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else if(this.y > y) {
+                    foe = level.getCreatureAt(x - i, y - i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else {
+                    foe = level.getCreatureAt(x - i, y);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+            }
+            else {
+                if(this.y < y) {
+                    foe = level.getCreatureAt(x, y + i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else if(this.y > y) {
+                    foe = level.getCreatureAt(x, y - i);
+
+                    if(foe != null) {
+                        if(foe.team == team && i >= 1) ignore = true;
+                        break;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        if(foe == null || ignore) {
+            ai.onEnter(x, y, level.getTileAt(x, y));
+            spendEnergy(100);
+            requestVisionUpdate = true;
+        }
+        else if(foe.team != team) {
             attack(foe);
-        lastMovedTime = System.currentTimeMillis();
+        }
+        else {
+            spendEnergy(100);
+        }
+
     }
 
     public void moveTowards(Point p) {
@@ -1041,12 +1205,12 @@ public class Creature {
 
     public void moveTowardsAStar(Point p) {
         try {
-            Stack<AStarPoint> path = Utility.aStar(level.getCosts(), Point.DISTANCE_CHEBYCHEV, getLocation(), p);
+            Stack<AStarPoint> path = Utility.aStarWithVision(level.getCosts(), this, Point.DISTANCE_CHEBYCHEV, getLocation(), p);
             while(path.peek().getX() == x && path.peek().getY() == y) path.pop();
             if(!path.isEmpty()) {
                 moveTowards(path.pop());
             }
-        } catch (EmptyStackException e) {
+        } catch (EmptyStackException ignored) {
 
         }
 
@@ -1068,17 +1232,37 @@ public class Creature {
      * @return true if the creature can see the tile at (x, y)
      */
     public boolean canSee(int x, int y) {
-        return ai.canSee(x, y);
+        try {
+            return vision[x][y];
+        } catch (IndexOutOfBoundsException e) {
+            return false;
+        }
     }
 
     public boolean canSee(Point p) {
-        return ai.canSee(p.getX(), p.getY());
+        try {
+            return vision[p.getX()][p.getY()];
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public void updateVision() {
+        requestVisionUpdate = false;
+        level.getDungeon().getGame().getPlayScreen().getUi().setRequestMinimapUpdate(true);
+        vision = new boolean[level.getWidth()][level.getHeight()];
+        for(int i = 0; i < level.getWidth(); i++) {
+            for(int j = 0; j < level.getHeight(); j++) {
+                vision[i][j] = ai.canSee(i, j);
+            }
+        }
     }
 
     /**
-     * Creature should do its turn
+     * Update a creature's statuses
      */
     public void update() {
+
         ai.onUpdate();
 
         ArrayList<Effect> toRemove = new ArrayList<>();
@@ -1094,6 +1278,35 @@ public class Creature {
         }
 
         activeEffects.removeAll(toRemove);
+
+    }
+
+    @Override
+    public void act(Level l) {
+
+        boolean changed = update_Extra_vision();
+        if(changed)
+            requestVisionUpdate = true;
+
+        ai.onAct();
+
+        /*
+         * If energy used is 0, the creature did nothing and is waiting
+         * until its next action.
+         */
+        if(energy_used <= 0) {
+            energy_used = Level.getEnergyPerTurn()/2;
+        }
+        process();
+    }
+
+    public void process() {
+        process(level);
+    }
+
+    @Override
+    public void process(Level l) {
+        l.advance(this);
     }
 
     /**
@@ -1107,127 +1320,73 @@ public class Creature {
      * Pick up an item off the ground and put it in your inventory
      */
     public void pickUp() {
-        if(level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty())
-            doAction("grab at the ground.");
-            else {
-                doAction("pick up %s.", level.getInventoryAt(x, y).top().toString());
-                if(level.getInventoryAt(x, y).top() instanceof Equipable) {
-                    if(level.getInventoryAt(x, y).top() instanceof Ammo) {
-                        Ammo a = new Ammo((Ammo)level.getInventoryAt(x, y).pop());
-                        a.setCount(level.getRandom().nextInt(11) + 1);
-                        inventory.add(a);
-                    }
-                    else if(level.getInventoryAt(x, y).top() instanceof Armor) {
-                        Armor a = new Armor((Armor)level.getInventoryAt(x, y).pop());
-                        inventory.add(a);
-                    }
-                    else if(level.getInventoryAt(x, y).top() instanceof Weapon) {
-                        if(level.getInventoryAt(x, y).top() instanceof RangedWeapon) {
-                            RangedWeapon a = new RangedWeapon((RangedWeapon)level.getInventoryAt(x, y).pop());
-                            inventory.add(a);
-                        }
-                        else {
-                            Weapon a = new Weapon((Weapon)level.getInventoryAt(x, y).pop());
-                            inventory.add(a);
-                        }
-                    }
-                    else {
-                        Equipable a = new Equipable(level.getInventoryAt(x, y).pop());
-                        inventory.add(a);
-                    }
-                }
-                else if(level.getInventoryAt(x, y).top() instanceof Potion) {
-                    Potion a = new Potion((Potion)level.getInventoryAt(x, y).pop());
-                    a.getEffect().setCaster(this);
-                    inventory.add(a);
-                }
-                else if(level.getInventoryAt(x, y).top() instanceof Food) {
-                    Food a = new Food(level.getInventoryAt(x, y).pop());
-                    inventory.add(a);
-                }
-                else {
-                    Item a = new Item(level.getInventoryAt(x, y).pop());
-                    inventory.add(a);
-                }
-
-            }
+        pickUp(true);
     }
 
     public void pickUp(boolean notify) {
         if(level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty())
-            if(notify) doAction("grab at the ground.");
-        else {
-            if(notify) doAction("pick up %s.", level.getInventoryAt(x, y).top().toString());
-            if(level.getInventoryAt(x, y).top() instanceof Equipable) {
-                if(level.getInventoryAt(x, y).top() instanceof Ammo) {
-                    Ammo a = new Ammo((Ammo)level.getInventoryAt(x, y).pop());
-                    a.setCount(level.getRandom().nextInt(11) + 1);
-                    inventory.add(a);
-                }
-                else if(level.getInventoryAt(x, y).top() instanceof Armor) {
-                    Armor a = new Armor((Armor)level.getInventoryAt(x, y).pop());
-                    inventory.add(a);
-                }
-                else if(level.getInventoryAt(x, y).top() instanceof Weapon) {
-                    if(level.getInventoryAt(x, y).top() instanceof RangedWeapon) {
-                        RangedWeapon a = new RangedWeapon((RangedWeapon)level.getInventoryAt(x, y).pop());
-                        inventory.add(a);
-                    }
-                    else {
-                        Weapon a = new Weapon((Weapon)level.getInventoryAt(x, y).pop());
-                        inventory.add(a);
-                    }
-                }
-                else {
-                    Equipable a = new Equipable(level.getInventoryAt(x, y).pop());
-                    inventory.add(a);
-                }
-            }
-            else if(level.getInventoryAt(x, y).top() instanceof Potion) {
-                Potion a = new Potion((Potion)level.getInventoryAt(x, y).pop());
-                a.getEffect().setCaster(this);
-                inventory.add(a);
-            }
-            else if(level.getInventoryAt(x, y).top() instanceof Food) {
-                Food a = new Food(level.getInventoryAt(x, y).pop());
-                inventory.add(a);
-            }
-            else {
-                Item a = new Item(level.getInventoryAt(x, y).pop());
-                inventory.add(a);
-            }
-
-        }
-
+            pickUp(null, notify, true);
+        else
+            pickUp(level.getInventoryAt(x, y).top(), notify, true);
     }
 
     /**
      * Pick up an item off the ground and put it in your inventory
      */
     public void pickUp(Item i) {
-        if(level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty() || level.getInventoryAt(x, y).contains(i) == -1)
-            doAction("grab at the ground.");
-        else {
-            doAction("pick up %s.", i);
-            if(i instanceof Potion)
-                ((Potion)i).getEffect().setCaster(this);
-            inventory.add(i);
-            level.getInventoryAt(x, y).remove(i);
-        }
-
+        pickUp(i, true, true);
     }
 
-    public void pickUp(Item i, boolean notify) {
-        if(level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty() || level.getInventoryAt(x, y).contains(i) == -1)
-            if(notify) doAction("grab at the ground.");
+    public void pickUp(Item i, boolean notify, boolean energy) {
+        if(i == null || level == null || level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty() || level.getInventoryAt(x, y).contains(i) == -1) {
+            if (notify) doAction("grab at the ground.");
+        }
         else {
-            if(notify) doAction("pick up %s.", i);
-            if(i instanceof Potion)
-                ((Potion)i).getEffect().setCaster(this);
-            inventory.add(i);
+            if(notify) doAction("pick up %s.", i.toString());
+
+            i.assignCaster(this);
+
+            if(i instanceof Equipable) {
+                if(i instanceof Ammo) {
+                    Ammo a = (Ammo)i;
+                    inventory.add(a);
+                }
+                else if(i instanceof Armor) {
+                    Armor a = (Armor)i;
+                    inventory.add(a);
+                }
+                else if(i instanceof Weapon) {
+                    if(i instanceof RangedWeapon) {
+                        RangedWeapon a = (RangedWeapon)i;
+                        inventory.add(a);
+                    }
+                    else {
+                        Weapon a = (Weapon)i;
+                        inventory.add(a);
+                    }
+                }
+                else {
+                    Equipable a = (Equipable)i;
+                    inventory.add(a);
+                }
+            }
+            else if(i instanceof Potion) {
+                Potion a = (Potion)i;
+                inventory.add(a);
+            }
+            else if(i instanceof Food) {
+                Food a = (Food)i;
+                inventory.add(a);
+            }
+            else {
+                Item a = i;
+                inventory.add(a);
+            }
+
             level.getInventoryAt(x, y).remove(i);
         }
 
+        if(energy) spendEnergy(50);
     }
 
     /**
@@ -1239,42 +1398,11 @@ public class Creature {
     }
 
     public void drop(Item item, boolean notify) {
-        drop(item, notify, true);
+        drop(item, notify, true, true);
     }
 
-    public void drop(Item item, boolean notify, boolean remove) {
-        if(remove) {
-            if(isEquipped(item)) {
-                boolean uneqipped = unequip(item, false);
-                if(!uneqipped) return;
-            }
-            inventory.remove(item);
-        }
-
-        if(item == null) return;
-
-        for(int i = 0; i <= 3; i++) {
-            for(int j = 0; j <= 3; j++) {
-                if(level.addAt(x + i, y + j, item)) {
-                    if(notify) doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x + i, y - j, item)) {
-                    if(notify) doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y + j, item)) {
-                    if(notify) doAction("drop %s.", item.toString());
-                    return;
-                }
-                else if(level.addAt(x - i, y - j, item)) {
-                    if(notify) doAction("drop %s.", item.toString());
-                    return;
-                }
-            }
-        }
-
-        if(notify) doAction("drop %s into the void.", item.toString());
+    public void drop(Item item, boolean notify, boolean remove, boolean energy) {
+        drop(item, x, y, notify, remove, energy);
     }
 
     public void drop(Item item, int x, int y) {
@@ -1282,10 +1410,17 @@ public class Creature {
     }
 
     public void drop(Item item, int x, int y, boolean notify) {
-        drop(item, x, y, notify, true);
+        drop(item, x, y, notify, true, true);
     }
 
-    public void drop(Item item, int x, int y, boolean notify, boolean remove) {
+    public void drop(Item item, int x, int y, boolean notify, boolean remove, boolean energy) {
+
+        if(energy) spendEnergy(50);
+
+        if(item == null) return;
+
+        item.assignCaster(null);
+
         if(remove) {
             if(isEquipped(item)) {
                 boolean uneqipped = unequip(item, false);
@@ -1315,12 +1450,13 @@ public class Creature {
             }
         }
 
-        notify("%s falls into the void.", !item.toString().equals("")? Character.toUpperCase(item.toString().charAt(0)) + item.toString().substring(1) : item.toString());
     }
 
     public void throwItem(Item item, Cursor cursor) {
         boolean depleted = inventory.removeOne(item);
         Item i;
+
+        spendEnergy(60);
 
         if(item instanceof Potion) i = new Potion((Potion)item);
         else if(item instanceof Equipable) {
@@ -1339,7 +1475,7 @@ public class Creature {
                 i = new Ammo((Ammo)item);
             }
             else {
-                i = new Equipable(item);
+                i = new Equipable((Equipable)item);
             }
         }
         else if(item instanceof Food) {
@@ -1360,13 +1496,15 @@ public class Creature {
 
             if(level.getCreatureAt(current.getX(), current.getY()) != null &&
                     level.getCreatureAt(current.getX(), current.getY()).getTeam() != team &&
-                    (i.hasProperty("throw") || i instanceof Potion)) {
+                    (i.hasProperty("throw"))) {
                 damage = true;
                 break;
             }
         }
 
         if(damage) {
+
+            /*
             if(i instanceof Potion) {
                 if(toHit(i, level.getCreatureAt(current.getX(), current.getY()))) {
                     doAction("throw %s at %s.", i.getName(), level.getCreatureAt(current.getX(), current.getY()).name);
@@ -1379,48 +1517,49 @@ public class Creature {
                 }
 
             }
-            else throwAttack(i, level.getCreatureAt(current.getX(), current.getY()));
+
+             */
+            throwAttack(i, level.getCreatureAt(current.getX(), current.getY()));
         }
         else {
             doAction("throw %s.", i.getName());
             if(i.hasProperty("shatter"))
                 notify("It shatters on impact!");
             else {
-                drop(i, current.getX(), current.getY(), false, false);
+                if(i.getOnThrow() == null)
+                    drop(i, current.getX(), current.getY(), false, false, false);
             }
         }
 
-        if(depleted)
-            unequip(item);
+        if(i.getOnThrow() != null) {
+            i.assignCaster(this);
+            cast(i.getOnThrow(), current);
+            i.assignCaster(null);
+        }
+
+        if(depleted) {
+            unequip(item, true, false);
+        }
 
     }
 
-    public boolean canShoot(Cursor cursor) {
+    public boolean canShoot(Point cursor) {
         if(quiver == null || rangedWeapon == null) return false;
 
         Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getRange() + 1);
 
-        //Point current = getLocation();
-        boolean damage = false;
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
             if(!level.isPassable(p.getX(), p.getY())) return false;
-            //current = p;
-
-            /*
-            if(level.getCreatureAt(current.getX(), current.getY()) != null) {
-                damage = true;
-                break;
-            }
-
-             */
         }
 
         return true;
     }
 
-    public void shootRangedWeapon(Cursor cursor) {
+    public void shootRangedWeapon(Point cursor) {
         if(!canShoot(cursor)) return;
+
+        spendEnergy(100);
 
         boolean depleted = inventory.removeOne(quiver);
         Ammo i = new Ammo(quiver);
@@ -1444,17 +1583,26 @@ public class Creature {
         boolean recover = false;
         if(damage) {
             rangedWeaponAttack(level.getCreatureAt(current.getX(), current.getY()));
-            if(getLevel().getRandom().nextDouble() < 0.4) recover = true;
+            if(i.getOnThrow() == null && getLevel().getRandom().nextDouble() < 0.4) recover = true;
         }
         else {
-            drop(i, current.getX(), current.getY(), false);
+            if(i.getOnThrow() == null)
+                drop(i, current.getX(), current.getY(), false, false, false);
             doAction("shoot %s.", i.getName());
         }
 
-        if(depleted)
-            unequip(quiver, false);
-        if(recover)
-            drop(i, current.getX(), current.getY(), false, false);
+        if(i.getOnThrow() != null) {
+            i.assignCaster(this);
+            cast(i.getOnThrow(), current);
+            i.assignCaster(null);
+        }
+
+        if(depleted) {
+            unequip(quiver, false, false);
+        }
+        if(recover) {
+            drop(i, current.getX(), current.getY(), false, false, false);
+        }
 
     }
 
@@ -1486,7 +1634,7 @@ public class Creature {
 
     public void rangedWeaponAttack(Creature foe) {
 
-        boolean miss = toHit(foe.getRangedWeapon(), foe);
+        boolean miss = toHit(getRangedWeapon(), foe);
 
         if(miss) {
             doAction("shoot %s at %s.", quiver.getName(), foe.name);
@@ -1525,6 +1673,11 @@ public class Creature {
 
     public void die() {
         ai.onDie();
+
+
+        for(Effect e : activeEffects) {
+            e.done(this);
+        }
     }
 
     public void leaveCorpse() {
@@ -1545,29 +1698,48 @@ public class Creature {
     }
 
     public void eat(Food f) {
-        inventory.removeOne(f);
-        hunger = Math.min(hungerMax, hunger + f.getFoodValue());
-        doAction("eat %s.", f.getName());
+        eat(f, true);
     }
 
     public void eat(Food f, boolean notify) {
-        inventory.removeOne(f);
-        hunger = Math.min(hungerMax, hunger + f.getFoodValue());
+        eat(f, notify, true);
+    }
+
+    public void eat(Food f, boolean notify, boolean energy) {
+
         if(notify) doAction("eat %s.", f.getName());
+
+        if(f.getOnEat() != null) {
+            f.assignCaster(this);
+            cast(f.getOnEat(), getLocation());
+        }
+
+        inventory.removeOne(f);
+
+        hunger = Math.min(hungerMax, hunger + f.getFoodValue());
+
+        if(energy) spendEnergy(100);
     }
 
     public void drink(Potion p) {
-        inventory.removeOne(p);
-        Potion pc = new Potion(p);
-        pc.getEffect().setRemainingDuration(pc.getEffect().getDuration());
-        applyEffect(pc.getEffect());
-        doAction("drink %s.", pc.getName());
+        drink(p, true);
     }
 
     public void drink(Potion p, boolean notify) {
-        inventory.removeOne(p);
-        applyEffect(p.getEffect());
+        drink(p, notify, true);
+    }
+
+    public void drink(Potion p, boolean notify, boolean energy) {
         if(notify) doAction("drink %s.", p.getName());
+
+        if(p.getOnDrink() != null) {
+            p.assignCaster(this);
+            cast(p.getOnDrink(), getLocation());
+        }
+
+        inventory.removeOne(p);
+
+        if(energy) spendEnergy(100);
     }
 
     public String hungerToString() {
@@ -1586,152 +1758,121 @@ public class Creature {
     }
 
     public boolean equip(Item i) {
-        if(!(i instanceof Equipable)) return false;
-
-        if(i instanceof Weapon && i.hasProperty("main hand")) {
-            unequip(mainHand);
-            mainHand = (Weapon) i;
-            ((Weapon)i).setEquipped(true);
-            return true;
-        }
-
-        else if(i instanceof RangedWeapon) {
-            unequip(rangedWeapon);
-            rangedWeapon = (RangedWeapon) i;
-            ((RangedWeapon)i).setEquipped(true);
-
-            if(quiver != null && !quiver.hasProperty(rangedWeapon.getAmmoType()))
-                unequip(quiver);
-
-            return true;
-        }
-
-        else if(i instanceof Ammo && (rangedWeapon == null || i.hasProperty(rangedWeapon.getAmmoType()))) {
-            unequip(quiver);
-            quiver = (Ammo) i;
-            ((Ammo)i).setEquipped(true);
-            return true;
-        }
-
-        else if(i instanceof Armor && i.hasProperty("body")) {
-            unequip(body);
-            body = (Armor)i;
-            ((Armor)i).setEquipped(true);
-            return true;
-        }
-
-        return false;
+        return equip(i, true);
     }
 
     public boolean equip(Item i, boolean notify) {
+        return equip(i, notify, true);
+    }
+
+    public boolean equip(Item i, boolean notify, boolean energy) {
+
+        if(inventory.contains(i) != -1) {
+            pickUp(i, notify, energy);
+        }
+
         if(!(i instanceof Equipable)) return false;
+
+        boolean equipped = false;
 
         if(i instanceof Weapon && i.hasProperty("main hand")) {
             unequip(mainHand);
             mainHand = (Weapon) i;
             ((Weapon)i).setEquipped(true);
             if(notify) doAction("equip %s.", i.toString());
-            return true;
+            if(energy) spendEnergy(100);
+            equipped = true;
         }
 
         else if(i instanceof RangedWeapon) {
             unequip(rangedWeapon);
             rangedWeapon = (RangedWeapon) i;
             ((RangedWeapon)i).setEquipped(true);
+            if(notify) doAction("equip %s.", i.toString());
 
             if(quiver != null && !quiver.hasProperty(rangedWeapon.getAmmoType()))
                 unequip(quiver);
 
-            if(notify) doAction("equip %s.", i.toString());
-
-            return true;
+            if(energy) spendEnergy(80);
+            equipped = true;
         }
 
         else if(i instanceof Ammo && (rangedWeapon == null || i.hasProperty(rangedWeapon.getAmmoType()))) {
             unequip(quiver);
             quiver = (Ammo) i;
             ((Ammo)i).setEquipped(true);
-
             if(notify) doAction("quiver %s.", i.toString());
 
-            return true;
+            if(energy) spendEnergy(60);
+            equipped = true;
         }
 
         else if(i instanceof Armor && i.hasProperty("body")) {
             unequip(body);
             body = (Armor)i;
             ((Armor)i).setEquipped(true);
-
             if(notify) doAction("equip %s.", i.toString());
 
-            return true;
+            if(energy) spendEnergy(150);
+            equipped = true;
         }
 
-        return false;
+        if(equipped) {
+            applyEffect(((Equipable) i).getOnEquip());
+        }
+
+        return equipped;
     }
 
     public boolean unequip(Item i) {
-        if(!(i instanceof Equipable) || (!isEquipped(i) && !((Equipable)i).isEquipped())) return true;
-
-        ((Equipable)i).setEquipped(false);
-
-        if(mainHand != null && mainHand.equals(i)) {
-            mainHand = null;
-            return true;
-        }
-
-        else if(rangedWeapon != null && rangedWeapon.equals(i)) {
-            rangedWeapon = null;
-            return true;
-        }
-
-        else if(quiver != null && quiver.equals(i)) {
-            quiver = null;
-            return true;
-        }
-
-        else if(body != null && body.equals(i)) {
-            body = null;
-            return true;
-        }
-
-
-        return false;
-
+        return unequip(i, true);
     }
 
     public boolean unequip(Item i, boolean notify) {
+        return unequip(i, notify, true);
+    }
+
+    public boolean unequip(Item i, boolean notify, boolean energy) {
         if(!(i instanceof Equipable) || (!isEquipped(i) && !((Equipable)i).isEquipped())) return true;
 
         ((Equipable)i).setEquipped(false);
 
+        removeEffect(((Equipable) i).getOnEquip());
+
         if(mainHand != null && mainHand.equals(i)) {
             mainHand = null;
             if(notify) doAction("unequip %s.", i.toString());
+
+            if(energy) spendEnergy(100);
             return true;
         }
 
         else if(rangedWeapon != null && rangedWeapon.equals(i)) {
             rangedWeapon = null;
             if(notify) doAction("unequip %s.", i.toString());
+
+            if(energy) spendEnergy(80);
             return true;
         }
 
         else if(quiver != null && quiver.equals(i)) {
             quiver = null;
             if(notify) doAction("unequip %s.", i.toString());
+
+            if(energy) spendEnergy(60);
             return true;
         }
 
         else if(body != null && body.equals(i)) {
             body = null;
             if(notify) doAction("unequip %s.", i.toString());
+
+            if(energy) spendEnergy(150);
             return true;
         }
 
 
         return false;
-
     }
 
     public boolean isEquipped(Item i) {
@@ -1749,9 +1890,13 @@ public class Creature {
     }
 
     public void applyEffect(Effect e) {
-        e.affect(this);
-        e.changeRemainingDurationBy(-1);
-        if(!hasEffect(e)) activeEffects.add(e);
+
+        if(e == null) return;
+
+        Effect e_copy = e.makeCopy(e);
+        e_copy.affect(this);
+        e_copy.changeRemainingDurationBy(-1);
+        if(!hasEffect(e_copy)) activeEffects.add(e_copy);
     }
 
     public void addSpell(Spell s) {
@@ -1759,17 +1904,20 @@ public class Creature {
         s.setCaster(this);
     }
 
-    public void cast(Spell s) {
-
-    }
-
-    public ArrayList<Item> equipped() {
-        ArrayList<Item> equipped = new ArrayList<>();
-        if(quiver != null) equipped.add(quiver);
-        if(mainHand != null) equipped.add(mainHand);
-        if(rangedWeapon != null) equipped.add(rangedWeapon);
-        if(body != null) equipped.add(body);
-        return equipped;
+    public void cast(Spell s, Point p) {
+        //spendEnergy(s.getCast_energy());
+        if(s instanceof LineSpell) {
+            ((LineSpell)s).cast(getLocation(), p);
+        }
+        else if(s instanceof AOESpell) {
+            ((AOESpell)s).cast(p.getX(), p.getY());
+        }
+        else if(s instanceof MassSpell) {
+            ((MassSpell)s).cast();
+        }
+        else if(s instanceof PointSpell) {
+            ((PointSpell)s).cast(p);
+        }
     }
 
     @Override
@@ -1777,16 +1925,15 @@ public class Creature {
         if (this == o) return true;
         if (!(o instanceof Creature)) return false;
         Creature creature = (Creature) o;
-        return
-                x == creature.x &&
+        return x == creature.x &&
                 y == creature.y &&
                 glyph == creature.glyph &&
                 team == creature.team &&
-                name.equals(creature.name);
+                Objects.equals(name, creature.name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(x, y, glyph, team, name);
+        return Objects.hash(x, y, name, glyph, team);
     }
 }

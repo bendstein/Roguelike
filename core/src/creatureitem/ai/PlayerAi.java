@@ -3,9 +3,11 @@ package creatureitem.ai;
 import actors.creatures.CreatureActor;
 import actors.world.LevelActor;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import creatureitem.Creature;
 import creatureitem.Player;
 import game.Main;
+import utility.Utility;
 import world.Level;
 import world.geometry.Point;
 import world.geometry.floatPoint;
@@ -46,9 +48,13 @@ public class PlayerAi extends CreatureAi {
                 && !creature.getLevel().getThingAt(x, y).isOpen()) {
             creature.getLevel().getThingAt(x, y).interact(creature);
         }
+
+        /*
+         * If the creature is moving into an open tile, move
+         */
         else if(Creature.canEnter(x, y, creature.getLevel())) {
-            if(creature.getActor() != null)
-                ((CreatureActor)creature.getActor()).setCurrentLocation(new floatPoint(creature.getX() * Main.getTileWidth(), creature.getY() * Main.getTileHeight()));
+            //if(creature.getActor() != null)
+                //((CreatureActor)creature.getActor()).setCurrentLocation(new floatPoint(creature.getX() * Main.getTileWidth(), creature.getY() * Main.getTileHeight()));
 
             creature.setCoordinates(x, y);
             if(((Player)creature).getCurrentDestination() == creature.getLocation()) {
@@ -78,6 +84,208 @@ public class PlayerAi extends CreatureAi {
     public void onDie() {
         ((Player)creature).setDead(true);
         creature.getLevel().remove(creature);
+    }
+
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
+    @Override
+    public void onAct() {
+
+        boolean acted = false;
+
+        if(System.currentTimeMillis() - creature.getLastActTime() >= Level.getActRate()) {
+            if(!((Player)creature).getCursor().isActive()) {
+                acted = processMovement();
+            }
+            else {
+                processCursorMovement();
+            }
+        }
+
+        /*
+         * If the player hasn't yet acted automatically, process user input.
+         */
+        if(acted) {
+            creature.process();
+        }
+
+    }
+
+    public boolean processMovement() {
+
+        /*
+         * If cursor is active, don't move
+         */
+        if(((Player)creature).getCursor().isActive()) return false;
+
+        boolean acted = false;
+
+        /*
+         * If the creature does not have a destination, and is holding down a move button, move continuously
+         */
+        if(((Player)creature).getCurrentDestination() == null && ((Player) creature).getDestinationQueue().isEmpty() && creature.getMoveDirection() != 0) {
+            switch (creature.getMoveDirection()) {
+                case Input.Keys.NUMPAD_7: {
+                    creature.moveBy(-1, 1);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_8: {
+                    creature.moveBy(0, 1);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_9: {
+                    creature.moveBy(1, 1);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_4: {
+                    creature.moveBy(-1, 0);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_5: {
+                    creature.moveBy(0, 0);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_6: {
+                    creature.moveBy(1, 0);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_1: {
+                    creature.moveBy(-1, -1);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_2: {
+                    creature.moveBy(0, -1);
+                    acted = true;
+                    break;
+                }
+                case Input.Keys.NUMPAD_3: {
+                    creature.moveBy(1, -1);
+                    acted = true;
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        if(acted) return true;
+
+        /*
+         * If the player has no destination, set destination as next destination in the queue, if there is one
+         */
+        if(((Player) creature).getCurrentDestination() == null && !((Player) creature).getDestinationQueue().isEmpty())
+            ((Player) creature).setCurrentDestination(((Player) creature).dequeueDestination());
+
+        /*
+         * If the player has a destination, and hasn't yet acted, move towards it.
+         */
+        if(((Player) creature).getCurrentDestination() != null) {
+            if (!creature.getAi().moveToDestination(((Player) creature).getCurrentDestination())) {
+                ((Player) creature).setCurrentDestination(null);
+                ((Player) creature).getCursor().clearPath();
+                ((Player) creature).getCursor().setActive(false);
+                acted = true;
+            }
+
+            /*
+             * If the screen is displaying a cursor path, update it
+             */
+            if(((Player) creature).getCursor().isHasLine() && ((Player) creature).getCursor().hasPath()) {
+                ((Player) creature).getCursor().setPath(Utility.aStarPathToLine(Utility.aStarWithVision(creature.getLevel().getCosts(), creature,
+                        Point.DISTANCE_MANHATTAN, creature.getLocation(), ((Player) creature).getCursor())).getPoints());
+            }
+
+        }
+
+        if(acted) return true;
+
+        //Stop automatic movement if there is an adjacent enemy
+        boolean adjenemy = false;
+        for(int i = -1; i <= 1; i++) {
+            for(int j = -1; j <= 1; j++) {
+                if(i == 0 && j == 0) continue;
+                int cx = creature.getX() + i;
+                int cy = creature.getY() + j;
+
+                if(cx < 0 || cx >= creature.getLevel().getWidth() || cy < 0 || cy >= creature.getLevel().getHeight()) continue;
+
+                if(creature.getLevel().getCreatureAt(cx, cy) != null &&
+                        creature.getLevel().getCreatureAt(cx, cy).getTeam() != creature.getTeam()) {
+                    adjenemy = true;
+                    break;
+                }
+
+            }
+            if(adjenemy) break;
+        }
+
+        if(adjenemy) {
+            ((Player) creature).setCurrentDestination(null);
+            ((Player) creature).getDestinationQueue().clear();
+        }
+
+        return acted;
+    }
+
+    public boolean processCursorMovement() {
+
+        if(!((Player)creature).getCursor().isActive()) return false;
+
+        if(((Player)creature).getCurrentDestination() == null && ((Player) creature).getDestinationQueue().isEmpty()) {
+            switch (creature.getMoveDirection()) {
+                case 0 : {
+                    return false;
+                }
+                case Input.Keys.NUMPAD_7: {
+                    ((Player) creature).moveCursorBy(-1, 1);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_8: {
+                    ((Player) creature).moveCursorBy(0, 1);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_9: {
+                    ((Player) creature).moveCursorBy(1, 1);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_4: {
+                    ((Player) creature).moveCursorBy(-1, 0);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_5: {
+                    ((Player) creature).moveCursorBy(0, 0);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_6: {
+                    ((Player) creature).moveCursorBy(1, 0);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_1: {
+                    ((Player) creature).moveCursorBy(-1, -1);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_2: {
+                    ((Player) creature).moveCursorBy(0, -1);
+                    return true;
+                }
+                case Input.Keys.NUMPAD_3: {
+                    ((Player) creature).moveCursorBy(1, -1);
+                    return true;
+                }
+                default:
+                    break;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -147,7 +355,7 @@ public class PlayerAi extends CreatureAi {
      * @return A deep copy of this
      */
     @Override
-    public CreatureAi copy() {
+    public PlayerAi copy() {
         return new PlayerAi((Player)creature, messages);
     }
 }

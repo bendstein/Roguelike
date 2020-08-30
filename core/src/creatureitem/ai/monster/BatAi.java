@@ -19,41 +19,23 @@ public class BatAi extends CreatureAi {
     }
 
     @Override
-    public void onUpdate() {
-        super.onUpdate();
+    public void onAct() {
+
+        boolean act = false;
+
         //If there's an adjacent, enemy creature, attack it
-        boolean attack = false;
-        boolean pickup = false;
-        Creature foe = null;
-        for(int i = -1; i < 2; i++) {
-            for(int j = -1; j < 2; j++) {
-                foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                if(foe != null && foe.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
+        act = attackRandom();
 
-                    attack = true;
-                }
-                else if(i == 0 && j == 0 && creature.getLevel().getItemAt(creature.getX() + i, creature.getY() + j) != null && creature.getLevel().getItemAt(creature.getX() + i, creature.getY() + j).hasProperty("eat"))
-                    if((float)creature.getHunger()/creature.getHungerMax() < .5) {
-                        pickup = true;
-                    }
-
-            }
+        //If they didn't act, and there's an item on the ground, pick it up
+        if(!act) {
+            act = pickup();
         }
 
-        //If the creature didn't act, move around twice
-        if(!attack && !pickup) {
-            wander(2);
-        }
-        //Else, act then wander just once
-        else {
-            if(attack) {
-                if(foe != null) creature.attack(foe);
-            }
-            if(pickup)
-                creature.pickUp();
-
+        //If the creature didn't act, move around
+        if(!act) {
             wander(1);
         }
+
     }
 
     /**
@@ -75,7 +57,7 @@ public class BatAi extends CreatureAi {
     }
 
     @Override
-    public CreatureAi copy() {
+    public BatAi copy() {
         return new BatAi(creature);
     }
 }

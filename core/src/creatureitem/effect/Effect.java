@@ -18,12 +18,19 @@ public abstract class Effect {
     protected int remainingDuration;
 
     /**
+     * If true, duration never runs out
+     */
+    protected boolean infinite;
+
+    /**
      * Whatever object made this effect
      */
     protected Object caster;
 
     public Effect() {
-
+        duration = remainingDuration = 0;
+        infinite = false;
+        caster = null;
     }
 
     public Effect(Effect effect) {
@@ -64,6 +71,7 @@ public abstract class Effect {
      * @return true if the effect duration is over
      */
     public boolean isDone() {
+        if(infinite) return false;
         return remainingDuration < 1;
     }
 
@@ -83,11 +91,17 @@ public abstract class Effect {
     }
 
     public void setRemainingDuration(int remainingDuration) {
-        this.remainingDuration = remainingDuration;
+        if(infinite)
+            this.duration = Integer.MAX_VALUE;
+        else
+            this.remainingDuration = remainingDuration;
     }
 
     public void changeRemainingDurationBy(int mod) {
-        this.remainingDuration += mod;
+        if(infinite)
+            this.duration = Integer.MAX_VALUE;
+        else
+            this.remainingDuration += mod;
     }
 
     public Object getCaster() {
@@ -98,20 +112,34 @@ public abstract class Effect {
         this.caster = caster;
     }
 
+    public boolean isInfinite() {
+        return infinite;
+    }
+
+    public void setInfinite(boolean infinite) {
+        this.infinite = infinite;
+
+        if(!infinite) {
+            this.remainingDuration = duration;
+        }
+    }
+
     //</editor-fold>
 
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (!(o instanceof Effect)) return false;
         Effect effect = (Effect) o;
         return duration == effect.duration &&
-                remainingDuration == effect.remainingDuration;
+                remainingDuration == effect.remainingDuration &&
+                infinite == effect.infinite &&
+                Objects.equals(caster, effect.caster);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(duration, remainingDuration);
+        return Objects.hash(duration, remainingDuration, infinite, caster);
     }
 }

@@ -1,7 +1,8 @@
-package creatureitem.ai;
+package creatureitem.ai.types;
 
 import actors.creatures.CreatureActor;
 import creatureitem.Creature;
+import creatureitem.ai.CreatureAi;
 import creatureitem.item.Item;
 import game.Main;
 import screens.Dialogue;
@@ -65,13 +66,20 @@ public class NPCAi extends CreatureAi {
      */
     @Override
     public void onUpdate() {
-        if(creature.getLevel().getTurn() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
-        if(creature.getLevel().getTurn() % creature.getManaRegenRate() == creature.getManaRegenRate() -1) creature.modifyMana(1);
+        if(creature.getLevel().getTurnNumber() % creature.getRegenRate() == creature.getRegenRate() - 1) creature.modifyHP(1);
+    }
 
-        if(creature.getLevel().getItemAt(creature.getX(), creature.getY()) != null)
-            creature.pickUp();
-        else
+    @Override
+    public void onAct() {
+
+        boolean acted = false;
+
+        acted = pickup();
+
+        if(!acted) {
             wander();
+        }
+
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -88,7 +96,7 @@ public class NPCAi extends CreatureAi {
      * @return A deep copy of this
      */
     @Override
-    public CreatureAi copy() {
+    public NPCAi copy() {
         NPCAi ai = new NPCAi(creature);
         ai.setDialogueRoot(dialogueRoot);
         return ai;

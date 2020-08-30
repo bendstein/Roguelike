@@ -17,9 +17,9 @@ public class CreatureActor extends Actor {
 
     /**
      * For when the creature is moving. Current location is the location they are at,
-     * and destination is the point they're moving to.
+     * and destination is the point they're moving to. Original is the point they were at when they started
      */
-    protected floatPoint currentLocation, destination;
+    protected floatPoint currentLocation, destination, originalLocation;
 
     /**
      * Create the actor, assign its creature to it, and assign it to its creature
@@ -34,7 +34,7 @@ public class CreatureActor extends Actor {
 
             setBounds(creature.getX() * Main.getTileWidth(), creature.getY() * Main.getTileHeight(),
                     creature.getTexture().getWidth(), creature.getTexture().getHeight());
-            currentLocation = new floatPoint(getX(), getY());
+            currentLocation = originalLocation = new floatPoint(getX(), getY());
         }
     }
 
@@ -53,6 +53,16 @@ public class CreatureActor extends Actor {
     }
 
     //<editor-fold desc="Getters and Setters">
+
+
+    public floatPoint getOriginalLocation() {
+        return originalLocation;
+    }
+
+    public void setOriginalLocation(floatPoint originalLocation) {
+        this.originalLocation = originalLocation;
+    }
+
     public Creature getCreature() {
         return creature;
     }
@@ -76,6 +86,7 @@ public class CreatureActor extends Actor {
 
     public void setCurrentLocation(floatPoint currentLocation) {
         this.currentLocation = currentLocation;
+        setOriginalLocation(currentLocation);
     }
 
     public floatPoint getDestination() {

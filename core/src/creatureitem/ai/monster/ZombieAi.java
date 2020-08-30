@@ -2,15 +2,11 @@ package creatureitem.ai.monster;
 
 import creatureitem.Creature;
 import creatureitem.ai.CreatureAi;
+import creatureitem.ai.types.TrackerAi;
 import world.geometry.Point;
 
 
-public class ZombieAi extends CreatureAi {
-
-    /**
-     * Last known location of the player
-     */
-    private Point player_loc;
+public class ZombieAi extends TrackerAi {
 
     /**
      * Chance the zombie will do nothing int its turn
@@ -26,50 +22,52 @@ public class ZombieAi extends CreatureAi {
         super(creature);
     }
 
+    /**
+     * Perform any actions that the creature does when it's time for it to do an action.
+     */
     @Override
-    public void onUpdate() {
-        super.onUpdate();
+    public void onAct() {
         //Get the player location
         int player_x = creature.getLevel().getPlayer().getX();
         int player_y = creature.getLevel().getPlayer().getY();
 
-        //Chance to do nothing on a turn
+        //Chance to do nothing on a turn, and recover a little bit of energy.
         if(creature.getLevel().getRandom().nextDouble() < LAZY_CHANCE) {
             creature.doAction("stop moving for a moment.");
+            creature.spendEnergy(-20);
+            creature.process();
             return;
         }
 
-        //If the creature can't see the player, move to its last location. If it can't, wander around.
-        if(!creature.canSee(player_x, player_y)) {
-            if(player_loc != null)
-                if(!moveToDestination(player_loc)) wander();
-            else wander();
+        //Whether or not the creature has acted
+        boolean act = false;
+
+        //If they can see the player, mark its location
+        if(creature.canSee(player_x, player_y))
+            dest = new Point(player_x, player_y);
+
+        //Attack the player, if they are adjacent
+        act = attackTarget();
+
+        //If they didn't act, attack a random, enemy creature who is adjacent
+        if(!act)
+            act = attackRandom();
+
+        //If they didn't act, move toward the player's last known location
+        if(!act) {
+            if(dest != null)
+                act = moveToDestination(dest);
         }
-        else {
 
-            //Attack a random, enemy creature who is adjacent
-            player_loc = new Point(player_x, player_y);
-            boolean attack = false;
-            for(int i = -1; i < 2; i++) {
-                for(int j = -1; j < 2; j++) {
-                    Creature foe = creature.getLevel().getCreatureAt(creature.getX() + i, creature.getY() + j);
-                    if(foe != null && creature.canSee(creature.getX() + i, creature.getY() + j) && foe.getTeam() != creature.getTeam()) {
-                        creature.attack(foe);
-                        attack = true;
-                    }
-                }
-
-            }
-
-            //If no adj enemies, try to move towards the player, or move randomly if it can't.
-            if(!attack) {
-                if(!moveToDestination(player_loc)) wander();
-            }
+        //If they still haven't acted, wander.
+        if(!act) {
+            wander();
         }
+
     }
 
     @Override
-    public CreatureAi copy() {
+    public ZombieAi copy() {
         return new ZombieAi(creature);
     }
 }

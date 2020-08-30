@@ -1,6 +1,8 @@
 package creatureitem.item;
 
+import creatureitem.effect.Effect;
 import creatureitem.effect.damage.Damage;
+import creatureitem.spell.Spell;
 
 public class RangedWeapon extends Weapon {
 
@@ -28,6 +30,24 @@ public class RangedWeapon extends Weapon {
 
     public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage throwDamage, Damage weaponDamage, int toHitMod, int range, String ammoType, String... properties) {
         super(glyph, texturePath, name, worth, throwDamage, weaponDamage, toHitMod, properties);
+        this.range = range;
+        this.ammoType = ammoType;
+    }
+
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage, Spell[] spells, Effect onEquip, int toHitMod, int range, String ammoType) {
+        super(glyph, texturePath, name, worth, weaponDamage, spells, onEquip, null, 0d, 0, toHitMod);
+        this.range = range;
+        this.ammoType = ammoType;
+    }
+
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage weaponDamage,  Spell[] spells, Effect onEquip, int toHitMod, int range, String ammoType, String... properties) {
+        super(glyph, texturePath, name, worth, weaponDamage, spells, onEquip, null, 0d, toHitMod, 0, properties);
+        this.range = range;
+        this.ammoType = ammoType;
+    }
+
+    public RangedWeapon(char glyph, String texturePath, String name, int worth, Damage throwDamage, Damage weaponDamage,  Spell[] spells, Effect onEquip, int toHitMod, int range, String ammoType, String... properties) {
+        super(glyph, texturePath, name, worth, throwDamage, weaponDamage, spells, onEquip, null, 0d, toHitMod, 0, properties);
         this.range = range;
         this.ammoType = ammoType;
     }

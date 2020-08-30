@@ -158,17 +158,20 @@ public class Dungeon {
         Level next;
         Stairs arriving;
 
-        builder.clear();
-        next = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
-        next.setDungeon(this);
-        next.setFloor_number(previous.getFloor_number() + 1);
-        next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
+        do {
+            builder.clear();
+            next = builder.cellularAutomata().padWorldWith(2, 2, Tile.WALL).build();
+            next.setDungeon(this);
+            next.setFloor_number(previous.getFloor_number() + 1);
+            next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
 
-        if(st instanceof Entrance) {
-            root = next;
-            next.setFloor_number(0);
-        }
-        arriving = connect(st, next, st.isUp()).getDestination();
+            if(st instanceof Entrance) {
+                root = next;
+                next.setFloor_number(0);
+            }
+            arriving = connect(st, next, st.isUp()).getDestination();
+        } while (!next.getThingAt(arriving.getX(), arriving.getY()).equals(arriving));
+
         levelActor = new LevelActor(next);
         next.setActor(levelActor);
 
@@ -196,18 +199,21 @@ public class Dungeon {
         Level next;
         Stairs arriving;
 
-        builder.clear();
-        next = builder.generate().build();
+        do {
+            builder.clear();
+            next = builder.generate().build();
 
-        next.setDungeon(this);
-        next.setFloor_number(previous.getFloor_number() + 1);
-        next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
+            next.setDungeon(this);
+            next.setFloor_number(previous.getFloor_number() + 1);
+            next.setDangerLevel(dangerLevel + Math.max(0, previous.getFloor_number()/5));
 
-        if(st instanceof Entrance) {
-            root = next;
-            next.setFloor_number(0);
-        }
-        arriving = connect(st, next, st.isUp()).getDestination();
+            if(st instanceof Entrance) {
+                root = next;
+                next.setFloor_number(0);
+            }
+            arriving = connect(st, next, st.isUp()).getDestination();
+        } while(!next.getThingAt(arriving.getX(), arriving.getY()).equals(arriving));
+
         levelActor = new LevelActor(next);
         next.setActor(levelActor);
 

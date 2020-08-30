@@ -2,7 +2,9 @@ package world.thing;
 
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import creatureitem.Creature;
+import creatureitem.Entity;
 import game.Main;
+import world.Level;
 import world.Tile;
 import world.geometry.Point;
 
@@ -14,7 +16,7 @@ import java.util.Objects;
  * An object that appears like a tile, but may have other properties.
  * Like a door or a staircase.
  */
-public class Thing {
+public class Thing extends Entity {
 
     /**
      * Whether the object is an obstacle
@@ -28,32 +30,33 @@ public class Thing {
 
     protected ThingBehavior behavior;
 
-    protected ArrayList<String> properties;
-
-    protected int x, y;
-
     protected int orientation;
 
     public Thing(Tile tile, String ... properties) {
+        super(0, 0, false, properties);
         open = false;
         this.tile = tile;
-        this.properties = new ArrayList<>(Arrays.asList(properties));
-        x = y = 0;
         orientation = 0;
     }
 
     public Thing(Tile tile, boolean open, String ... properties) {
+        super(0, 0, false, properties);
         this.open = open;
         this.tile = tile;
-        this.properties = new ArrayList<>(Arrays.asList(properties));
-        x = y = 0;
+        orientation = 0;
+    }
+
+    public Thing(Tile tile, boolean open, boolean can_act, String ... properties) {
+        super(0, 0, can_act, properties);
+        this.open = open;
+        this.tile = tile;
         orientation = 0;
     }
 
     public Thing(Thing thing) {
+        super(thing);
         this.open = thing.open;
         this.tile = thing.tile;
-        this.properties = new ArrayList<>(thing.properties);
         orientation = thing.orientation;
     }
 
@@ -65,6 +68,16 @@ public class Thing {
         return behavior.onInteract(c);
     }
 
+    @Override
+    public void act(Level l) {
+        if(behavior != null) behavior.onAction(l);
+    }
+
+    @Override
+    public void process(Level l) {
+        l.advance(this);
+    }
+
     //<editor-fold desc="Getters and Setters">
 
     public int getOrientation() {
@@ -73,14 +86,6 @@ public class Thing {
 
     public void setOrientation(int orientation) {
         this.orientation = orientation;
-    }
-
-    public ArrayList<String> getProperties() {
-        return properties;
-    }
-
-    public void setProperties(ArrayList<String> properties) {
-        this.properties = properties;
     }
 
     public boolean isOpen() {
@@ -107,51 +112,21 @@ public class Thing {
         this.behavior = behavior;
     }
 
-    public int getX() {
-        return x;
-    }
-
-    public void setX(int x) {
-        this.x = x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void setY(int y) {
-        this.y = y;
-    }
-
-    public void setLocation(int x, int y) {
-        this.x = x;
-        this.y = y;
-    }
-
-    public void setLocation(Point p) {
-        this.x = p.getX();
-        this.y = p.getY();
-    }
-
-    public Point getLocation() {
-        return new Point(x, y);
-    }
     //</editor-fold>
-
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Thing)) return false;
         Thing thing = (Thing) o;
-        return open == thing.open &&
-                x == thing.x &&
+        return  x == thing.x &&
                 y == thing.y &&
+                open == thing.open &&
                 tile == thing.tile;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(open, tile, x, y);
+        return Objects.hash(x, y, open, tile);
     }
 }

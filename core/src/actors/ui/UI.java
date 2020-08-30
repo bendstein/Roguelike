@@ -11,12 +11,10 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import game.Main;
-import sun.nio.ch.Util;
 import utility.Utility;
 import world.Level;
 import world.Tile;
 import world.geometry.Point;
-import world.thing.Light;
 import world.thing.Stairs;
 
 import java.util.Locale;
@@ -199,9 +197,11 @@ public class UI {
     public void initMinimap() {
         stacks = new MinimapStack[game.getLevel().getWidth()][game.getLevel().getHeight()];
         Level level = game.getLevel();
+        innerMinimapTable.clear();
+        requestMinimapUpdate = true;
+
         for(int j = level.getHeight() - 1; j >= 0 ; j--) {
             for(int i = 0; i < level.getWidth() ; i++) {
-                innerMinimapTable.add();
                 MinimapStack s = new MinimapStack(i, j);
                 stacks[i][j] = s;
                 s.addListener(new InputListener() {
@@ -228,7 +228,7 @@ public class UI {
                                     if(game.getPlayer().canSee(s.getP()) || game.getPlayer().getSeen(s.getPX(), s.getPY())) {
                                         game.getPlayer().getCursor().setHasLine(true);
                                         game.getPlayer().getCursor()
-                                                .setPath(Utility.aStarPathToLine(Utility.aStar(game.getLevel().getCosts(), Point.DISTANCE_MANHATTAN, game.getPlayer().getLocation(), game.getPlayer().getCursor())).getPoints());
+                                                .setPath(Utility.aStarPathToLine(Utility.aStarWithVision(game.getLevel().getCosts(), game.getPlayer(), Point.DISTANCE_MANHATTAN, game.getPlayer().getLocation(), game.getPlayer().getCursor())).getPoints());
                                     }
                                 }
                             }
@@ -237,23 +237,22 @@ public class UI {
                         else {
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
-                            game.getPlayer().getCursor().setPurpose("look");
-                            game.getPlayer().getCursor().setActive(true);
-                            game.getPlayer().getCursor().setFollow(true);
-                            game.getPlayer().getCursor().setHasRange(false);
-                            game.getPlayer().getCursor().clearPath();
-                            game.getPlayer().getCursor().setHasLine(false);
-                            game.getPlayer().getCursor().setConsiderObstacle(false);
-                            game.getPlayer().getCursor().setHasArea(false);
+                            game.getPlayer().prepLook();
                             game.getPlayer().getCursor().setLocation(s.getPX(), s.getPY());
-                            game.getPlayer().getCursor().setPositive(0);
-                            game.getPlayer().getCursor().setNegative(1);
-                            game.getPlayer().getCursor().setNeutral(2);
                         }
 
                         return true;
                     }
                 });
+
+            }
+            innerMinimapTable.row();
+        }
+
+        innerMinimapTable.defaults().width(Main.getTileWidth() * minimapScale).height(Main.getTileHeight() * minimapScale).pad(0);
+        for(int j = level.getHeight() - 1; j >= 0 ; j--) {
+            for(int i = 0; i < level.getWidth() ; i++) {
+                innerMinimapTable.add(stacks[i][j]);
             }
             innerMinimapTable.row();
         }
@@ -453,31 +452,38 @@ public class UI {
 
         //Update content
         hp.setText(String.format(Locale.getDefault(), "%d/%d hp", game.getPlayer().getHp(), game.getPlayer().getHpMax()));
-        mana.setText(String.format(Locale.getDefault(), "%d/%d mana", game.getPlayer().getMana(), game.getPlayer().getManaMax()));
+        //mana.setText(String.format(Locale.getDefault(), "%d/%d mana", game.getPlayer().getMana(), game.getPlayer().getManaMax()));
         hunger.setText(game.getPlayer().hungerToString() + " (" + game.getPlayer().getHunger() + ")");
-        armor.setText(game.getPlayer().getArmor() + " defence");
-        level.setText(String.format(Locale.getDefault(), "Level %d (%d to next)", game.getPlayer().getExpLevel(), game.getPlayer().getAi().expToNextLevel()));
+        armor.setText(game.getPlayer().getArmor() + " defense");
+        level.setText(String.format(Locale.getDefault(), "Level %d (%d to next)\n%d FPS", game.getPlayer().getExpLevel(), game.getPlayer().getAi().expToNextLevel(), Gdx.graphics.getFramesPerSecond()));
         displayOutput();
 
         if(requestMinimapUpdate) {
-            innerMinimapTable.clear();
 
             Level level = game.getLevel();
             if(game != null && game.getPlayer() != null && game.getLevel() != null) {
                 MinimapStack s;
 
-                innerMinimapTable.defaults().width(Main.getTileWidth() * minimapScale).height(Main.getTileHeight() * minimapScale).pad(0);
                 for(int j = level.getHeight() - 1; j >= 0 ; j--) {
 
                     for(int i = 0; i < level.getWidth() ; i++) {
                         s = stacks[i][j];
                         s.clearChildren();
-                        boolean canSee = level.getPlayer().canSee(i, j);
-                        boolean seen = level.getSeen(i, j);
+                        boolean canSee;
+                        boolean seen;
+
+                        if(level.getActor() != null) {
+                            canSee = level.getActor().playerSees(i, j);
+                            seen = level.getActor().playerSeen(i, j);
+                        }
+                        else {
+                            canSee = level.getPlayer().canSee(i, j);
+                            seen = level.getSeen(i, j);
+                        }
 
                         if (canSee || seen) {
                             Tile t = level.getTileAt(i, j);
-                            if(t == null) {
+                            if(t == null || t.getTexture() == null) {
                                 Image im = new Image(Tile.BOUNDS.getSprite(Tile.BOUNDS.getNeutral()));
                                 im.setScaling(Scaling.fill);
                                 s.add(im);
@@ -488,7 +494,8 @@ public class UI {
                                 s.add(im);
                             }
 
-                            if(level.getThingAt(i, j) != null) {
+                            if(level.getThingAt(i, j) != null && level.getThingAt(i, j).getTile() != null &&
+                                level.getThingAt(i, j).getTile().getTexture() != null) {
                                 if(!level.getThingAt(i, j).isOpen()) {
                                     t = level.getThingAt(i, j).getTile();
                                     Image im = new Image(t.getSprite(t.getNeutral()));
@@ -502,17 +509,15 @@ public class UI {
                                     im.setScaling(Scaling.fill);
                                     s.add(im);
                                 }
-
-
                             }
 
-                            if(level.getItemAt(i, j) != null) {
+                            if(level.getItemAt(i, j) != null && level.getItemAt(i, j).getTexture() != null) {
                                 Image im = new Image(level.getItemAt(i, j).getTexture());
                                 im.setScaling(Scaling.fill);
                                 s.add(im);
                             }
 
-                            if(level.getCreatureAt(i, j) != null && (level.getPlayer() == null || level.getPlayer().canSee(i, j))) {
+                            if(level.getCreatureAt(i, j) != null && level.getCreatureAt(i, j).getTexture() != null && (level.getPlayer() == null || level.getPlayer().canSee(i, j))) {
                                 if(level.getCreatureAt(i, j).equals(level.getPlayer()) && !level.getPlayer().getCursor().isActive()) {
                                     currentPlayerStack = s;
                                 }
@@ -532,10 +537,7 @@ public class UI {
                             level.getPlayer().getCursor().getY() == j) {
                             currentPlayerStack = s;
                         }
-                        innerMinimapTable.add(s);
                     }
-
-                    innerMinimapTable.row();
                 }
             }
 
@@ -544,7 +546,7 @@ public class UI {
 
         if(game.getPlayer() != null) {
             if(game.getPlayer().getCursor().isActive()) {
-                if(currentPlayerLocation.equals(new Point(-1, -1)) || !currentPlayerLocation.equals((Point) game.getPlayer().getCursor())) {
+                if(currentPlayerLocation.equals(new Point(-1, -1)) || !currentPlayerLocation.equals(game.getPlayer().getCursor())) {
                     currentPlayerLocation = game.getPlayer().getCursor().point();
                     setMinimapCenter();
                 }
@@ -590,4 +592,55 @@ public class UI {
     }
 
 
+    /**
+     * A LibGDX Actor Stack where each stack has a reference to its location in the 2D array,
+     * for the minimap.
+     */
+    public static class MinimapStack extends Stack {
+
+        private Point p;
+
+        public MinimapStack(int x, int y) {
+            super();
+            p = new Point(x, y);
+        }
+
+        public MinimapStack(Point p) {
+            super();
+            this.p = p;
+        }
+
+        public MinimapStack() {
+            super();
+            p = new Point(-1, -1);
+        }
+
+        //<editor-fold desc="Getters and Setters">
+        public Point getP() {
+            return p;
+        }
+
+        public int getPX() {
+            return p == null? -1 : p.getX();
+        }
+
+        public int getPY() {
+            return p == null? -1 : p.getY();
+        }
+
+        public void setP(Point p) {
+            this.p = p;
+        }
+
+        public void setPX(int x) {
+            if(p == null) p = new Point(x, -1);
+            else p.setX(x);
+        }
+
+        public void setPY(int y) {
+            if(p == null) p = new Point(-1, y);
+            else p.setY(y);
+        }
+        //</editor-fold>
+    }
 }

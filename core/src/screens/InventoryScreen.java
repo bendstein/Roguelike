@@ -234,13 +234,11 @@ public class InventoryScreen extends ScreenAdapter {
             game.getPlayer().drop(i);
             inventoryMap.remove(index);
             selection = "";
-            game.getPlayer().increaseTurnsToProcess(1);
         }
         else if(currentVerb.equals("throw")) {
             game.getPlayer().prepThrow(inventoryMap.get(index));
             game.setScreen(game.getPlayScreen());
             selection = "";
-            //game.getPlayer().increaseTurnsToProcess(1);
         }
         else if(currentVerb.equals("eat")) {
             Food i = new Food(inventoryMap.get(index));
@@ -265,7 +263,6 @@ public class InventoryScreen extends ScreenAdapter {
             game.getPlayer().pickUp(inventoryMap.get(index));
             selection = "";
             inventoryMap.remove(index);
-            game.getPlayer().increaseTurnsToProcess(1);
         }
     }
 

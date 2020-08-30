@@ -1,6 +1,7 @@
 package world.thing;
 
 import creatureitem.Creature;
+import world.Level;
 
 public class ThingBehavior {
 
@@ -21,6 +22,10 @@ public class ThingBehavior {
     public boolean onInteract(Creature c) {
         onInteract();
         return false;
+    }
+
+    public void onAction(Level l) {
+
     }
 
     public ThingBehavior copy() {

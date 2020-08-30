@@ -2,8 +2,9 @@ package creatureitem.item;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.physics.box2d.BodyDef;
+import creatureitem.Creature;
 import creatureitem.effect.damage.Damage;
+import creatureitem.spell.Spell;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,28 +25,17 @@ public class Item {
 
     protected Damage throwDamage;
 
-    protected BodyDef itemDef;
-
     protected int worth;
 
     protected double rarity;
 
+    protected Spell onUse;
+
+    protected Spell onThrow;
+
     public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
 
-    public Item(char glyph, String texturePath, int worth, String name) {
-        this.glyph = glyph;
-        if(!texturePath.equals(""))
-            this.texture = new Texture(Gdx.files.internal(texturePath));
-        else this.texture = null;
-        this.worth = worth;
-        this.name = name;
-        this.rarity = 0;
-        this.properties = new ArrayList<>();
-        this.properties.add("drop");
-        throwDamage = new Damage(0, 1, 0);
-        itemDef = new BodyDef();
-        itemDef.type = BodyDef.BodyType.StaticBody;
-    }
+    public static final int ON_USE = 0, ON_THROW = 1;
 
     public Item(char glyph, String texturePath, String name, int worth, String ... properties) {
         this.glyph = glyph;
@@ -58,8 +48,42 @@ public class Item {
         this.properties = new ArrayList<>(Arrays.asList(properties));
         this.properties.add("drop");
         throwDamage = new Damage(0, 1, 0);
-        itemDef = new BodyDef();
-        itemDef.type = BodyDef.BodyType.StaticBody;
+        onUse = null;
+        onThrow = null;
+
+        if(hasProperty("stack")) {
+            count = 1;
+        }
+    }
+
+    public Item(char glyph, String texturePath, String name, int worth, Spell[] spells, String ... properties) {
+        this.glyph = glyph;
+        if(!texturePath.equals(""))
+            this.texture = new Texture(Gdx.files.internal(texturePath));
+        else this.texture = null;
+        this.worth = worth;
+        this.rarity = 0;
+        this.name = name;
+        this.properties = new ArrayList<>(Arrays.asList(properties));
+        this.properties.add("drop");
+        throwDamage = new Damage(0, 1, 0);
+
+        onUse = onThrow = null;
+        for(int i = 0; i < spells.length; i++) {
+            switch (i) {
+                case ON_USE: {
+                    onUse = spells[i];
+                    onUse.setIgnoreRange(true);
+                    addProperty("use");
+                    break;
+                }
+                case ON_THROW: {
+                    onThrow = spells[i];
+                    onThrow.setIgnoreRange(true);
+                    break;
+                }
+            }
+        }
 
         if(hasProperty("stack")) {
             count = 1;
@@ -77,8 +101,40 @@ public class Item {
         this.properties = new ArrayList<>(Arrays.asList(properties));
         this.properties.add("drop");
         this.throwDamage = throwDamage;
-        itemDef = new BodyDef();
-        itemDef.type = BodyDef.BodyType.StaticBody;
+        onUse = onThrow = null;
+
+        if(hasProperty("stack")) {
+            count = 1;
+        }
+    }
+
+    public Item(char glyph, String texturePath, String name, int worth, Damage throwDamage, Spell[] spells, String ... properties) {
+        this.glyph = glyph;
+        if(!texturePath.equals(""))
+            this.texture = new Texture(Gdx.files.internal(texturePath));
+        else this.texture = null;
+        this.worth = worth;
+        this.rarity = 0;
+        this.name = name;
+        this.properties = new ArrayList<>(Arrays.asList(properties));
+        this.properties.add("drop");
+        this.throwDamage = throwDamage;
+        this.onUse = onUse.copyOf(onUse);
+
+        onUse = onThrow = null;
+        for(int i = 0; i < spells.length; i++) {
+            switch (i) {
+                case ON_USE: {
+                    onUse = spells[i];
+                    addProperty("use");
+                    break;
+                }
+                case ON_THROW: {
+                    onThrow = spells[i];
+                    break;
+                }
+            }
+        }
 
         if(hasProperty("stack")) {
             count = 1;
@@ -94,7 +150,8 @@ public class Item {
         this.properties = item.properties;
         this.count = item.count;
         this.throwDamage = item.throwDamage;
-        this.itemDef = item.itemDef;
+        this.onUse = item.onUse == null? null : item.onUse.copyOf(item.onUse);
+        this.onThrow = item.onThrow == null? null : item.onThrow.copyOf(item.onThrow);
     }
 
     public char getGlyph() {
@@ -169,14 +226,6 @@ public class Item {
         this.throwDamage = throwDamage;
     }
 
-    public BodyDef getItemDef() {
-        return itemDef;
-    }
-
-    public void setItemDef(BodyDef itemDef) {
-        this.itemDef = itemDef;
-    }
-
     public int getWorth() {
         return worth;
     }
@@ -193,6 +242,27 @@ public class Item {
         this.rarity = rarity;
     }
 
+    public Spell getOnUse() {
+        return onUse;
+    }
+
+    public void setOnUse(Spell onUse) {
+        this.onUse = onUse;
+    }
+
+    public Spell getOnThrow() {
+        return onThrow;
+    }
+
+    public void setOnThrow(Spell onThrow) {
+        this.onThrow = onThrow;
+    }
+
+    public void assignCaster(Creature c) {
+        if(onUse != null) onUse.setCaster(c);
+        if(onThrow != null) onThrow.setCaster(c);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -203,12 +273,14 @@ public class Item {
                 worth == item.worth &&
                 rarity == item.rarity &&
                 Objects.equals(name, item.name) &&
-                Objects.equals(properties, item.properties);
+                Objects.equals(properties, item.properties) &&
+                Objects.equals(onUse, item.onUse) &&
+                Objects.equals(onThrow, item.onThrow);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(glyph, name, properties, throwDamage, worth, rarity);
+        return Objects.hash(glyph, name, properties, throwDamage, worth, rarity, onUse, onThrow);
     }
 
     @Override

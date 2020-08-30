@@ -17,13 +17,20 @@ public class PointSpell extends Spell {
      */
     protected int range;
 
-    public PointSpell() {
+    protected boolean ignoreRange;
 
+    public PointSpell() {
+        this.range = 0;
     }
 
-    public PointSpell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, int range, Effect ... effects) {
-        super(name, cost, requiresCreatureTarget, ignoreObstacle, effects);
+    public PointSpell(String name, boolean requiresCreatureTarget, boolean ignoreObstacle, boolean ignoreCaster, int range, int cast_energy, boolean notify, Effect ... effects) {
+        super(name, requiresCreatureTarget, ignoreObstacle, ignoreCaster, cast_energy, notify, effects);
         this.range = range;
+    }
+
+    public PointSpell(Effect effect) {
+        super("", true, false, false, 0, false, effect);
+        this.range = 1;
     }
 
     public PointSpell(PointSpell spell) {
@@ -32,27 +39,31 @@ public class PointSpell extends Spell {
     }
 
     public void cast(int x, int y) {
-        if(Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
-            caster.doAction("attempt to invoke %s, but the target is too far away.", name);
+        if(!ignoreRange && Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
+            if(notify) caster.doAction("attempt to invoke %s, but the target is too far away.", name);
             return;
         }
 
+        /*
         if(caster.getMana() - cost < 0) {
             caster.doAction("invoke %s, but it does nothing.", name);
             return;
         }
 
+         */
+
         if(!ignoreObstacle && !caster.getLevel().getTileAt(x, y).isPassable()) {
-            caster.doAction("invoke %s, but it does nothing.", name);
+            if(notify) caster.doAction("invoke %s, but it does nothing.", name);
             return;
         }
-        caster.doAction("cast %s!", name);
+        if(notify) caster.doAction("cast %s!", name);
 
         if(requiresCreatureTarget) {
             Creature target = caster.getLevel().getCreatureAt(x, y);
 
-            if(target == null)
-                caster.notify("...but nothing happens!");
+            if(target == null || (ignoreCaster && target.equals(caster))) {
+                if (notify) caster.notify("...but nothing happens!");
+            }
             else {
                 for(Effect effect : effects)
                     target.applyEffect(effect.makeCopy(effect));
@@ -64,7 +75,7 @@ public class PointSpell extends Spell {
             }
         }
 
-        caster.modifyMana(-cost);
+        //caster.modifyMana(-cost);
     }
 
     public void cast(Point p) {
@@ -87,8 +98,12 @@ public class PointSpell extends Spell {
             copy.effects.add(e.makeCopy(e));
         copy.requiresCreatureTarget = s.requiresCreatureTarget;
         copy.ignoreObstacle = s.ignoreObstacle;
+        copy.ignoreCaster = s.ignoreCaster;
         copy.name = s.name;
-        copy.cost = s.cost;
+        copy.notify = s.notify;
+        copy.range = s instanceof PointSpell? ((PointSpell) s).range : 1;
+        copy.ignoreRange = s instanceof PointSpell && ((PointSpell) s).ignoreRange;
+        //copy.cost = s.cost;
 
         return copy;
     }

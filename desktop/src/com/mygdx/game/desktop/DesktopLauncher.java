@@ -10,7 +10,18 @@ public class DesktopLauncher {
 	public static void main (String[] arg) {
 		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
 
-		int choice = 0;
+		int choice;
+
+		if(arg.length > 0) {
+			try {
+				choice = Integer.parseInt(arg[0]);
+			} catch (NumberFormatException e) {
+				choice = 0;
+			}
+		}
+		else
+			choice = 0;
+
 		config.width = LwjglApplicationConfiguration.getDesktopDisplayMode().width;
 		config.height = LwjglApplicationConfiguration.getDesktopDisplayMode().height;
 		config.fullscreen = false;

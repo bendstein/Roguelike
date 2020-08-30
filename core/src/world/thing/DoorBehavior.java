@@ -10,9 +10,9 @@ public class DoorBehavior extends ThingBehavior {
 
     @Override
     public boolean onInteract(Creature c) {
-        if(c.getLevel().getCreatureAt(thing.x, thing.y) != null) {
+        if(c.getLevel().getCreatureAt(thing.getX(), thing.getY()) != null) {
             c.notify(thing.isOpen()? "You cannot close the door; %s is in the way!" :
-                    "You cannot open the door; %s is in the way!", c.getLevel().getCreatureAt(thing.x, thing.y).getName());
+                    "You cannot open the door; %s is in the way!", c.getLevel().getCreatureAt(thing.getX(), thing.getY()).getName());
             return false;
         }
         thing.setOpen(!thing.isOpen());

@@ -1,6 +1,9 @@
 package creatureitem.item;
 
+import creatureitem.Creature;
 import creatureitem.effect.damage.Damage;
+import creatureitem.spell.PointSpell;
+import creatureitem.spell.Spell;
 
 import java.util.Objects;
 
@@ -9,7 +12,9 @@ public class Food extends Item {
     /**
      * The amount of sustenance the food provides
      */
-    int foodValue;
+    protected int foodValue;
+
+    protected Spell onEat;
 
     public Food(char glyph, String texturePath, String name, int worth, int foodValue) {
         super(glyph, texturePath, name, worth);
@@ -33,6 +38,12 @@ public class Food extends Item {
         super(item);
         this.properties.add("eat");
         this.foodValue = (item instanceof Food)? ((Food) item).foodValue : 0;
+
+        if(item instanceof Food) {
+            this.onEat = ((Food) item).onEat == null? null : ((Food) item).onEat.copyOf(((Food) item).getOnEat());
+        }
+        else
+            this.onEat = null;
     }
 
 
@@ -44,8 +55,22 @@ public class Food extends Item {
     public void setFoodValue(int foodValue) {
         this.foodValue = foodValue;
     }
+
+    public Spell getOnEat() {
+        return onEat;
+    }
+
+    public void setOnEat(Spell onEat) {
+        this.onEat = onEat;
+    }
+
     //</editor-fold>
 
+    @Override
+    public void assignCaster(Creature c) {
+        super.assignCaster(c);
+        if(onEat != null) onEat.setCaster(c);
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -53,11 +78,12 @@ public class Food extends Item {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         Food food = (Food) o;
-        return foodValue == food.foodValue;
+        return foodValue == food.foodValue &&
+                Objects.equals(onEat, food.onEat);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), foodValue);
+        return Objects.hash(super.hashCode(), foodValue, onEat);
     }
 }

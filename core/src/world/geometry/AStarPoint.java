@@ -47,4 +47,14 @@ public class AStarPoint extends Point implements Comparable {
     public int compareTo(Object o) {
         return priority - ((AStarPoint) o).priority;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode());
+    }
 }

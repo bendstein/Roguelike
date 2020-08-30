@@ -7,6 +7,12 @@ import world.thing.Light;
 import world.thing.Thing;
 
 public class LightSwitch extends Effect {
+
+    public LightSwitch() {
+        super();
+        this.infinite = false;
+    }
+
     /**
      * What the effect does when it is active
      */

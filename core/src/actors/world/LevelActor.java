@@ -11,6 +11,7 @@ import creatureitem.Creature;
 import creatureitem.ai.PlayerAi;
 import creatureitem.generation.CreatureItemFactory;
 import game.Main;
+import utility.DynamicArray;
 import utility.Utility;
 import world.Level;
 import world.Tile;
@@ -19,6 +20,7 @@ import world.geometry.floatPoint;
 import world.thing.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.NavigableSet;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -69,12 +71,18 @@ public class LevelActor extends Group {
         ArrayList<Creature> marked = new ArrayList<>();
         for(Creature c : level.getCreatures()) {
             if(((CreatureActor)c.getActor()).getDestination() != null) {
-                ((CreatureActor)c.getActor()).moveTowardDestination(Main.getTileHeight()/(1f/.2f));
+
+                float x0 = ((CreatureActor)c.getActor()).getOriginalLocation().getX(), y0 = ((CreatureActor)c.getActor()).getOriginalLocation().getY();
+                float x1 = ((CreatureActor)c.getActor()).getDestination().getX(), y1 = ((CreatureActor)c.getActor()).getDestination().getY();
+
+                ((CreatureActor)c.getActor()).moveTowardDestination(((float)Math.sqrt(Math.pow(y1 - y0, 2) + Math.pow(x1 - x0, 2)) / .1f) * delta);
             }
             else
                 continue;
-            if(((CreatureActor)c.getActor()).getDestination().equals(((CreatureActor)c.getActor()).getCurrentLocation()))
-                ((CreatureActor)c.getActor()).setDestination(null);
+            if(((CreatureActor)c.getActor()).getDestination().equals(((CreatureActor)c.getActor()).getCurrentLocation())) {
+                ((CreatureActor) c.getActor()).setDestination(null);
+                ((CreatureActor)c.getActor()).setOriginalLocation(((CreatureActor)c.getActor()).getCurrentLocation());
+            }
 
             if(c.getActor() == null) {
                 CreatureActor ca = CreatureItemFactory.newActor(c);
@@ -109,6 +117,7 @@ public class LevelActor extends Group {
             level.updateStaticLit();
 
         level.clearCreatureQueue();
+
     }
 
     @Override
@@ -121,8 +130,11 @@ public class LevelActor extends Group {
          */
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
-                boolean canSee = level.getPlayer().canSee(i, j);
-                boolean seen = level.getSeen(i, j);
+                //boolean canSee = level.getPlayer().canSee(i, j);
+                //boolean seen = level.getSeen(i, j);
+
+                boolean canSee = playerSees(i, j);
+                boolean seen = playerSeen(i, j);
 
                 /*
                  * Draw things that appear on the map as long as the player has seen them
@@ -153,8 +165,8 @@ public class LevelActor extends Group {
 
                 if(not_on_screen) continue;
 
-                boolean canSee = level.getPlayer().canSee(i, j);
-                boolean seen = level.getSeen(i, j);
+                boolean canSee = playerSees(i, j);
+                boolean seen = playerSeen(i, j);
 
                 /*
                  * Draw things that appear on the map as long as the player has seen them
@@ -203,9 +215,25 @@ public class LevelActor extends Group {
 
         for(int x = 0; x < adj.length; x++) {
             for(int y = 0; y < adj[0].length; y++) {
-                if(adj[x][y] == Tile.WALL)
+                if(adj[x][y] == Tile.WALL && playerSeen(i + x - 1, j + y - 1))
                     batch.draw(level.getTileAt(i, j).getSprite(0), (i + (x - 1)) * Main.getTileWidth(), (j + (y - 1)) * Main.getTileHeight());
             }
+        }
+    }
+
+    public boolean playerSeen(int i, int j) {
+        try {
+            return level.getSeen(i, j);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean playerSees(int i, int j) {
+        try {
+            return level.getPlayer().canSee(i, j);
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -216,153 +244,6 @@ public class LevelActor extends Group {
             batch.draw(t.getSprite(x), i * Main.getTileWidth(), j * Main.getTileHeight());
         }
 
-        /*
-        //If the player can see the tile, draw the tile and everything in it
-
-        Tile t = level.getTileAt(i, j);
-
-        if(t == Tile.WALL) {
-            Tile[][] adj = Utility.getAdjacentTiles(level.getTiles(), i, j);
-            boolean[][] toChange = new boolean[adj.length][adj[0].length];
-            //For the intents of this method, treat null as if it was the same tile as t.
-            //Same with walls the player can't see
-            for(int indexi = 0; indexi < adj.length; indexi++) {
-                for(int indexj = 0; indexj < adj[0].length; indexj++) {
-                    if(adj[indexi][indexj] == null) toChange[indexi][indexj] = true;
-                    else if(!level.getSeen(i + indexi - 1, j + indexj - 1)) adj[indexi][indexj] = t;
-                    else toChange[indexi][indexj] = false;
-                }
-            }
-
-            for(int indexi = 0; indexi < adj.length; indexi++) {
-                for(int indexj = 0; indexj < adj[0].length; indexj++) {
-                    if(toChange[indexi][indexj]) adj[indexi][indexj] = t;
-                }
-            }
-
-            //Note: (0, 0) is bottom left corner, not top left.
-            //No walls
-            if(adj[0][1] != t && adj[1][0] != t && adj[1][2] != t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(15), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: bottom, left, right
-            else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] != t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(12), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: bottom, left, top
-            else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] == t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(11), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: bottom, left
-            else if(adj[0][1] != t && adj[1][0] != t && adj[1][2] == t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(8), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[2][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(18), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: bottom, right, top
-            else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] != t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(3), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[0][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(17), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: bottom, right
-            else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] != t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-                if(adj[2][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(19), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: bottom, top
-            else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] == t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(7), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: bottom
-            else if(adj[0][1] != t && adj[1][0] == t && adj[1][2] == t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(4), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[2][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(19), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[2][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(18), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: left, right, top
-            else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] != t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(14), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: left, right
-            else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] != t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(13), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: left, top
-            else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] == t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(10), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[0][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(16), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: left
-            else if(adj[0][1] == t && adj[1][0] != t && adj[1][2] == t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(9), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            //No walls on: right, top
-            else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] != t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(2), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[0][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(17), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: right
-            else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] != t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(1), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[0][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(17), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[2][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(19), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //No walls on: top
-            else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] == t && adj[2][1] != t) {
-                batch.draw(level.getTileAt(i, j).getSprite(6), i * Main.getTileWidth(), j * Main.getTileHeight());
-                if(adj[0][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(17), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[0][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(16), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            //All walls
-            else if(adj[0][1] == t && adj[1][0] == t && adj[1][2] == t && adj[2][1] == t) {
-                batch.draw(level.getTileAt(i, j).getSprite(5), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-                if(adj[0][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(17), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[2][0] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(19), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[0][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(16), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                if(adj[2][2] != t) {
-                    batch.draw(level.getTileAt(i, j).getSprite(18), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-
-        }
-        else
-            batch.draw(level.getTileAt(i, j).getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-         */
     }
 
     public void drawItem(Batch batch, int i, int j) {
@@ -375,92 +256,17 @@ public class LevelActor extends Group {
             if(t.getOrientation() != -1)
                 batch.draw(t.getTile().getSprite(t.getOrientation()), i * Main.getTileWidth(), j * Main.getTileHeight());
         }
-        /*
-        if(level.getThingAt(i, j) != null) {
-            Thing th = level.getThingAt(i, j);
-            if(th instanceof Stairs) {
-                if(((Stairs) th).isUp())
-                    batch.draw(level.getThingAt(i, j).getTile().getSprite(1), i * Main.getTileWidth(), j * Main.getTileHeight());
-                else
-                    batch.draw(level.getThingAt(i, j).getTile().getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-            }
-            else if(th.getBehavior() instanceof DoorBehavior) {
-                Tile[][] adj = Utility.getAdjacentTiles(level.getTiles(), i, j);
-                if(adj[0][1] != null && adj[0][1] == Tile.WALL) {
-                    if(th.isOpen())
-                        batch.draw(level.getThingAt(i, j).getTile().getSprite(4), i * Main.getTileWidth(), j * Main.getTileHeight());
-                    else
-                        batch.draw(level.getThingAt(i, j).getTile().getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-                else {
-                    if(th.isOpen())
-                        batch.draw(level.getThingAt(i, j).getTile().getSprite(5), i * Main.getTileWidth(), j * Main.getTileHeight());
-                    else
-                        batch.draw(level.getThingAt(i, j).getTile().getSprite(1), i * Main.getTileWidth(), j * Main.getTileHeight());
-                }
-            }
-            else if(th instanceof Light) {
-                if(th instanceof LightRandom && System.currentTimeMillis() - ((LightRandom) th).getLastChange() > ((LightRandom) th).getCurrentRate())
-                    ((LightRandom) th).changeColors();
-                switch (((Light) th).getPosition()) {
-                    case Light.LEFT: {
-                        if(((Light) th).isActive()) {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        else {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(4), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        break;
-                    }
-                    case Light.TOP: {
-                        if(((Light) th).isActive()) {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(2), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        else {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(6), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        break;
-                    }
-                    case Light.RIGHT: {
-                        if(((Light) th).isActive()) {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(1), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        else {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(5), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        break;
-                    }
-                    case Light.BOTTOM: {
-                        if(((Light) th).isActive()) {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(3), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        else {
-                            batch.draw(level.getThingAt(i, j).getTile().getSprite(7), i * Main.getTileWidth(), j * Main.getTileHeight());
-                        }
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-
-            }
-            else
-                batch.draw(level.getThingAt(i, j).getTile().getSprite(0), i * Main.getTileWidth(), j * Main.getTileHeight());
-
-        }
-
-         */
     }
 
     public void drawLighting(Batch batch) {
 
         batch.enableBlending();
 
-        ArrayList<Light>[][] emittingArray = level.getEmitting();
+        DynamicArray<Light>[][] emittingArray = level.getEmitting();
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
 
+                /*
                 boolean not_on_screen = true;
                 for(int i1 = -1; i1 <= 1; i1 += 1) {
                     for(int j1 = -1; j1 <= 1; j1 += 1) {
@@ -479,10 +285,12 @@ public class LevelActor extends Group {
 
                 if(not_on_screen) continue;
 
+                 */
+
                 /*
                  * Get all lights shining on this tile
                  */
-                ArrayList<Light> emitting = emittingArray[i][j];
+                DynamicArray<Light> emitting = emittingArray[i][j];
 
                 /*
                  * If there are none, don't draw any lights
@@ -502,7 +310,7 @@ public class LevelActor extends Group {
 
                  */
 
-                if(!level.getPlayer().canSee(p)) continue;
+                if(!playerSees(p.getX(), p.getY())) continue;
 
                 /*
                  * Otherwise, get the closest light
@@ -510,7 +318,10 @@ public class LevelActor extends Group {
                 Light closest = null;
                 double closestDistance = Integer.MAX_VALUE;
 
-                for(Light l : emitting) {
+                for(int li = 0; li < emitting.capacity(); li++) {
+                    Light l = emitting.get(li);
+                    if(l == null)
+                        continue;
                     if(!l.isActive()) continue;
                     double distance = l.getLocation().euclideanDistanceFrom(p);
                     if(closestDistance > distance) {
@@ -560,66 +371,6 @@ public class LevelActor extends Group {
             }
         }
 
-        /*
-        ArrayList<Light> lights = new ArrayList<>();
-        for(Thing t : level.getThings())
-            if(t instanceof Light && ((Light) t).isActive()) lights.add((Light) t);
-
-        lights.forEach(l -> {
-            int x = l.getX(), y = l.getY();
-
-            if(Utility.getChebshevDistance(x, level.getPlayer().getX(), y, level.getPlayer().getY()) - l.getRange() >
-                    level.getPlayer().getVisionRadius() * level.getPlayer().getAi().getLightVisionFactor())
-                return;
-
-            for(int i = -l.getRange(); i <= l.getRange(); i++) {
-                for(int j = -l.getRange(); j <= l.getRange(); j++) {
-                    if(!level.isOutOfBounds(x + i, y + j) &&
-                            l.canLight(x + i, y + j, level) != 0) {
-                        if(!sight || level.getPlayer().canSee(x + i, y + j)) {
-
-                            double circle = Math.pow(i, 2) + Math.pow(j, 2);
-
-                            float intensityMod = ((float)Math.log((l.getRange() - 1) -
-                                    (Math.sqrt(circle)))) /
-                                    ((float)Math.log(l.getRange() - 1));
-
-                            if(circle >= Math.pow(l.getRange() - 1, 2)) {
-                                if(level.getEmitting(x + i, y + j).size() == 1) drawFOW(batch, Light.GREY2, 5, x + i, y + j);
-                                continue;
-                            }
-
-                            else if(circle >= Math.pow(l.getRange() - 2, 2)) {
-                                if(level.getEmitting(x + i, y + j).size() == 1) drawFOW(batch, Light.GREY2, 3, x + i, y + j);
-                                continue;
-                            }
-
-                            //batch.setColor(new Color(255f, 255f, 255f, l.getBrightness() * intensityMod));
-                            l.getTint().a = l.getBrightness() * intensityMod;
-                            batch.setColor(l.getTint());
-                            for(int times = 0; times < l.getIntensity() * intensityMod; times++) {
-                                int[] colors = l.getColor(i + l.getRange(), j + l.getRange());
-
-                                float percentFinished = (float)times/(l.getIntensity() * intensityMod);
-                                //float percentDistance = (float)(Math.sqrt(Math.pow(i, 2) + Math.pow(j, 2))/l.getRange());
-                                int currentColorIndex = (int)Math.floor(percentFinished * (colors.length));
-
-                                //for(int it = 0; it < colors.length * intensityMod; it++)
-                                    //batch.draw(Tile.LIGHT.getSprite(colors[it]), (x + i) * Main.getTileWidth(), (y + j) * Main.getTileHeight());
-
-                                batch.draw(Tile.LIGHT.getSprite(colors[currentColorIndex]), (x + i) * Main.getTileWidth(), (y + j) * Main.getTileHeight());
-                            }
-                            batch.setColor(Color.WHITE);
-
-                        }
-
-                    }
-                }
-            }
-        });
-
-         */
-
     }
 
     public void drawFOW(Batch batch, int color, int intensity, int i, int j) {
@@ -636,6 +387,7 @@ public class LevelActor extends Group {
         for(int i = 0; i < level.getWidth(); i++) {
             for(int j = 0; j < level.getHeight(); j++) {
 
+                /*
                 boolean not_on_screen = true;
                 for(int i1 = -1; i1 <= 1; i1 += 1) {
                     for(int j1 = -1; j1 <= 1; j1 += 1) {
@@ -654,13 +406,16 @@ public class LevelActor extends Group {
 
                 if(not_on_screen) continue;
 
-                if(!level.getPlayer().canSee(i, j) || !level.getStaticLit(i, j))
+                 */
+
+                if(!playerSees(i, j)|| !level.getStaticLit(i, j))
                     drawFOW(batch, Light.GREY3, 5, i, j);
             }
         }
     }
 
     //<editor-fold desc="Getters and Setters">
+
     public Level getLevel() {
         return level;
     }
@@ -704,7 +459,8 @@ public class LevelActor extends Group {
             setLevel(l);
         }
 
-        if(l != null) l.calculateOrientations();
+        l.calculateOrientations();
+
     }
 
     //</editor-fold>

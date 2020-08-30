@@ -21,11 +21,6 @@ public abstract class Spell {
     protected String name;
 
     /**
-     * The mana cost of the spell
-     */
-    protected int cost;
-
-    /**
      * A reference to the creature casting the spell
      */
     protected Creature caster;
@@ -35,28 +30,58 @@ public abstract class Spell {
      */
     protected boolean requiresCreatureTarget;
 
+    /**
+     * Whether or not the spell affects obstructed tiles
+     */
     protected boolean ignoreObstacle;
 
-    public Spell() {}
+    protected boolean ignoreCaster;
 
-    public Spell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, Effect ... effects) {
+    /**
+     * Amount of energy casting the spell takes
+     */
+    protected int cast_energy;
+
+    protected boolean notify;
+
+    protected boolean ignoreRange;
+
+    public Spell() {
+        this.name = null;
+        this.effects = new ArrayList<>();
+        this.requiresCreatureTarget = false;
+        this.ignoreObstacle = false;
+        this.cast_energy = 0;
+        this.ignoreCaster = false;
+        this.caster = null;
+        this.notify = false;
+        ignoreRange = false;
+    }
+
+    public Spell(String name, boolean requiresCreatureTarget, boolean ignoreObstacle, boolean ignoreCaster, int cast_energy, boolean notify, Effect ... effects) {
         this.name = name;
-        this.cost = cost;
         this.effects = new ArrayList<>();
         this.requiresCreatureTarget = requiresCreatureTarget;
         this.ignoreObstacle = ignoreObstacle;
+        this.cast_energy = cast_energy;
+        this.ignoreCaster = ignoreCaster;
+        this.caster = null;
+        this.notify = notify;
+        ignoreRange = false;
 
         for(Effect e : effects)
             this.effects.add(e.makeCopy(e));
     }
 
-
     public Spell(Spell spell) {
         this.name = spell.name;
-        this.cost = spell.cost;
         this.effects = new ArrayList<>();
         this.requiresCreatureTarget = spell.requiresCreatureTarget;
         this.ignoreObstacle = spell.ignoreObstacle;
+        this.cast_energy = spell.cast_energy;
+        this.ignoreCaster = spell.ignoreObstacle;
+        this.notify = spell.notify;
+        ignoreRange = spell.ignoreRange;
 
         for(Effect e : spell.effects)
             this.effects.add(e.makeCopy(e));
@@ -68,7 +93,20 @@ public abstract class Spell {
      */
     public abstract Spell copyOf(Spell s);
 
+    public void cast() {
+
+    }
+
     //<editor-fold desc="Getters and Setters">
+
+    public boolean isIgnoreCaster() {
+        return ignoreCaster;
+    }
+
+    public void setIgnoreCaster(boolean ignoreCaster) {
+        this.ignoreCaster = ignoreCaster;
+    }
+
     public boolean isIgnoreObstacle() {
         return ignoreObstacle;
     }
@@ -101,14 +139,6 @@ public abstract class Spell {
         this.name = name;
     }
 
-    public int getCost() {
-        return cost;
-    }
-
-    public void setCost(int cost) {
-        this.cost = cost;
-    }
-
     public Creature getCaster() {
         return caster;
     }
@@ -117,6 +147,30 @@ public abstract class Spell {
         this.caster = caster;
         for(Effect effect : effects)
             effect.setCaster(caster);
+    }
+
+    public int getCast_energy() {
+        return cast_energy;
+    }
+
+    public void setCast_energy(int cast_energy) {
+        this.cast_energy = cast_energy;
+    }
+
+    public boolean isNotify() {
+        return notify;
+    }
+
+    public void setNotify(boolean notify) {
+        this.notify = notify;
+    }
+
+    public boolean isIgnoreRange() {
+        return ignoreRange;
+    }
+
+    public void setIgnoreRange(boolean ignoreRange) {
+        this.ignoreRange = ignoreRange;
     }
 
     //</editor-fold>

@@ -24,8 +24,8 @@ public class AOESpell extends PointSpell {
         super();
     }
 
-    public AOESpell(String name, int cost, boolean requiresCreatureTarget, boolean ignoreObstacle, int range, int radius, Effect ... effects) {
-        super(name, cost, requiresCreatureTarget, ignoreObstacle, range, effects);
+    public AOESpell(String name, boolean requiresCreatureTarget, boolean ignoreObstacle, boolean ignoreCaster, int range, int radius, int cast_energy, boolean notify, Effect ... effects) {
+        super(name, requiresCreatureTarget, ignoreObstacle, ignoreCaster, range, cast_energy, notify, effects);
         this.radius = radius;
     }
 
@@ -36,17 +36,20 @@ public class AOESpell extends PointSpell {
 
     @Override
     public void cast(int x, int y) {
-        if(Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
-            caster.doAction("attempt to invoke %s, but the target is too far away.", name);
+        if(!ignoreRange && Utility.getDistance(caster.getLocation(), new Point(x, y)) > range + 1) {
+            if(notify) caster.doAction("attempt to invoke %s, but the target is too far away.", name);
             return;
         }
 
+        /*
         if(caster.getMana() - cost < 0) {
             caster.doAction("invoke %s, but it does nothing.", name);
             return;
         }
 
-        caster.doAction("cast %s!", name);
+
+         */
+        if(notify) caster.doAction("cast %s!", name);
         int c = 0;
 
         for(int i = -radius; i <= radius; i++) {
@@ -61,7 +64,7 @@ public class AOESpell extends PointSpell {
 
                         if (requiresCreatureTarget) {
                             Creature target = caster.getLevel().getCreatureAt(x + i, y + j);
-                            if (target == null) continue;
+                            if (target == null || (ignoreCaster && target.equals(caster))) continue;
                             c++;
                             for (Effect effect : effects)
                                 target.applyEffect(effect.makeCopy(effect));
@@ -76,8 +79,8 @@ public class AOESpell extends PointSpell {
             }
         }
 
-        if(c == 0 && requiresCreatureTarget) caster.notify("...but nothing happens!");
-        caster.modifyMana(-cost);
+        if(c == 0 && requiresCreatureTarget) if(notify) caster.notify("...but nothing happens!");
+        //caster.modifyMana(-cost);
     }
 
     /**
@@ -86,17 +89,9 @@ public class AOESpell extends PointSpell {
      */
     @Override
     public AOESpell copyOf(Spell s) {
-        AOESpell copy = new AOESpell();
+        AOESpell copy = (AOESpell)super.copyOf(s);
         copy.effects = new ArrayList<>();
 
-        for(Effect effect : s.effects)
-            copy.effects.add(effect.makeCopy(effect));
-
-        copy.name = s.name;
-        copy.cost = s.cost;
-        copy.requiresCreatureTarget = s.requiresCreatureTarget;
-        copy.ignoreObstacle = s.ignoreObstacle;
-        copy.range = s instanceof PointSpell? ((PointSpell) s).range : 1;
         copy.radius = s instanceof AOESpell? ((AOESpell) s).radius : 1;
 
         return copy;

@@ -10,6 +10,13 @@ public class MagicMapping extends Effect {
     public MagicMapping() {
         super();
         duration = 0;
+        this.infinite = false;
+    }
+
+    public MagicMapping(boolean infinite) {
+        super();
+        duration = 0;
+        this.infinite = infinite;
     }
     /**
      * What the effect does when it is active
@@ -65,6 +72,6 @@ public class MagicMapping extends Effect {
 
     @Override
     public Effect makeCopy(Effect effect) {
-        return new MagicMapping();
+        return new MagicMapping(infinite);
     }
 }
