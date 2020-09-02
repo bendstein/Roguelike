@@ -22,6 +22,7 @@ import world.geometry.Point;
 import world.geometry.floatPoint;
 import world.thing.*;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class PlayScreen extends ScreenAdapter {
@@ -97,464 +98,474 @@ public class PlayScreen extends ScreenAdapter {
         stage.addListener(new InputListener() {
             @Override
             public boolean keyDown(InputEvent event, int keycode) {
+                try {
+                    switch (keycode) {
+                        case Input.Keys.NUMPAD_7: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, 1);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_8: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, 1);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_9: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, 1);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_4: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, 0);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_5: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, 0);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_6: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, 0);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_1: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, -1);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_2: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, -1);
+                            return true;
+                        }
+                        case Input.Keys.NUMPAD_3: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+                            game.getPlayer().setMoveDirection(keycode);
+                            if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, -1);
+                            return true;
+                        }
+                        case Input.Keys.ESCAPE: {
+                            if(game.getPlayer().getCursor().isActive())
+                                game.getPlayer().getCursor().setActive(false);
+                            else game.setScreen(game.getMainMenu());
+                            return true;
+                        }
+                        case Input.Keys.COMMA: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
 
-                switch (keycode) {
-                    case Input.Keys.NUMPAD_7: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, 1);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_8: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, 1);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_9: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, 1);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_4: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, 0);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_5: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, 0);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_6: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, 0);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_1: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(-1, -1);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_2: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(0, -1);
-                        return true;
-                    }
-                    case Input.Keys.NUMPAD_3: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-                        game.getPlayer().setMoveDirection(keycode);
-                        if(game.getPlayer().getCursor().isActive() || game.getPlayer().isAllowed_to_act()) game.getPlayer().moveBy(1, -1);
-                        return true;
-                    }
-                    case Input.Keys.ESCAPE: {
-                        if(game.getPlayer().getCursor().isActive())
-                            game.getPlayer().getCursor().setActive(false);
-                        else game.setScreen(game.getMainMenu());
-                        return true;
-                    }
-                    case Input.Keys.COMMA: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
 
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
+                            if(!shift) {
+                                Inventory in = game.getPlayer().getLevel().getInventoryAt(game.getPlayer().getX(), game.getPlayer().getY());
+                                //if(in == null) return true;
+                                if(in.getCount() <= 1) game.getPlayer().pickUp();
+                                else {
+                                    game.getInventoryScreen().setInventory(in);
+                                    game.getInventoryScreen().setCurrentVerb("pickup");
+                                    game.getInventoryScreen().setCurrentFilter("");
+                                    game.setScreen(game.getInventoryScreen());
+                                }
 
-                        if(!shift) {
-                            Inventory in = game.getPlayer().getLevel().getInventoryAt(game.getPlayer().getX(), game.getPlayer().getY());
-                            //if(in == null) return true;
-                            if(in.getCount() <= 1) game.getPlayer().pickUp();
+                            }
                             else {
-                                game.getInventoryScreen().setInventory(in);
-                                game.getInventoryScreen().setCurrentVerb("pickup");
+                                shift = false;
+                                Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
+                                if(t instanceof Stairs && ((Stairs) t).isUp()) {
+                                    boolean stairsUsed = t.interact(game.getPlayer());
+                                    if(stairsUsed) {
+                                        ui.initMinimap();
+                                    }
+                                }
+                            }
+                            return true;
+                        }
+                        case Input.Keys.PERIOD: {
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift){}
+                            else {
+                                shift = false;
+                                Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
+                                if(t instanceof Stairs && !((Stairs) t).isUp()) {
+                                    boolean stairsUsed = t.interact(game.getPlayer());
+                                    if(stairsUsed) {
+                                        ui.initMinimap();
+                                    }
+                                }
+                            }
+                            return true;
+                        }
+                        case Input.Keys.SHIFT_RIGHT:
+                        case Input.Keys.SHIFT_LEFT: {
+                            shift = true;
+                            return true;
+                        }
+                        case Input.Keys.L: {
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getPlayer().prepLook();
+                            }
+                            return true;
+                        }
+                        case Input.Keys.M: {
+                            if(!shift) {
+                                if(game.getPlayer().getCursor().isActive()) {
+
+                                    if(game.getPlayer().getCursor().getPurpose().equals("look") || game.getPlayer().getCursor().getPurpose().equals("move")) {
+                                        if(game.getPlayer().getSeen(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY())) {
+                                            //game.getPlayer().getCursor().setActive(false);
+                                            game.getPlayer().performCursorAction();
+                                            //game.getPlayer().enqueueDestination(game.getPlayer().getCursor());
+                                        }
+                                    }
+                                }
+                                else {
+                                    game.getPlayer().setCurrentDestination(null);
+                                    game.getPlayer().getDestinationQueue().clear();
+                                    game.getPlayer().prepMove();
+                                }
+                            }
+
+                            return true;
+                        }
+                        case Input.Keys.I: {
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("");
                                 game.getInventoryScreen().setCurrentFilter("");
                                 game.setScreen(game.getInventoryScreen());
                             }
 
+                            return true;
                         }
-                        else {
-                            shift = false;
-                            Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
-                            if(t instanceof Stairs && ((Stairs) t).isUp()) {
-                                boolean stairsUsed = t.interact(game.getPlayer());
-                                if(stairsUsed) {
-                                    ui.initMinimap();
-                                }
-                            }
-                        }
-                        return true;
-                    }
-                    case Input.Keys.PERIOD: {
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
+                        case Input.Keys.D: {
 
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
 
-                        if(!shift){}
-                        else {
-                            shift = false;
-                            Thing t = game.getLevel().getThingAt(game.getPlayer().getX(), game.getPlayer().getY());
-                            if(t instanceof Stairs && !((Stairs) t).isUp()) {
-                                boolean stairsUsed = t.interact(game.getPlayer());
-                                if(stairsUsed) {
-                                    ui.initMinimap();
-                                }
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("drop");
+                                game.getInventoryScreen().setCurrentFilter("");
+                                game.setScreen(game.getInventoryScreen());
                             }
+
+                            return true;
                         }
-                        return true;
-                    }
-                    case Input.Keys.SHIFT_RIGHT:
-                    case Input.Keys.SHIFT_LEFT: {
-                        shift = true;
-                        return true;
-                    }
-                    case Input.Keys.L: {
-                        if(!shift) {
+                        case Input.Keys.T: {
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+
+                                if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                                if(!game.getPlayer().getCursor().isActive()) {
+                                    game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                    game.getInventoryScreen().setCurrentVerb("throw");
+                                    game.getInventoryScreen().setCurrentFilter("");
+                                    game.setScreen(game.getInventoryScreen());
+                                }
+                                else if(game.getPlayer().getCursor().getPurpose().equals("throw")) {
+                                    game.getPlayer().throwItem();
+                                    game.getPlayer().deactivateCursor();
+                                }
+                                else if(game.getPlayer().getCursor().getPurpose().equals("shoot")) {
+                                    game.getPlayer().shoot();
+                                    game.getPlayer().deactivateCursor();
+                                }
+
+                            }
+                            else {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                shift = false;
+
+                                if(!game.getPlayer().getCursor().isActive()) {
+                                    if(game.getPlayer().getRangedWeaponSlot().isEmpty()) {
+
+                                        if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                                        game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                        game.getInventoryScreen().setCurrentVerb("equip");
+                                        game.getInventoryScreen().setCurrentFilter(String.format(Locale.getDefault(), "%d", game.getPlayer().getRangedWeaponSlot().getSlot().getSlot()));
+                                        game.getInventoryScreen().setToEquip(game.getPlayer().getRangedWeaponSlot());
+                                        game.getInventoryScreen().setReturnScreen(null);
+                                        game.setScreen(game.getInventoryScreen());
+                                    }
+                                    else if(game.getPlayer().getQuiverSlot().isEmpty()) {
+
+                                        if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                                        game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                        game.getInventoryScreen().setCurrentVerb("equip");
+                                        game.getInventoryScreen().setCurrentFilter(String.format(Locale.getDefault(), "%d", game.getPlayer().getQuiverSlot().getSlot().getSlot()));
+                                        game.getInventoryScreen().setToEquip(game.getPlayer().getQuiverSlot());
+                                        game.getInventoryScreen().setReturnScreen(null);
+                                        game.setScreen(game.getInventoryScreen());
+                                    }
+                                    if(game.getPlayer().getQuiverSlot().isEquipped()) game.getPlayer().prepShoot();
+                                }
+                                else if(game.getPlayer().getCursor().getPurpose().equals("shoot") ||
+                                        game.getPlayer().getCursor().getPurpose().equals("throw")) {
+
+                                    if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                                    game.getPlayer().performCursorAction();
+                                }
+
+                            }
+
+                            return true;
+                        }
+                        case Input.Keys.A: {
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+
+                                if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                                if(!game.getPlayer().getCursor().isActive()) {
+                                    game.getPlayer().prepAttack();
+                                }
+
+                                else {
+                                    game.getPlayer().performCursorAction();
+                                }
+
+                                return true;
+                            }
+
+                            return true;
+                        }
+                        case Input.Keys.Q: {
+
                             game.getPlayer().setCurrentDestination(null);
                             game.getPlayer().getDestinationQueue().clear();
-                            game.getPlayer().prepLook();
-                        }
-                        return true;
-                    }
-                    case Input.Keys.M: {
-                        if(!shift) {
-                            if(game.getPlayer().getCursor().isActive()) {
 
-                                if(game.getPlayer().getCursor().getPurpose().equals("look") || game.getPlayer().getCursor().getPurpose().equals("move")) {
-                                    if(game.getPlayer().getSeen(game.getPlayer().getCursor().getX(), game.getPlayer().getCursor().getY())) {
-                                        //game.getPlayer().getCursor().setActive(false);
-                                        game.getPlayer().performCursorAction();
-                                       //game.getPlayer().enqueueDestination(game.getPlayer().getCursor());
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("quaff");
+                                game.getInventoryScreen().setCurrentFilter("quaff");
+                                game.setScreen(game.getInventoryScreen());
+                            }
+
+                            return true;
+                        }
+                        case Input.Keys.E: {
+
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("eat");
+                                game.getInventoryScreen().setCurrentFilter("eat");
+                                game.setScreen(game.getInventoryScreen());
+                            }
+                            else {
+                                shift = false;
+                                game.getEquipScreen().setSlots(game.getPlayer().getSlots());
+                                game.setScreen(game.getEquipScreen());
+                            }
+
+
+                            return true;
+                        }
+                        case Input.Keys.U: {
+
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("use");
+                                game.getInventoryScreen().setCurrentFilter("use");
+                                game.setScreen(game.getInventoryScreen());
+                            }
+                            return true;
+                        }
+                        case Input.Keys.R: {
+
+                            game.getPlayer().setCurrentDestination(null);
+                            game.getPlayer().getDestinationQueue().clear();
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
+                                game.getInventoryScreen().setCurrentVerb("read");
+                                game.getInventoryScreen().setCurrentFilter("read");
+                                game.setScreen(game.getInventoryScreen());
+                            }
+                            return true;
+                        }
+                        case Input.Keys.O: {
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                boolean opened = false;
+                                for(int i = -1; i <= 1; i++) {
+                                    for(int j = -1; j <= 1; j++) {
+                                        Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
+                                        if(t != null && t.getBehavior() instanceof DoorBehavior && !t.isOpen()) {
+                                            if(i == 0 && j == 0) continue;
+                                            t.interact(game.getPlayer());
+                                            opened = true;
+                                            break;
+                                        }
+                                        else if(game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j) instanceof Light &&
+                                                !((Light) game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j)).isActive()) {
+                                            game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j).interact(game.getPlayer());
+                                            opened = true;
+                                            break;
+                                        }
                                     }
+
+                                    if(opened) break;
+                                }
+                            }
+                            return true;
+                        }
+                        case Input.Keys.C: {
+
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
+
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                boolean opened = false;
+                                for(int i = -1; i <= 1; i++) {
+                                    for(int j = -1; j <= 1; j++) {
+                                        Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
+                                        if(t != null && t.getBehavior() instanceof DoorBehavior && t.isOpen()) {
+                                            if(i == 0 && j == 0) continue;
+                                            t.interact(game.getPlayer());
+                                            opened = true;
+                                            break;
+                                        }
+                                        else if(game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j) instanceof Light &&
+                                                ((Light) game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j)).isActive()) {
+                                            game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j).interact(game.getPlayer());
+                                            opened = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if(opened) break;
                                 }
                             }
                             else {
                                 game.getPlayer().setCurrentDestination(null);
                                 game.getPlayer().getDestinationQueue().clear();
-                                game.getPlayer().prepMove();
-                            }
-                        }
+                                shift = false;
+                                boolean found = false;
 
-                        return true;
-                    }
-                    case Input.Keys.I: {
+                                for(int i = -1; i <= 1; i++) {
+                                    for(int j = -1; j <= 1; j++) {
+                                        Creature c = game.getLevel().getCreatureAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
+                                        if(c != null && c.getAi() instanceof NPCAi && ((NPCAi)c.getAi()).getDialogueRoot() != null) {
+                                            if(i == 0 && j == 0) continue;
+                                            game.getPlayer().talkTo(c);
+                                            found = true;
+                                            break;
+                                        }
+                                    }
 
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("");
-                            game.getInventoryScreen().setCurrentFilter("");
-                            game.setScreen(game.getInventoryScreen());
-                        }
-
-                        return true;
-                    }
-                    case Input.Keys.D: {
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("drop");
-                            game.getInventoryScreen().setCurrentFilter("");
-                            game.setScreen(game.getInventoryScreen());
-                        }
-
-                        return true;
-                    }
-                    case Input.Keys.T: {
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-
-                            if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                            if(!game.getPlayer().getCursor().isActive()) {
-
-                                game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                                game.getInventoryScreen().setCurrentVerb("throw");
-                                game.getInventoryScreen().setCurrentFilter("");
-                                game.setScreen(game.getInventoryScreen());
-                            }
-                            else if(game.getPlayer().getCursor().getPurpose().equals("throw")) {
-
-                                game.getPlayer().throwItem();
-                                game.getPlayer().deactivateCursor();
-                            }
-                            else if(game.getPlayer().getCursor().getPurpose().equals("shoot")) {
-
-                                game.getPlayer().shoot();
-                                game.getPlayer().deactivateCursor();
-                            }
-
-                        }
-                        else {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            shift = false;
-
-                            if(!game.getPlayer().getCursor().isActive()) {
-                                if(game.getPlayer().getQuiver() == null && game.getPlayer().getRangedWeapon() != null) {
-
-                                    if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                                    game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                                    game.getInventoryScreen().setCurrentVerb("equip");
-                                    game.getInventoryScreen().setCurrentFilter(game.getPlayer().getRangedWeapon().getAmmoType());
-                                    game.setScreen(game.getInventoryScreen());
+                                    if(found) break;
                                 }
-                                game.getPlayer().prepShoot();
-                            }
-                            else if(game.getPlayer().getCursor().getPurpose().equals("shoot") ||
-                                    game.getPlayer().getCursor().getPurpose().equals("throw")) {
 
-                                if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                                game.getPlayer().performCursorAction();
-                            }
-
-                        }
-
-                        return true;
-                    }
-                    case Input.Keys.A: {
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-
-                            if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                            if(!game.getPlayer().getCursor().isActive()) {
-                                game.getPlayer().prepAttack();
-                            }
-
-                            else {
-                                game.getPlayer().performCursorAction();
+                                if(found)
+                                    startDialogue(((NPCAi)game.getPlayer().getTalkingTo().getAi()).getDialogueRoot());
+                                else
+                                    game.getPlayer().notify("You're not *that* lonely!");
                             }
 
                             return true;
                         }
+                        case Input.Keys.Z: {
 
-                        return true;
-                    }
-                    case Input.Keys.Q: {
+                            if(!game.getPlayer().isAllowed_to_act()) return true;
 
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("quaff");
-                            game.getInventoryScreen().setCurrentFilter("quaff");
-                            game.setScreen(game.getInventoryScreen());
-                        }
-
-                        return true;
-                    }
-                    case Input.Keys.E: {
-
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("eat");
-                            game.getInventoryScreen().setCurrentFilter("eat");
-                        }
-                        else {
-                            shift = false;
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("equip");
-                            game.getInventoryScreen().setCurrentFilter("equip");
-                        }
-
-                        game.setScreen(game.getInventoryScreen());
-                        return true;
-                    }
-                    case Input.Keys.U: {
-
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("use");
-                            game.getInventoryScreen().setCurrentFilter("use");
-                            game.setScreen(game.getInventoryScreen());
-                        }
-                        return true;
-                    }
-                    case Input.Keys.R: {
-
-                        game.getPlayer().setCurrentDestination(null);
-                        game.getPlayer().getDestinationQueue().clear();
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            game.getInventoryScreen().setInventory(game.getPlayer().getInventory());
-                            game.getInventoryScreen().setCurrentVerb("read");
-                            game.getInventoryScreen().setCurrentFilter("read");
-                            game.setScreen(game.getInventoryScreen());
-                        }
-                        return true;
-                    }
-                    case Input.Keys.O: {
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            boolean opened = false;
-                            for(int i = -1; i <= 1; i++) {
-                                for(int j = -1; j <= 1; j++) {
-                                    Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
-                                    if(t != null && t.getBehavior() instanceof DoorBehavior && !t.isOpen()) {
-                                        if(i == 0 && j == 0) continue;
-                                        t.interact(game.getPlayer());
-                                        opened = true;
-                                        break;
-                                    }
-                                    else if(game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j) instanceof Light &&
-                                            !((Light) game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j)).isActive()) {
-                                        game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j).interact(game.getPlayer());
-                                        opened = true;
-                                        break;
-                                    }
+                            if(!shift) {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                                    game.getPlayer().performCursorAction();
                                 }
-
-                                if(opened) break;
                             }
-                        }
-                        return true;
-                    }
-                    case Input.Keys.C: {
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            boolean opened = false;
-                            for(int i = -1; i <= 1; i++) {
-                                for(int j = -1; j <= 1; j++) {
-                                    Thing t = game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
-                                    if(t != null && t.getBehavior() instanceof DoorBehavior && t.isOpen()) {
-                                        if(i == 0 && j == 0) continue;
-                                        t.interact(game.getPlayer());
-                                        opened = true;
-                                        break;
-                                    }
-                                    else if(game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j) instanceof Light &&
-                                            ((Light) game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j)).isActive()) {
-                                        game.getLevel().getThingAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j).interact(game.getPlayer());
-                                        opened = true;
-                                        break;
-                                    }
+                            else {
+                                game.getPlayer().setCurrentDestination(null);
+                                game.getPlayer().getDestinationQueue().clear();
+                                shift = false;
+                                if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                                    game.getPlayer().performCursorAction();
                                 }
-
-                                if(opened) break;
-                            }
-                        }
-                        else {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            shift = false;
-                            boolean found = false;
-
-                            for(int i = -1; i <= 1; i++) {
-                                for(int j = -1; j <= 1; j++) {
-                                    Creature c = game.getLevel().getCreatureAt(game.getPlayer().getX() + i, game.getPlayer().getY() + j);
-                                    if(c != null && c.getAi() instanceof NPCAi && ((NPCAi)c.getAi()).getDialogueRoot() != null) {
-                                        if(i == 0 && j == 0) continue;
-                                        game.getPlayer().talkTo(c);
-                                        found = true;
-                                        break;
-                                    }
-                                }
-
-                                if(found) break;
+                                else game.setScreen(game.getSpellScreen());
                             }
 
-                            if(found)
-                                startDialogue(((NPCAi)game.getPlayer().getTalkingTo().getAi()).getDialogueRoot());
-                            else
-                                game.getPlayer().notify("You're not *that* lonely!");
+                            return true;
                         }
-
-                        return true;
-                    }
-                    case Input.Keys.Z: {
-
-                        if(!game.getPlayer().isAllowed_to_act()) return true;
-
-                        if(!shift) {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
+                        case Input.Keys.PLUS: {
+                            if(((OrthographicCamera)stage.getCamera()).zoom - 0.05 >= 0)
+                                ((OrthographicCamera)stage.getCamera()).zoom -= 0.05f;
+                            return true;
+                        }
+                        case Input.Keys.MINUS: {
+                            if(((OrthographicCamera)stage.getCamera()).zoom + 0.05 <= 4)
+                                ((OrthographicCamera)stage.getCamera()).zoom += 0.05f;
+                            return true;
+                        }
+                        case Input.Keys.ENTER: {
+                            if(game.getPlayer().getCursor().isActive()) {
                                 game.getPlayer().performCursorAction();
                             }
+                            return true;
                         }
-                        else {
-                            game.getPlayer().setCurrentDestination(null);
-                            game.getPlayer().getDestinationQueue().clear();
-                            shift = false;
-                            if(game.getPlayer().getCursor().isActive() && game.getPlayer().getCursor().getPurpose().equals("zap")) {
-                                game.getPlayer().performCursorAction();
-                            }
-                            else game.setScreen(game.getSpellScreen());
-                        }
-
-                        return true;
-                    }
-                    case Input.Keys.PLUS: {
-                        if(((OrthographicCamera)stage.getCamera()).zoom - 0.05 >= 0)
-                            ((OrthographicCamera)stage.getCamera()).zoom -= 0.05f;
-                        return true;
-                    }
-                    case Input.Keys.MINUS: {
-                        if(((OrthographicCamera)stage.getCamera()).zoom + 0.05 <= 4)
-                            ((OrthographicCamera)stage.getCamera()).zoom += 0.05f;
-                        return true;
-                    }
-                    case Input.Keys.ENTER: {
-                        if(game.getPlayer().getCursor().isActive()) {
-                            game.getPlayer().performCursorAction();
-                        }
-                        return true;
-                    }
                     /*
                     case Input.Keys.Y: {
 
@@ -570,9 +581,13 @@ public class PlayScreen extends ScreenAdapter {
                     }
 
                      */
-                    default:
-                        return false;
+                        default:
+                            return false;
+                    }
+                } catch (Exception e) {
+                    return true;
                 }
+
             }
 
             @Override

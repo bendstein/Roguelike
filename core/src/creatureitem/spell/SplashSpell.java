@@ -4,12 +4,10 @@ import com.badlogic.gdx.Gdx;
 import creatureitem.Creature;
 import creatureitem.effect.Effect;
 import utility.Utility;
-import world.Tile;
 import world.geometry.Line;
 import world.geometry.Point;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.EmptyStackException;
 import java.util.HashSet;
 
@@ -131,11 +129,10 @@ public class SplashSpell extends AOESpell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
     @Override
-    public SplashSpell copyOf(Spell s) {
-        return (SplashSpell)super.copyOf(s);
+    public SplashSpell copy() {
+        return new SplashSpell(super.copy());
     }
 }

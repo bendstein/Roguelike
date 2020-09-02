@@ -174,11 +174,6 @@ public class LooterAi extends TrackerAi {
                 act = shootRandom();
             }
 
-            //If we didn't attack, use a random item
-            if(!act) {
-                act = useRandomItem();
-            }
-
             //If we didn't act, move towards the destination
             if(!act) {
                 if(dest != null) {

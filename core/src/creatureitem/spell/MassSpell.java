@@ -54,11 +54,10 @@ public class MassSpell extends PointSpell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
     @Override
-    public MassSpell copyOf(Spell s) {
-        return (MassSpell) super.copyOf(s);
+    public MassSpell copy() {
+        return new MassSpell(super.copy());
     }
 }

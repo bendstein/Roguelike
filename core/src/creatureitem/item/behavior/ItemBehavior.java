@@ -1,7 +1,7 @@
-package creatureitem.items.behaviors;
+package creatureitem.item.behavior;
 
 import creatureitem.Creature;
-import creatureitem.items.Item;
+import creatureitem.item.Item;
 
 public abstract class ItemBehavior {
 
@@ -16,6 +16,8 @@ public abstract class ItemBehavior {
 
     public abstract void assignCaster(Creature c);
 
+    public abstract ItemBehavior copy();
+
     //<editor-fold desc="Getters and Setters">
     public Item getItem() {
         return item;
@@ -25,4 +27,5 @@ public abstract class ItemBehavior {
         this.item = item;
     }
     //</editor-fold>
+
 }

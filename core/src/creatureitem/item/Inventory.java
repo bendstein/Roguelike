@@ -25,7 +25,9 @@ public class Inventory implements Iterable<Item>  {
 
     public void add(Item item) {
 
-        int j = contains(item);
+        if(item == null) return;
+
+        int j = containsEquivalent(item);
 
         if(j == -1 || !item.hasProperty("stack")) {
             for(int i = 0; i < items.length; i++) {
@@ -58,9 +60,10 @@ public class Inventory implements Iterable<Item>  {
     public boolean removeOne(Item item) {
 
         if(item.hasProperty("stack") && item.getCount() >= 1) {
-            if(contains(item) == -1) return false;
-            int countOriginal = items[contains(item)].count;
-            items[contains(item)].decrementCount(1);
+            int i = containsEquivalent(item);
+            if(i == -1) return false;
+            int countOriginal = items[i].count;
+            items[i].decrementCount(1);
             if(item.count == countOriginal) item.decrementCount(1);
         }
 
@@ -116,6 +119,16 @@ public class Inventory implements Iterable<Item>  {
         for(int j = 0; j < items.length; j++) {
             if(items[j] == null) continue;
             if(items[j].equals(i))
+                return j;
+        }
+
+        return -1;
+    }
+
+    public int containsEquivalent(Item i) {
+        for(int j = 0; j < items.length; j++) {
+            if(items[j] == null) continue;
+            if(items[j].equals(i) || items[j].equivalent(i))
                 return j;
         }
 
@@ -192,7 +205,7 @@ public class Inventory implements Iterable<Item>  {
     public Item[] filterWorth(int worthmin, int worthmax) {
         ArrayList<Item> it = new ArrayList<>(asList()
                 .stream()
-                .filter(i -> (i != null && i.worth <= worthmax && i.worth >= worthmin))
+                .filter(i -> (i != null && i.getWorth() <= worthmax && i.getWorth() >= worthmin))
                 .collect(Collectors.toList()));
 
         Item[] items = new Item[it.size()];

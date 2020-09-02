@@ -88,10 +88,9 @@ public abstract class Spell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
-    public abstract Spell copyOf(Spell s);
+    public abstract Spell copy();
 
     public void cast() {
 

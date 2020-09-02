@@ -47,10 +47,6 @@ public class GoblinAi extends TrackerAi {
         if(!act)
             act = shootTarget();
 
-        //If they didn't act, use a random item.
-        if(!act)
-            act = useRandomItem();
-
         //If they didn't act, move toward the player's last known location
         if(!act) {
             if(dest != null)

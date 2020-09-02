@@ -5,8 +5,6 @@ import creatureitem.effect.Effect;
 import world.geometry.Line;
 import world.geometry.Point;
 
-import java.util.ArrayList;
-
 /**
  * A spell that targets all points between two points
  */
@@ -23,9 +21,9 @@ public class LineSpell extends PointSpell {
         this.effectOne = effectOne;
     }
 
-    public LineSpell(LineSpell spell) {
+    public LineSpell(PointSpell spell) {
         super(spell);
-        this.effectOne = spell.effectOne;
+        this.effectOne = spell instanceof LineSpell? ((LineSpell) spell).effectOne : false;
     }
 
     @Override
@@ -96,16 +94,11 @@ public class LineSpell extends PointSpell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
     @Override
-    public LineSpell copyOf(Spell s) {
-        LineSpell copy = (LineSpell) super.copyOf(s);
-
-        copy.effectOne = !(s instanceof LineSpell) || ((LineSpell) s).effectOne;
-
-        return copy;
+    public LineSpell copy() {
+        return new LineSpell(super.copy());
     }
 
     public boolean isEffectOne() {

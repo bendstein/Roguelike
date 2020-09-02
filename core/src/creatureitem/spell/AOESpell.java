@@ -3,7 +3,6 @@ package creatureitem.spell;
 import com.badlogic.gdx.Gdx;
 import creatureitem.Creature;
 import creatureitem.effect.Effect;
-import game.Main;
 import utility.Utility;
 import world.geometry.Line;
 import world.geometry.Point;
@@ -29,9 +28,9 @@ public class AOESpell extends PointSpell {
         this.radius = radius;
     }
 
-    public AOESpell(AOESpell spell) {
+    public AOESpell(PointSpell spell) {
         super(spell);
-        this.radius = spell.radius;
+        this.radius = spell instanceof AOESpell? ((AOESpell) spell).radius : 0;
     }
 
     @Override
@@ -84,17 +83,11 @@ public class AOESpell extends PointSpell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
     @Override
-    public AOESpell copyOf(Spell s) {
-        AOESpell copy = (AOESpell)super.copyOf(s);
-        copy.effects = new ArrayList<>();
-
-        copy.radius = s instanceof AOESpell? ((AOESpell) s).radius : 1;
-
-        return copy;
+    public AOESpell copy() {
+        return new AOESpell(super.copy());
     }
 
     //<editor-fold desc="Getters and Setters">

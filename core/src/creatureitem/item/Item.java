@@ -3,8 +3,12 @@ package creatureitem.item;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import creatureitem.Creature;
-import creatureitem.effect.damage.Damage;
-import creatureitem.spell.Spell;
+import creatureitem.item.behavior.*;
+import creatureitem.item.behavior.equipable.Equipable;
+import creatureitem.item.behavior.equipable.armor.Armor;
+import creatureitem.item.behavior.equipable.weapon.*;
+import creatureitem.item.builder.ItemBuilder;
+import jdk.vm.ci.meta.Local;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,146 +17,283 @@ import java.util.Objects;
 
 public class Item {
 
+    //<editor-fold desc="Instance Variables">
+    /**
+     * Character representing this item
+     */
     protected char glyph;
 
+    /**
+     * Texture representing this item
+     */
     protected Texture texture;
 
+    //------------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The name of this item
+     */
     protected String name;
 
+    /**
+     * A description of this item
+     */
+    protected String description;
+
+    /**
+     * Properties which this item has
+     */
     protected ArrayList<String> properties;
 
+    /**
+     * The number of copies in this stack
+     */
     protected int count;
 
-    protected Damage throwDamage;
+    //------------------------------------------------------------------------------------------------------------------
+
+    /**
+     * How common this item is
+     */
+    protected double rarity;
+
+    /**
+     * Preset rarities
+     */
+    public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
 
     protected int worth;
 
-    protected double rarity;
+    //------------------------------------------------------------------------------------------------------------------
 
-    protected Spell onUse;
+    /**
+     * A reference to the slot this item is equipped in
+     */
+    protected ItemSlot equippedSlot;
 
-    protected Spell onThrow;
+    /**
+     * List of references to slots this item is obstructing
+     */
+    protected ArrayList<ItemSlot> obstructing;
 
-    public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
+    //------------------------------------------------------------------------------------------------------------------
 
-    public static final int ON_USE = 0, ON_THROW = 1;
+    /**
+     * Item components
+     */
+    protected Usable usableComponent;
 
-    public Item(char glyph, String texturePath, String name, int worth, String ... properties) {
+    protected Launchable launchableComponent;
+
+    protected Consumable consumableComponent;
+
+    protected MeleeWeapon meleeComponent;
+
+    protected RangedWeapon rangedComponent;
+
+    protected Ammo ammoComponent;
+
+    protected Armor armorComponent;
+
+    protected Castable castableComponent;
+
+    //------------------------------------------------------------------------------------------------------------------
+    //</editor-fold>
+
+    public Item() {
+    }
+
+    public Item(char glyph, String texturePath, String name, String description, double rarity, int worth, ItemBuilder builder,
+                String ... properties) {
+
         this.glyph = glyph;
-        if(!texturePath.equals(""))
-            this.texture = new Texture(Gdx.files.internal(texturePath));
-        else this.texture = null;
-        this.worth = worth;
-        this.rarity = 0;
-        this.name = name;
-        this.properties = new ArrayList<>(Arrays.asList(properties));
-        this.properties.add("drop");
-        throwDamage = new Damage(0, 1, 0);
-        onUse = null;
-        onThrow = null;
 
-        if(hasProperty("stack")) {
-            count = 1;
+        try {
+            this.texture = new Texture(Gdx.files.internal(texturePath));
+        } catch (Exception e) {
+            this.texture = null;
         }
+
+        this.name = name;
+        this.description = description;
+        this.properties = new ArrayList<>(Arrays.asList(properties));
+        this.rarity = rarity;
+        this.worth = worth;
+        this.count = 1;
+        setComponents(builder);
+        this.equippedSlot = null;
+        this.obstructing = new ArrayList<>();
     }
 
-    public Item(char glyph, String texturePath, String name, int worth, Spell[] spells, String ... properties) {
+    public Item(char glyph, Texture texture, String name, String description, double rarity, int worth, ItemBuilder builder,
+                String ... properties) {
+
         this.glyph = glyph;
-        if(!texturePath.equals(""))
-            this.texture = new Texture(Gdx.files.internal(texturePath));
-        else this.texture = null;
-        this.worth = worth;
-        this.rarity = 0;
+        this.texture = texture;
         this.name = name;
+        this.description = description;
         this.properties = new ArrayList<>(Arrays.asList(properties));
-        this.properties.add("drop");
-        throwDamage = new Damage(0, 1, 0);
-
-        onUse = onThrow = null;
-        for(int i = 0; i < spells.length; i++) {
-            switch (i) {
-                case ON_USE: {
-                    onUse = spells[i];
-                    onUse.setIgnoreRange(true);
-                    addProperty("use");
-                    break;
-                }
-                case ON_THROW: {
-                    onThrow = spells[i];
-                    onThrow.setIgnoreRange(true);
-                    break;
-                }
-            }
-        }
-
-        if(hasProperty("stack")) {
-            count = 1;
-        }
-    }
-
-    public Item(char glyph, String texturePath, String name, int worth, Damage throwDamage, String ... properties) {
-        this.glyph = glyph;
-        if(!texturePath.equals(""))
-            this.texture = new Texture(Gdx.files.internal(texturePath));
-        else this.texture = null;
+        this.rarity = rarity;
         this.worth = worth;
-        this.rarity = 0;
+        this.count = 1;
+        setComponents(builder);
+        this.equippedSlot = null;
+        this.obstructing = new ArrayList<>();
+    }
+
+    /**
+     * Constructor for a fake item that will never show up physically, such as the player's fists.
+     */
+    public Item(String name, ItemBuilder builder, String ... properties) {
+        this.glyph = ' ';
+        texture = null;
         this.name = name;
+        this.description = "";
         this.properties = new ArrayList<>(Arrays.asList(properties));
-        this.properties.add("drop");
-        this.throwDamage = throwDamage;
-        onUse = onThrow = null;
-
-        if(hasProperty("stack")) {
-            count = 1;
-        }
-    }
-
-    public Item(char glyph, String texturePath, String name, int worth, Damage throwDamage, Spell[] spells, String ... properties) {
-        this.glyph = glyph;
-        if(!texturePath.equals(""))
-            this.texture = new Texture(Gdx.files.internal(texturePath));
-        else this.texture = null;
-        this.worth = worth;
         this.rarity = 0;
-        this.name = name;
-        this.properties = new ArrayList<>(Arrays.asList(properties));
-        this.properties.add("drop");
-        this.throwDamage = throwDamage;
-        this.onUse = onUse.copyOf(onUse);
+        this.worth = 0;
+        this.count = 0;
+        this.usableComponent = builder.getUsableComponent();
+        this.launchableComponent = builder.getLaunchableComponent();
+        this.consumableComponent = builder.getConsumableComponent();
+        this.meleeComponent = builder.getMeleeComponent();
+        this.rangedComponent = builder.getRangedComponent();
+        this.ammoComponent = builder.getAmmoComponent();
+        this.armorComponent = builder.getArmorComponent();
+        this.castableComponent = builder.getCastableComponent();
+        this.equippedSlot = null;
+        this.obstructing = new ArrayList<>();
+    }
 
-        onUse = onThrow = null;
-        for(int i = 0; i < spells.length; i++) {
-            switch (i) {
-                case ON_USE: {
-                    onUse = spells[i];
-                    addProperty("use");
-                    break;
-                }
-                case ON_THROW: {
-                    onThrow = spells[i];
-                    break;
-                }
-            }
+    /**
+     * Pass the item holder to all components
+     * @param c The item holder
+     */
+    public void assignCaster(Creature c) {
+        if(usableComponent != null) usableComponent.assignCaster(c);
+        if(launchableComponent != null) launchableComponent.assignCaster(c);
+        if(consumableComponent != null) consumableComponent.assignCaster(c);
+        if(meleeComponent != null) meleeComponent.assignCaster(c);
+        if(rangedComponent != null) rangedComponent.assignCaster(c);
+        if(ammoComponent != null) ammoComponent.assignCaster(c);
+        if(armorComponent != null) armorComponent.assignCaster(c);
+        if(castableComponent != null) castableComponent.assignCaster(c);
+    }
+
+    public void setComponents(ItemBuilder builder) {
+        if(builder == null) return;
+
+        this.usableComponent = builder.getUsableComponent();
+        this.launchableComponent = builder.getLaunchableComponent();
+        this.consumableComponent = builder.getConsumableComponent();
+        this.meleeComponent = builder.getMeleeComponent();
+        this.rangedComponent = builder.getRangedComponent();
+        this.ammoComponent = builder.getAmmoComponent();
+        this.armorComponent = builder.getArmorComponent();
+        this.castableComponent = builder.getCastableComponent();
+
+        setComponentKeyWords();
+    }
+
+    public void setComponentKeyWords() {
+        if(usableComponent != null) {
+            addProperty("use");
         }
 
-        if(hasProperty("stack")) {
-            count = 1;
+        if(launchableComponent != null) {
+            addProperty("throw");
+        }
+
+        if(consumableComponent != null) {
+            if(consumableComponent.getSatiation() != 0)
+                addProperty("eat");
+            if(consumableComponent.getOnConsume() != null && consumableComponent.getOnConsume().length > 0)
+                addProperty("quaff");
+        }
+
+        if(meleeComponent != null) {
+            addProperty("equip", "melee");
+        }
+
+        if(rangedComponent != null) {
+            addProperty("equip", "ranged");
+        }
+
+        if(ammoComponent != null) {
+            addProperty("equip", "ammo");
+        }
+
+        if(armorComponent != null) {
+            addProperty("equip", "armor");
+        }
+
+        if(castableComponent != null) {
+            addProperty("zap");
         }
     }
 
-    public Item(Item item) {
-        this.glyph = item.glyph;
-        this.texture = item.texture;
-        this.worth = item.worth;
-        this.rarity = item.rarity;
-        this.name = item.name;
-        this.properties = item.properties;
-        this.count = item.count;
-        this.throwDamage = item.throwDamage;
-        this.onUse = item.onUse == null? null : item.onUse.copyOf(item.onUse);
-        this.onThrow = item.onThrow == null? null : item.onThrow.copyOf(item.onThrow);
+    public boolean hasSlotType(int slot) {
+        if(isMeleeWeapon() && meleeComponent.getSlot() != null && meleeComponent.getSlot().getMainSlot().getSlot() == slot) return true;
+        if(isRangedWeapon() && rangedComponent.getSlot() != null && rangedComponent.getSlot().getMainSlot().getSlot() == slot) return true;
+        if(isAmmo() && ammoComponent.getSlot() != null && ammoComponent.getSlot().getMainSlot().getSlot() == slot) return true;
+        if(isArmor() && armorComponent.getSlot() != null && armorComponent.getSlot().getMainSlot().getSlot() == slot) return true;
+        return false;
     }
+
+    public Equipable.EquipSlot getSlotWithSlotType(int slot) {
+        if(!hasSlotType(slot)) return null;
+
+        if(isMeleeWeapon() && meleeComponent.getSlot() != null && meleeComponent.getSlot().getMainSlot().getSlot() == slot) return meleeComponent.getSlot();
+        if(isRangedWeapon() && rangedComponent.getSlot() != null && rangedComponent.getSlot().getMainSlot().getSlot() == slot) return rangedComponent.getSlot();
+        if(isAmmo() && ammoComponent.getSlot() != null && ammoComponent.getSlot().getMainSlot().getSlot() == slot) return ammoComponent.getSlot();
+        if(isArmor() && armorComponent.getSlot() != null && armorComponent.getSlot().getMainSlot().getSlot() == slot) return armorComponent.getSlot();
+
+        return null;
+    }
+
+    //<editor-fold desc="Component Check">
+    /**
+     * @return true if the item has the respective component
+     */
+    public boolean isUsable() {
+        return usableComponent != null;
+    }
+
+    public boolean isLaunchable() {
+        return launchableComponent != null;
+    }
+
+    public boolean isComsumable() {
+        return consumableComponent != null;
+    }
+
+    public boolean isMeleeWeapon() {
+        return meleeComponent != null;
+    }
+
+    public boolean isRangedWeapon() {
+        return rangedComponent != null;
+    }
+
+    public boolean isAmmo() {
+        return ammoComponent != null;
+    }
+
+    public boolean isArmor() {
+        return armorComponent != null;
+    }
+
+    public boolean isCastable() {
+        return castableComponent != null;
+    }
+
+    public boolean isEquippable() {
+        return isMeleeWeapon() || isRangedWeapon() || isAmmo() || isArmor();
+    }
+
+    //</editor-fold>
+
+    //<editor-fold desc="Getters and Setters">
 
     public char getGlyph() {
         return glyph;
@@ -178,6 +319,14 @@ public class Item {
         this.name = name;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public ArrayList<String> getProperties() {
         return properties;
     }
@@ -186,20 +335,25 @@ public class Item {
         this.properties = properties;
     }
 
-    public boolean hasProperty(String ... properties) {
-        for(int i = 0; i < properties.length; i++) {
-            if(this.properties.contains(properties[i])) return true;
+    public void addProperty(String ... properties) {
+        for(String p : properties) {
+            if(!this.properties.contains(p))
+                this.properties.add(p);
         }
-
-        return false;
     }
 
-    public void addProperty(String property) {
-        if(!properties.contains(property)) properties.add(property);
+    public boolean hasProperty(String ... properties) {
+
+        for(String s : properties) {
+            if(!this.properties.contains(s)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public int getCount() {
-        if(!hasProperty("stack")) return 1;
         return count;
     }
 
@@ -208,30 +362,20 @@ public class Item {
         this.count = count;
     }
 
-    public void incrementCount(int i) {
-        if(!hasProperty("stack")) return;
-        this.count += i;
+    public void decrementCount() {
+        decrementCount(1);
     }
 
     public void decrementCount(int i) {
-        if(!hasProperty("stack")) return;
-        this.count -= i;
+        setCount(this.count - i);
     }
 
-    public Damage getThrowDamage() {
-        return throwDamage;
+    public void incrementCount() {
+        incrementCount(1);
     }
 
-    public void setThrowDamage(Damage throwDamage) {
-        this.throwDamage = throwDamage;
-    }
-
-    public int getWorth() {
-        return worth;
-    }
-
-    public void setWorth(int worth) {
-        this.worth = worth;
+    public void incrementCount(int i) {
+        setCount(this.count + i);
     }
 
     public double getRarity() {
@@ -242,50 +386,154 @@ public class Item {
         this.rarity = rarity;
     }
 
-    public Spell getOnUse() {
-        return onUse;
+    public int getWorth() {
+        return worth;
     }
 
-    public void setOnUse(Spell onUse) {
-        this.onUse = onUse;
+    public void setWorth(int worth) {
+        this.worth = worth;
     }
 
-    public Spell getOnThrow() {
-        return onThrow;
+    public Usable getUsableComponent() {
+        return usableComponent;
     }
 
-    public void setOnThrow(Spell onThrow) {
-        this.onThrow = onThrow;
+    public void setUsableComponent(Usable usableComponent) {
+        this.usableComponent = usableComponent;
     }
 
-    public void assignCaster(Creature c) {
-        if(onUse != null) onUse.setCaster(c);
-        if(onThrow != null) onThrow.setCaster(c);
+    public Launchable getLaunchableComponent() {
+        return launchableComponent;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Item)) return false;
-        Item item = (Item) o;
-        return glyph == item.glyph &&
-                throwDamage == item.throwDamage &&
-                worth == item.worth &&
-                rarity == item.rarity &&
-                Objects.equals(name, item.name) &&
-                Objects.equals(properties, item.properties) &&
-                Objects.equals(onUse, item.onUse) &&
-                Objects.equals(onThrow, item.onThrow);
+    public void setLaunchableComponent(Launchable launchableComponent) {
+        this.launchableComponent = launchableComponent;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(glyph, name, properties, throwDamage, worth, rarity, onUse, onThrow);
+    public Consumable getConsumableComponent() {
+        return consumableComponent;
+    }
+
+    public void setConsumableComponent(Consumable consumableComponent) {
+        this.consumableComponent = consumableComponent;
+    }
+
+    public MeleeWeapon getMeleeComponent() {
+        return meleeComponent;
+    }
+
+    public void setMeleeComponent(MeleeWeapon meleeComponent) {
+        this.meleeComponent = meleeComponent;
+    }
+
+    public RangedWeapon getRangedComponent() {
+        return rangedComponent;
+    }
+
+    public void setRangedComponent(RangedWeapon rangedComponent) {
+        this.rangedComponent = rangedComponent;
+    }
+
+    public Ammo getAmmoComponent() {
+        return ammoComponent;
+    }
+
+    public void setAmmoComponent(Ammo ammoComponent) {
+        this.ammoComponent = ammoComponent;
+    }
+
+    public Armor getArmorComponent() {
+        return armorComponent;
+    }
+
+    public void setArmorComponent(Armor armorComponent) {
+        this.armorComponent = armorComponent;
+    }
+
+    public Castable getCastableComponent() {
+        return castableComponent;
+    }
+
+    public void setCastableComponent(Castable castableComponent) {
+        this.castableComponent = castableComponent;
+    }
+
+    public ItemSlot getEquippedSlot() {
+        return equippedSlot;
+    }
+
+    public void setEquippedSlot(ItemSlot equippedSlot) {
+        this.equippedSlot = equippedSlot;
+    }
+
+    public boolean isEquipped() {
+        if(equippedSlot == null) return false;
+        return equippedSlot.isEquipped();
+    }
+
+    public ArrayList<ItemSlot> getObstructing() {
+        return obstructing;
+    }
+
+    public void setObstructing(ArrayList<ItemSlot> obstructing) {
+        this.obstructing = obstructing;
+    }
+
+    //</editor-fold>
+
+    public void unequip() {
+        if(equippedSlot != null) {
+            equippedSlot.unequip();
+        }
+
+        equippedSlot = null;
+
+        if(obstructing != null) {
+            for(ItemSlot is : obstructing)
+                if(is != null) is.unequip();
+
+            obstructing.clear();
+        }
+    }
+
+    public Item copy() {
+        ItemBuilder c = new ItemBuilder(this)
+                .setAmmoComponent(ammoComponent == null? null : ammoComponent.copy())
+                .setArmorComponent(armorComponent == null? null : armorComponent.copy())
+                .setCastableComponent(castableComponent == null? null : castableComponent.copy())
+                .setConsumableComponent(consumableComponent == null? null : consumableComponent.copy())
+                .setLaunchableComponent(launchableComponent == null? null : launchableComponent.copy())
+                .setMeleeComponent(meleeComponent == null? null : meleeComponent.copy())
+                .setRangedComponent(rangedComponent == null? null : rangedComponent.copy())
+                .setUsableComponent(usableComponent == null? null : usableComponent.copy());
+
+        Item i = new Item(glyph, texture, name, description, rarity, worth, c, properties.toArray(new String[0]));
+        i.equippedSlot = (equippedSlot == null? null : equippedSlot.copy());
+
+        return i;
     }
 
     @Override
     public String toString() {
-        if(hasProperty("stack") && count > 1) return String.format(Locale.getDefault(), "%s (%d)", name, count);
-        else return name;
+        return (hasProperty("stack") && count != 1)? String.format(Locale.getDefault(), "%s (%d)", name, count) : name;
     }
+
+    public boolean equivalent(Item item) {
+        if (this == item) return true;
+        return glyph == item.glyph &&
+                Objects.equals(name, item.name) &&
+                Objects.equals(description, item.description) &&
+                Objects.equals(properties, item.properties) &&
+                Objects.equals(equippedSlot, item.equippedSlot) &&
+                Objects.equals(obstructing, item.obstructing) &&
+                Objects.equals(usableComponent, item.usableComponent) &&
+                Objects.equals(launchableComponent, item.launchableComponent) &&
+                Objects.equals(consumableComponent, item.consumableComponent) &&
+                Objects.equals(meleeComponent, item.meleeComponent) &&
+                Objects.equals(rangedComponent, item.rangedComponent) &&
+                Objects.equals(ammoComponent, item.ammoComponent) &&
+                Objects.equals(armorComponent, item.armorComponent) &&
+                Objects.equals(castableComponent, item.castableComponent);
+    }
+
 }

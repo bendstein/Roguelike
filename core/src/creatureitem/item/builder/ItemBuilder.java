@@ -1,13 +1,14 @@
-package creatureitem.items.builder;
+package creatureitem.item.builder;
 
-import creatureitem.items.behaviors.Castable;
-import creatureitem.items.behaviors.Consumable;
-import creatureitem.items.behaviors.Launchable;
-import creatureitem.items.behaviors.Usable;
-import creatureitem.items.behaviors.equipable.armor.Armor;
-import creatureitem.items.behaviors.equipable.weapon.Ammo;
-import creatureitem.items.behaviors.equipable.weapon.MeleeWeapon;
-import creatureitem.items.behaviors.equipable.weapon.RangedWeapon;
+import creatureitem.item.Item;
+import creatureitem.item.behavior.Castable;
+import creatureitem.item.behavior.Consumable;
+import creatureitem.item.behavior.Launchable;
+import creatureitem.item.behavior.Usable;
+import creatureitem.item.behavior.equipable.armor.Armor;
+import creatureitem.item.behavior.equipable.weapon.Ammo;
+import creatureitem.item.behavior.equipable.weapon.MeleeWeapon;
+import creatureitem.item.behavior.equipable.weapon.RangedWeapon;
 
 public class ItemBuilder {
 
@@ -30,11 +31,19 @@ public class ItemBuilder {
 
     protected Castable castableComponent;
 
+    protected Item i;
+
     public ItemBuilder() {
         clear();
     }
 
-    public void clear() {
+    public ItemBuilder(Item i) {
+        clear();
+        this.i = i;
+    }
+
+    public ItemBuilder clear() {
+        i = null;
         usableComponent = null;
         launchableComponent = null;
         consumableComponent = null;
@@ -43,6 +52,7 @@ public class ItemBuilder {
         ammoComponent = null;
         armorComponent = null;
         castableComponent = null;
+        return this;
     }
 
     //<editor-fold desc="Getters and Setters">
@@ -52,7 +62,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setUsableComponent(Usable usableComponent) {
+        if(usableComponent == null) return this;
         this.usableComponent = usableComponent;
+        if(i != null) usableComponent.setItem(i);
         return this;
     }
 
@@ -61,7 +73,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setLaunchableComponent(Launchable launchableComponent) {
+        if(launchableComponent == null) return this;
         this.launchableComponent = launchableComponent;
+        if(i != null) launchableComponent.setItem(i);
         return this;
     }
 
@@ -70,7 +84,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setConsumableComponent(Consumable consumableComponent) {
+        if(consumableComponent == null) return this;
         this.consumableComponent = consumableComponent;
+        if(i != null) consumableComponent.setItem(i);
         return this;
     }
 
@@ -79,7 +95,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setMeleeComponent(MeleeWeapon meleeComponent) {
+        if(meleeComponent == null) return this;
         this.meleeComponent = meleeComponent;
+        if(i != null) meleeComponent.setItem(i);
         return this;
     }
 
@@ -88,7 +106,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setRangedComponent(RangedWeapon rangedComponent) {
+        if(rangedComponent == null) return this;
         this.rangedComponent = rangedComponent;
+        if(i != null) rangedComponent.setItem(i);
         return this;
     }
 
@@ -97,7 +117,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setAmmoComponent(Ammo ammoComponent) {
+        if(ammoComponent == null) return this;
         this.ammoComponent = ammoComponent;
+        if(i != null) ammoComponent.setItem(i);
         return this;
     }
 
@@ -106,7 +128,9 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setArmorComponent(Armor armorComponent) {
+        if(armorComponent == null) return this;
         this.armorComponent = armorComponent;
+        if(i != null) armorComponent.setItem(i);
         return this;
     }
 
@@ -115,7 +139,18 @@ public class ItemBuilder {
     }
 
     public ItemBuilder setCastableComponent(Castable castableComponent) {
+        if(castableComponent == null) return this;
         this.castableComponent = castableComponent;
+        if(i != null) castableComponent.setItem(i);
+        return this;
+    }
+
+    public Item getItem() {
+        return i;
+    }
+
+    public ItemBuilder setItem(Item i) {
+        this.i = i;
         return this;
     }
 

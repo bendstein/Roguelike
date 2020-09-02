@@ -25,6 +25,7 @@ public class Main extends Game {
     private MainMenu mainMenu;
     private LoseScreen loseScreen;
     private InventoryScreen inventoryScreen;
+    private EquipScreen equipScreen;
     private SpellScreen spellScreen;
 
     private Town town;
@@ -48,6 +49,7 @@ public class Main extends Game {
         mainMenu = new MainMenu(this);
         loseScreen = new LoseScreen(this);
         inventoryScreen = new InventoryScreen(this);
+        equipScreen = new EquipScreen(this);
         spellScreen = new SpellScreen(this);
         seed = System.currentTimeMillis();
         random = new Random(seed);
@@ -176,6 +178,14 @@ public class Main extends Game {
 
     public void incrementTurn() {
         turn++;
+    }
+
+    public EquipScreen getEquipScreen() {
+        return equipScreen;
+    }
+
+    public void setEquipScreen(EquipScreen equipScreen) {
+        this.equipScreen = equipScreen;
     }
 
     //</editor-fold>

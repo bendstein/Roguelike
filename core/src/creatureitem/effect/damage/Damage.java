@@ -28,7 +28,7 @@ public class Damage {
         this.numberOfDice = numberOfDice;
         this.dieType = dieType;
         this.modifier = modifier;
-        this.type = null;
+        this.type = Damage_Type.UNTYPED;
     }
 
     public Damage(int numberOfDice, int dieType, int modifier, Damage_Type type) {
@@ -103,6 +103,10 @@ public class Damage {
     }
 
     //</editor-fold>
+
+    public Damage copy() {
+        return new Damage(this);
+    }
 
     @Override
     public boolean equals(Object o) {

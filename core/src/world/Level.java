@@ -452,7 +452,7 @@ public class Level extends LevelInterface {
     public void remove(Item item) {
         for(int i = 0; i < inventories.length; i++) {
             for(int j = 0; j < inventories[0].length; i++) {
-                if(inventories[i][j].contains(item) != -1) {
+                if(inventories[i][j].containsEquivalent(item) != -1) {
                     inventories[i][j].remove(item);
                     return;
                 }

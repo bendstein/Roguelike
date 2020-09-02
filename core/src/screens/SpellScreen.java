@@ -17,10 +17,6 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import creatureitem.Player;
-import creatureitem.item.Equipable;
-import creatureitem.item.Food;
-import creatureitem.item.Item;
-import creatureitem.item.Potion;
 import creatureitem.spell.Spell;
 import game.Main;
 
@@ -185,7 +181,7 @@ public class SpellScreen extends ScreenAdapter {
         for(Map.Entry<String, Spell> entry : filtered.entrySet()) {
             Label l;
 
-            l = new Label(String.format(Locale.getDefault(), "%s, %s", entry.getKey(), entry.getValue().getName()), skin);
+            l = new Label(String.format(Locale.getDefault(), "%s. %s", entry.getKey(), entry.getValue().getName()), skin);
 
             l.addListener(new InputListener() {
                 @Override

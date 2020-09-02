@@ -6,11 +6,19 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import creatureitem.ai.CreatureAi;
 import creatureitem.effect.Effect;
-import creatureitem.item.*;
+import creatureitem.item.Inventory;
+import creatureitem.item.Item;
+import creatureitem.item.ItemSlot;
+import creatureitem.item.behavior.Consumable;
+import creatureitem.item.behavior.ItemBehavior;
+import creatureitem.item.behavior.equipable.Equipable;
+import creatureitem.item.behavior.equipable.Slot;
+import creatureitem.item.behavior.equipable.armor.Armor;
+import creatureitem.item.behavior.equipable.weapon.Weapon;
+import creatureitem.item.builder.ItemBuilder;
 import creatureitem.spell.*;
 import utility.Utility;
 import world.Level;
-import world.Tile;
 import world.geometry.AStarPoint;
 import world.geometry.Cursor;
 import world.geometry.Line;
@@ -117,12 +125,14 @@ public class Creature extends Entity {
 
     public static final double SUPER_COMMON = 0d, COMMON = 1d, AVERAGE = 2d, UNCOMMON = 3d, RARE = 4d, LEGENDARY = 5d;
 
+
     /**
      * Reference to the level the creature is in
      */
     protected Level level;
 
     protected boolean[][] vision;
+
 
     /*
      * Other
@@ -163,6 +173,7 @@ public class Creature extends Entity {
      */
     protected int moveDirection;
 
+
     /*
      * Equipment
      */
@@ -170,12 +181,12 @@ public class Creature extends Entity {
     /**
      * A measure of a creature's ability to deal damage when unequipped
      */
-    protected Weapon unarmedAttack;
+    protected Item unarmedAttack;
 
     /**
      * The creature's natural armor
      */
-    protected Armor natArmor;
+    protected Item natArmor;
 
 
     /**
@@ -183,32 +194,35 @@ public class Creature extends Entity {
      */
     protected Inventory inventory;
 
-
     /**
-     * The weapon in the creature's main hand
+     * The items in the creature's hands
      */
-    protected Weapon mainHand;
+    protected ItemSlot[] held;
 
     /**
      * The ranged weapon that the creature is holding
      */
-    protected RangedWeapon rangedWeapon;
+    protected ItemSlot rangedWeapon;
 
     /**
      * The ammo the creature has in its quiver
      */
-    protected Ammo quiver;
+    protected ItemSlot quiver;
 
     /**
      * The armor the creature has on its body
      */
-    protected Armor body;
+    protected ItemSlot body;
+
 
     /**
      * Spells that the creature knows
      */
     protected ArrayList<Spell> spells;
 
+    /*
+     * Vision
+     */
     /**
      * A list of all effects currently active on the creature
      */
@@ -225,8 +239,8 @@ public class Creature extends Entity {
 
     //</editor-fold>
 
-    public Creature(int hpMax, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
-                    Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, float energy_factor, String ... properties) {
+    public Creature(int hpMax, int hungerMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
+                    Level level, String texturePath, String name, char glyph, int team, Item unarmedAttack, int natArmor, float energy_factor, String ... properties) {
         super(-1, -1, true, properties);
         this.hp = this.hpMax = hpMax + getAttributeBonus(constitution);
         this.hunger = this.hungerMax = hungerMax;
@@ -257,8 +271,14 @@ public class Creature extends Entity {
 
         this.inventory = new Inventory();
 
+        this.held = new ItemSlot[]{new ItemSlot(new Slot(Slot.HELD), "Main Hand"), new ItemSlot(new Slot(Slot.HELD), "Off Hand")};
+
+        this.rangedWeapon = new ItemSlot(new Slot(Slot.RANGED), "Ranged");
+        this.quiver = new ItemSlot(new Slot(Slot.QUIVER), "Quiver");
+        this.body = new ItemSlot(new Slot(Slot.BODY), "Body");
+
         this.unarmedAttack = unarmedAttack;
-        this.natArmor = new Armor(natArmor);
+        this.natArmor = new Item("", new ItemBuilder().setArmorComponent(new Armor(null, natArmor, null)));
 
         this.energy_factor = energy_factor;
 
@@ -316,14 +336,19 @@ public class Creature extends Entity {
         this.moveDirection = 0;
 
         this.unarmedAttack = creature.unarmedAttack;
-        this.natArmor = new Armor(creature.getNatArmor());
+        this.natArmor = creature.getNatArmor().copy();
 
         this.inventory = new Inventory(creature.inventory);
 
-        this.mainHand = creature.mainHand;
-        this.rangedWeapon = creature.rangedWeapon;
-        this.quiver = creature.quiver;
-        this.body = creature.body;
+        this.held = new ItemSlot[(creature.held == null || creature.held.length == 0)? 1 : creature.held.length];
+
+        for(int i = 0; i < (creature.held == null? 0 : creature.held.length); i++) {
+            held[i] = creature.held[i].copy();
+        }
+
+        this.rangedWeapon = creature.rangedWeapon.copy();
+        this.quiver = creature.quiver.copy();
+        this.body = creature.body.copy();
 
         this.spells = new ArrayList<>(creature.spells);
         this.activeEffects = new ArrayList<>(creature.activeEffects);
@@ -352,6 +377,100 @@ public class Creature extends Entity {
 
     //<editor-fold desc="Getters and Setters">
 
+    public Item getUnarmedAttack() {
+        return unarmedAttack;
+    }
+
+    public void setUnarmedAttack(Item unarmedAttack) {
+        this.unarmedAttack = unarmedAttack;
+    }
+
+    public Item getNatArmor() {
+        return natArmor;
+    }
+
+    public void setNatArmor(Item natArmor) {
+        this.natArmor = natArmor;
+    }
+
+    public ItemSlot[] getHeldSlots() {
+        return held;
+    }
+
+    public void setHeldSlots(ItemSlot[] held) {
+        this.held = held;
+    }
+
+    public Item getMainHand() {
+        return getHeld(0);
+    }
+
+    public Item getOffHand() {
+        return getHeld(1);
+    }
+
+    public Item getHeld(int i) {
+        try {
+            return held[i].getI();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Item[] getHeld() {
+        Item [] is = new Item[held.length];
+        for(int i = 0; i < held.length; i++) {
+            is[i] = held[i].getI();
+        }
+
+        return is;
+    }
+
+    public ItemSlot getRangedWeaponSlot() {
+        return rangedWeapon;
+    }
+
+    public Item getRangedWeapon() {
+        return rangedWeapon.getI();
+    }
+
+    public void setRangedWeaponSlot(ItemSlot rangedWeapon) {
+        this.rangedWeapon = rangedWeapon;
+    }
+
+    public ItemSlot getQuiverSlot() {
+        return quiver;
+    }
+
+    public Item getQuiver() {
+        return quiver.getI();
+    }
+
+    public void setQuiverSlot(ItemSlot quiver) {
+        this.quiver = quiver;
+    }
+
+    public ItemSlot getBodySlot() {
+        return body;
+    }
+
+    public Item getBody() {
+        return body.getI();
+    }
+
+    public void setBodySlot(ItemSlot body) {
+        this.body = body;
+    }
+
+    public ArrayList<ItemSlot> getSlots() {
+        ArrayList<ItemSlot> s = new ArrayList<>();
+        s.addAll(Arrays.asList(held));
+        s.add(rangedWeapon);
+        s.add(quiver);
+        s.add(body);
+        return s;
+    }
+
     public boolean isRequestVisionUpdate() {
         return requestVisionUpdate;
     }
@@ -370,10 +489,14 @@ public class Creature extends Entity {
 
     public ArrayList<Item> equipped() {
         ArrayList<Item> equipped = new ArrayList<>();
-        if(quiver != null) equipped.add(quiver);
-        if(mainHand != null) equipped.add(mainHand);
-        if(rangedWeapon != null) equipped.add(rangedWeapon);
-        if(body != null) equipped.add(body);
+        if(quiver != null && quiver.isEquipped()) equipped.add(quiver.getI());
+        if(held != null) {
+            for(ItemSlot h : held)
+                if(h != null && h.isEquipped()) equipped.add(h.getI());
+        }
+
+        if(rangedWeapon != null && rangedWeapon.isEquipped()) equipped.add(rangedWeapon.getI());
+        if(body != null && body.isEquipped()) equipped.add(body.getI());
         return equipped;
     }
 
@@ -532,19 +655,11 @@ public class Creature extends Entity {
     }
 
     public int getArmor() {
-        int total = natArmor.getArmor() + defenseBonus;
+        int total = natArmor.getArmorComponent().getProtection() + defenseBonus;
 
-        total += body == null? 0 : body.getArmor();
+        total += (body == null || body.getI() == null || body.getI().getArmorComponent() == null)? 0 : body.getI().getArmorComponent().getProtection();
 
         return total;
-    }
-
-    public Weapon getUnarmedAttack() {
-        return unarmedAttack;
-    }
-
-    public void setUnarmedAttack(Weapon unarmedAttack) {
-        this.unarmedAttack = unarmedAttack;
     }
 
     public int getVisionRadius() {
@@ -600,46 +715,6 @@ public class Creature extends Entity {
 
     public void setHungerMax(int hungerMax) {
         this.hungerMax = hungerMax;
-    }
-
-    public Weapon getMainHand() {
-        return mainHand;
-    }
-
-    public void setMainHand(Weapon mainHand) {
-        this.mainHand = mainHand;
-    }
-
-    public RangedWeapon getRangedWeapon() {
-        return rangedWeapon;
-    }
-
-    public void setRangedWeapon(RangedWeapon rangedWeapon) {
-        this.rangedWeapon = rangedWeapon;
-    }
-
-    public Ammo getQuiver() {
-        return quiver;
-    }
-
-    public void setQuiver(Ammo quiver) {
-        this.quiver = quiver;
-    }
-
-    public Armor getNatArmor() {
-        return natArmor;
-    }
-
-    public void setNatArmor(Armor natArmor) {
-        this.natArmor = natArmor;
-    }
-
-    public Armor getBody() {
-        return body;
-    }
-
-    public void setBody(Armor body) {
-        this.body = body;
     }
 
     public int getExp() {
@@ -933,12 +1008,21 @@ public class Creature extends Entity {
         spendEnergy(200);
     }
 
-    public boolean toHit(Item w, Creature c) {
+    public boolean toHit(ItemBehavior w, Creature c) {
+        return toHit(w, c, 0);
+    }
 
-        int toHit = (w instanceof Weapon)? ((Weapon)w).getToHitMod()  + getAttributeBonus(agility) + level.getRandom().nextInt(20) :
-                getAttributeBonus(agility) + level.getRandom().nextInt(20);
-        int toDodge = c.getEvasion() + level.getRandom().nextInt(20);
+    public boolean toHit(ItemBehavior w, Creature c, int bonus) {
 
+        int mod = bonus;
+        if(w instanceof Weapon)
+            mod += ((Weapon) w).getToHitMod();
+
+        int toHit = (level.getRandom().nextInt( 20 - 1) + 1) + mod;
+        int toDodge = (level.getRandom().nextInt( 20 - 1) + 1) + c.getAttributeBonus(c.getAgility());
+
+        if(toHit == 20) return true;
+        if(toHit == 1) return false;
         return toHit > toDodge;
     }
 
@@ -949,32 +1033,40 @@ public class Creature extends Entity {
     public void attack(Creature foe) {
 
         int damage;
-        boolean miss = !toHit(getMainHand(), foe);
+        int numberofAttacks = 0;
 
-        if(miss) {
-            doAction("attack %s.", foe.name);
-            foe.doAction("dodge the attack!");
-        }
+        for(ItemSlot h : held) {
+            if(h.isEquipped() && h.getI().isMeleeWeapon()) {
+                boolean miss = !toHit(h.getI().getMeleeComponent(), foe, -3 * numberofAttacks);
+                numberofAttacks++;
 
-        else {
-            if(mainHand == null) damage = unarmedAttack.getWeaponDamage().getDamage(getLevel().getRandom()) +
-                    getAttributeBonus(strength) + damageBonus;
-            else damage = mainHand.getWeaponDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength) + damageBonus;
+                if(miss) {
+                    doAction("attack %s.", foe.name);
+                    foe.doAction("dodge the attack!");
+                }
 
-            damage = Math.max(0, damage - foe.getArmor());
-            damage *= -1;
+                else {
+                    Item w = h.getI();
+                    if(w == null || !w.isMeleeWeapon()) damage = unarmedAttack.getMeleeComponent().getDamage(getLevel().getRandom()) +
+                            getAttributeBonus(strength) + damageBonus;
+                    else damage = w.getMeleeComponent().getDamage(getLevel().getRandom()) + getAttributeBonus(strength) + damageBonus;
 
-            boolean died = foe.modifyHP(damage);
-            doAction("attack %s for %d damage.", foe.name, Math.abs(damage));
+                    damage = Math.max(0, damage - foe.getArmor());
+                    damage *= -1;
 
-            if(getMainHand() != null && getMainHand().getOnHit() != null && level.getRandom().nextDouble() < getMainHand().getImpactSpellProbability()) {
-                getMainHand().getOnHit().setCaster(this);
-                cast(getMainHand().getOnHit(), foe.getLocation());
-            }
+                    boolean died = foe.modifyHP(damage);
+                    doAction("attack %s for %d damage.", foe.name, Math.abs(damage));
 
-            if(died) {
-                doAction("kill %s.", foe.name);
-                modifyExp(foe.getExp());
+                    if(w != null && w.isMeleeWeapon() && w.getMeleeComponent().getOnHit() != null) {
+                        w.getMeleeComponent().getOnHit().setCaster(this);
+                        cast(w.getMeleeComponent().getOnHit(), foe.getLocation());
+                    }
+
+                    if(died) {
+                        doAction("kill %s.", foe.name);
+                        modifyExp(foe.getExp());
+                    }
+                }
             }
         }
 
@@ -987,7 +1079,18 @@ public class Creature extends Entity {
         int px = p.getX(), py = p.getY();
         Creature foe = null;
 
-        for(int i = 1; i <= (mainHand == null? 1 : mainHand.getReach()); i++) {
+        int range = Integer.MIN_VALUE;
+
+        for(ItemSlot i : held) {
+            if(i != null && i.isEquipped() && i.getI().isMeleeWeapon()) {
+                range = Math.max(range, i.getI().getMeleeComponent().getRange());
+            }
+        }
+
+        if(range < 1)
+            range = unarmedAttack.getMeleeComponent().getRange();
+
+        for(int i = 1; i <= range; i++) {
             if(this.x < px) {
                 if(this.y < py) {
                     foe = level.getCreatureAt(x + i, y + i);
@@ -1106,7 +1209,16 @@ public class Creature extends Entity {
         Creature foe = null;
         boolean ignore = false;
 
-        for(int i = 0; i < (mainHand == null? 1 : mainHand.getReach()); i++) {
+        int range = Integer.MIN_VALUE;
+
+        for(Item i : getHeld()) {
+            if(i != null && i.isMeleeWeapon()) range = Math.max(range, i.getMeleeComponent().getRange());
+        }
+
+        if(range < 1)
+            range = unarmedAttack.getMeleeComponent().getRange();
+
+        for(int i = 0; i < range; i++) {
             if(this.x < x) {
                 if(this.y < y) {
                     foe = level.getCreatureAt(x + i, y + i);
@@ -1338,52 +1450,17 @@ public class Creature extends Entity {
     }
 
     public void pickUp(Item i, boolean notify, boolean energy) {
-        if(i == null || level == null || level.getInventoryAt(x, y) == null || level.getInventoryAt(x, y).isEmpty() || level.getInventoryAt(x, y).contains(i) == -1) {
+        if(i == null) {
             if (notify) doAction("grab at the ground.");
         }
         else {
             if(notify) doAction("pick up %s.", i.toString());
 
             i.assignCaster(this);
+            inventory.add(i);
 
-            if(i instanceof Equipable) {
-                if(i instanceof Ammo) {
-                    Ammo a = (Ammo)i;
-                    inventory.add(a);
-                }
-                else if(i instanceof Armor) {
-                    Armor a = (Armor)i;
-                    inventory.add(a);
-                }
-                else if(i instanceof Weapon) {
-                    if(i instanceof RangedWeapon) {
-                        RangedWeapon a = (RangedWeapon)i;
-                        inventory.add(a);
-                    }
-                    else {
-                        Weapon a = (Weapon)i;
-                        inventory.add(a);
-                    }
-                }
-                else {
-                    Equipable a = (Equipable)i;
-                    inventory.add(a);
-                }
-            }
-            else if(i instanceof Potion) {
-                Potion a = (Potion)i;
-                inventory.add(a);
-            }
-            else if(i instanceof Food) {
-                Food a = (Food)i;
-                inventory.add(a);
-            }
-            else {
-                Item a = i;
-                inventory.add(a);
-            }
-
-            level.getInventoryAt(x, y).remove(i);
+            if(level != null && level.getInventoryAt(x, y) != null)
+                level.getInventoryAt(x, y).remove(i);
         }
 
         if(energy) spendEnergy(50);
@@ -1423,7 +1500,7 @@ public class Creature extends Entity {
 
         if(remove) {
             if(isEquipped(item)) {
-                boolean uneqipped = unequip(item, false);
+                boolean uneqipped = unequip(item, false, true);
                 if(!uneqipped) return;
             }
             inventory.remove(item);
@@ -1453,40 +1530,26 @@ public class Creature extends Entity {
     }
 
     public void throwItem(Item item, Cursor cursor) {
+
+        /*
+         * Remove the item from your inventory and spend energy for throwing.
+         */
         boolean depleted = inventory.removeOne(item);
         Item i;
 
-        spendEnergy(60);
+        spendEnergy(80);
 
-        if(item instanceof Potion) i = new Potion((Potion)item);
-        else if(item instanceof Equipable) {
-            if(item instanceof Weapon) {
-                if(item instanceof RangedWeapon) {
-                    i = new RangedWeapon((RangedWeapon)item);
-                }
-                else {
-                    i = new Weapon((Weapon)item);
-                }
-            }
-            else if(item instanceof Armor) {
-                i = new Armor((Armor)item);
-            }
-            else if(item instanceof Ammo) {
-                i = new Ammo((Ammo)item);
-            }
-            else {
-                i = new Equipable((Equipable)item);
-            }
-        }
-        else if(item instanceof Food) {
-            i = new Food(item);
-        }
-        else i = new Item(item);
-
+        i = item.copy();
         i.setCount(1);
 
+        /*
+         * Get the path to throw on
+         */
         Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), getThrowRange() + 1);
 
+        /*
+         * If the path is obstructed, stop early
+         */
         Point current = getLocation();
         boolean damage = false;
         for(Point p : path) {
@@ -1496,57 +1559,81 @@ public class Creature extends Entity {
 
             if(level.getCreatureAt(current.getX(), current.getY()) != null &&
                     level.getCreatureAt(current.getX(), current.getY()).getTeam() != team &&
-                    (i.hasProperty("throw"))) {
-                damage = true;
+                    (i.hasProperty("throw") || i.hasProperty("shatter"))) {
+                if(i.hasProperty("throw") || i.isLaunchable()) damage = true;
                 break;
             }
         }
 
+        /*
+         * If the path was obstructed by a creature, and this item is a throwing weapon, do an attack
+         */
         if(damage) {
-
-            /*
-            if(i instanceof Potion) {
-                if(toHit(i, level.getCreatureAt(current.getX(), current.getY()))) {
-                    doAction("throw %s at %s.", i.getName(), level.getCreatureAt(current.getX(), current.getY()).name);
-                    notify("It shatters on impact and applies its affect!");
-                    level.getCreatureAt(current.getX(), current.getY()).drink(((Potion) i), false);
-                }
-                else {
-                    doAction("throw %s at %s.", i.getName(), level.getCreatureAt(current.getX(), current.getY()).name);
-                    notify("It misses, and breaks into pieces upon hitting the floor.");
-                }
-
-            }
-
-             */
             throwAttack(i, level.getCreatureAt(current.getX(), current.getY()));
         }
         else {
             doAction("throw %s.", i.getName());
-            if(i.hasProperty("shatter"))
-                notify("It shatters on impact!");
-            else {
-                if(i.getOnThrow() == null)
-                    drop(i, current.getX(), current.getY(), false, false, false);
-            }
         }
 
-        if(i.getOnThrow() != null) {
+        boolean recover = false;
+        /*
+         * If the item is shatterable, broadcast that is shatters. Otherwise, drop the item if it doesn't have a throwing-function
+         */
+        if(i.hasProperty("shatter"))
+            notify("It shatters on impact!");
+        else if(!i.isLaunchable())
+            drop(i, current.getX(), current.getY(), false, false, false);
+
+        else if(i.getLaunchableComponent().getOnHit() == null) {
+            if(getLevel().getRandom().nextDouble() < 0.4)
+                recover = true;
+        }
+
+        /*
+         * If the item does something on throwing, do it
+         */
+        if(i.isLaunchable() && i.getLaunchableComponent().getOnHit() != null) {
             i.assignCaster(this);
-            cast(i.getOnThrow(), current);
+            cast(i.getLaunchableComponent().getOnHit(), current);
             i.assignCaster(null);
         }
 
+        /*
+         * Otherwise, if it's a consumable which shatters on impact, apply the consumable effect
+         */
+        else if(i.hasProperty("shatter") && i.isComsumable() && i.getConsumableComponent().getOnConsume() != null) {
+            i.assignCaster(this);
+            for(Effect e : i.getConsumableComponent().getOnConsume()) {
+                if(level.getCreatureAt(current.getX(), current.getY()) != null)
+                    level.getCreatureAt(current.getX(), current.getY()).applyEffect(e);
+                else e.affect(current.getX(), current.getY(), level);
+            }
+            i.assignCaster(null);
+        }
+
+        /*
+         * If you threw something that was equipped, and its stack ran out, unequip it.
+         * If it was held or in the quiver, don't spend energy to unequip.
+         */
         if(depleted) {
-            unequip(item, true, false);
+            unequip(item, item.getEquippedSlot() != null && item.getEquippedSlot().getSlot().getSlot() != Slot.HELD && item.getEquippedSlot().getSlot().getSlot() != Slot.QUIVER, item.getEquippedSlot() != null && item.getEquippedSlot().getSlot().getSlot() != Slot.HELD && item.getEquippedSlot().getSlot().getSlot() != Slot.QUIVER);
+            unequip(i, i.getEquippedSlot() != null && i.getEquippedSlot().getSlot().getSlot() != Slot.HELD && i.getEquippedSlot().getSlot().getSlot() != Slot.QUIVER, i.getEquippedSlot() != null && i.getEquippedSlot().getSlot().getSlot() != Slot.HELD && i.getEquippedSlot().getSlot().getSlot() != Slot.QUIVER);
+        }
+
+        /*
+         * If the item didn't break and can be recovered, drop it
+         */
+        if(recover) {
+            drop(i, current.getX(), current.getY(), false, false, false);
         }
 
     }
 
     public boolean canShoot(Point cursor) {
         if(quiver == null || rangedWeapon == null) return false;
+        if(quiver.isEmpty() || rangedWeapon.isEmpty() || !rangedWeapon.getI().isRangedWeapon() || !rangedWeapon.getI().getRangedComponent().canShoot(quiver.getI())) return false;
 
-        Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getRange() + 1);
+        Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getI().getRangedComponent().getRange() + 1);
 
         for(Point p : path) {
             if(p.equals(getLocation())) continue;
@@ -1561,11 +1648,11 @@ public class Creature extends Entity {
 
         spendEnergy(100);
 
-        boolean depleted = inventory.removeOne(quiver);
-        Ammo i = new Ammo(quiver);
+        boolean depleted = inventory.removeOne(quiver.getI());
+        Item i = quiver.getI().copy();
         i.setCount(1);
 
-        Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getRange() + 1);
+        Line path = new Line(this.getX(), cursor.getX(), this.getY(), cursor.getY(), rangedWeapon.getI().getRangedComponent().getRange() + 1);
 
         Point current = getLocation();
         boolean damage = false;
@@ -1583,17 +1670,32 @@ public class Creature extends Entity {
         boolean recover = false;
         if(damage) {
             rangedWeaponAttack(level.getCreatureAt(current.getX(), current.getY()));
-            if(i.getOnThrow() == null && getLevel().getRandom().nextDouble() < 0.4) recover = true;
+            if(!i.isLaunchable() && !i.hasProperty("shatter") && getLevel().getRandom().nextDouble() < 0.4)
+                recover = true;
         }
         else {
-            if(i.getOnThrow() == null)
+            if(i.getAmmoComponent().getOnHit() == null && !i.hasProperty("shatter"))
                 drop(i, current.getX(), current.getY(), false, false, false);
             doAction("shoot %s.", i.getName());
         }
 
-        if(i.getOnThrow() != null) {
+        if(i.hasProperty("shatter")) notify("It shatters on impact!");
+
+        if(i.getAmmoComponent().getOnHit() != null) {
             i.assignCaster(this);
-            cast(i.getOnThrow(), current);
+            cast(i.getAmmoComponent().getOnHit(), current);
+            i.assignCaster(null);
+        }
+        /*
+         * Otherwise, if it's a consumable which shatters on impact, apply the consumable effect
+         */
+        else if(i.hasProperty("shatter") && i.isComsumable() && i.getConsumableComponent().getOnConsume() != null) {
+            i.assignCaster(this);
+            for(Effect e : i.getConsumableComponent().getOnConsume()) {
+                if(level.getCreatureAt(current.getX(), current.getY()) != null)
+                    level.getCreatureAt(current.getX(), current.getY()).applyEffect(e);
+                else e.affect(current.getX(), current.getY(), level);
+            }
             i.assignCaster(null);
         }
 
@@ -1608,7 +1710,9 @@ public class Creature extends Entity {
 
     public void throwAttack(Item i, Creature foe) {
 
-        boolean miss = toHit(i, foe);
+        if(!i.isLaunchable()) return;
+
+        boolean miss = toHit(i.getLaunchableComponent(), foe);
 
         if(miss) {
             doAction("throw %s at %s.", i.getName(), foe.name);
@@ -1619,7 +1723,7 @@ public class Creature extends Entity {
             return;
         }
 
-        int damage = -1 * Math.max(0, (i.getThrowDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength)/2));
+        int damage = i.isLaunchable()? (i.getLaunchableComponent().getThrowDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(strength)/2) : 0;
         boolean died = foe.modifyHP(damage);
         doAction("throw %s at %s for %d damage.", i.getName(), foe.name, Math.abs(damage));
 
@@ -1634,7 +1738,7 @@ public class Creature extends Entity {
 
     public void rangedWeaponAttack(Creature foe) {
 
-        boolean miss = toHit(getRangedWeapon(), foe);
+        boolean miss = toHit(getRangedWeapon().getRangedComponent(), foe);
 
         if(miss) {
             doAction("shoot %s at %s.", quiver.getName(), foe.name);
@@ -1646,7 +1750,7 @@ public class Creature extends Entity {
             return;
         }
 
-        int damage = -1 * Math.max(0, (rangedWeapon.getWeaponDamage().getDamage(getLevel().getRandom()) + quiver.getAmmoDamage().getDamage(getLevel().getRandom()) + getAttributeBonus(agility)));
+        int damage = -1 * Math.max(0, (rangedWeapon.getI().getRangedComponent().getDamage(getLevel().getRandom()) + quiver.getI().getRangedComponent().getDamage(getLevel().getRandom()) + getAttributeBonus(agility)));
         boolean died = foe.modifyHP(damage);
         doAction("shoot %s at %s for %d damage.", quiver.getName(), foe.name, Math.abs(damage));
 
@@ -1682,7 +1786,9 @@ public class Creature extends Entity {
 
     public void leaveCorpse() {
         if(getLevel().getRandom().nextDouble() < .3) {
-            Food corpse = new Food('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), 1, hpMax * 3, "stack");
+            Item corpse = new Item('%', "data/Corpse.png", String.format(Locale.getDefault(), "%s corpse", name), "",
+                    Item.SUPER_COMMON, 1, null, "stack");
+            corpse.setComponents(new ItemBuilder().setConsumableComponent(new Consumable(corpse, hpMax * 3)));
             level.addAt(x, y, corpse);
         }
 
@@ -1697,44 +1803,51 @@ public class Creature extends Entity {
         }
     }
 
-    public void eat(Food f) {
+    public void eat(Item f) {
         eat(f, true);
     }
 
-    public void eat(Food f, boolean notify) {
+    public void eat(Item f, boolean notify) {
         eat(f, notify, true);
     }
 
-    public void eat(Food f, boolean notify, boolean energy) {
+    public void eat(Item f, boolean notify, boolean energy) {
+
+        if(f == null || f.getConsumableComponent() == null) return;
 
         if(notify) doAction("eat %s.", f.getName());
 
-        if(f.getOnEat() != null) {
+        if(f.getConsumableComponent().getOnConsume() != null) {
             f.assignCaster(this);
-            cast(f.getOnEat(), getLocation());
+            for(Effect e : f.getConsumableComponent().getOnConsume())
+                applyEffect(e);
         }
 
         inventory.removeOne(f);
 
-        hunger = Math.min(hungerMax, hunger + f.getFoodValue());
+        hunger = Math.min(hungerMax, hunger + f.getConsumableComponent().getSatiation());
 
         if(energy) spendEnergy(100);
     }
 
-    public void drink(Potion p) {
+    public void drink(Item p) {
         drink(p, true);
     }
 
-    public void drink(Potion p, boolean notify) {
+    public void drink(Item p, boolean notify) {
         drink(p, notify, true);
     }
 
-    public void drink(Potion p, boolean notify, boolean energy) {
+    public void drink(Item p, boolean notify, boolean energy) {
+
+        if(p == null || p.getConsumableComponent() == null) return;
+
         if(notify) doAction("drink %s.", p.getName());
 
-        if(p.getOnDrink() != null) {
+        if(p.getConsumableComponent().getOnConsume() != null) {
             p.assignCaster(this);
-            cast(p.getOnDrink(), getLocation());
+            for(Effect e : p.getConsumableComponent().getOnConsume())
+                applyEffect(e);
         }
 
         inventory.removeOne(p);
@@ -1757,71 +1870,335 @@ public class Creature extends Entity {
             return "Satiated";
     }
 
-    public boolean equip(Item i) {
-        return equip(i, true);
+    public boolean equip(Item i, ItemSlot is, Equipable.EquipSlot slot) {
+        return equip(i, is, slot, true);
     }
 
-    public boolean equip(Item i, boolean notify) {
-        return equip(i, notify, true);
+    public boolean equip(Item i, ItemSlot is, Equipable.EquipSlot slot, boolean notify) {
+        return equip(i, is, slot, notify, true);
     }
 
-    public boolean equip(Item i, boolean notify, boolean energy) {
+    public boolean equip(Item i, ItemSlot is, Equipable.EquipSlot slot, boolean notify, boolean energy) {
 
-        if(inventory.contains(i) != -1) {
-            pickUp(i, notify, energy);
+        if(i.isEquipped())
+            return false;
+
+        if(is == null) {
+            switch (slot.getMainSlot().getSlot()) {
+                case Slot.HELD: {
+                    for(ItemSlot sl : this.held) {
+                        if(sl.isEmpty()) {
+                            is = sl;
+                            break;
+                        }
+                    }
+                    break;
+                } case Slot.RANGED: {
+                    is = rangedWeapon;
+                    break;
+                } case Slot.QUIVER: {
+                    is = quiver;
+                    break;
+                } case Slot.FACE: {
+
+                    break;
+                } case Slot.HEAD: {
+
+                    break;
+                } case Slot.BODY: {
+                    is = body;
+                    break;
+                } case Slot.FINGERS: {
+
+                    break;
+                } case Slot.HANDS: {
+
+                    break;
+                } case Slot.KNECK: {
+
+                    break;
+                } case Slot.CLOAK: {
+
+                    break;
+                } case Slot.WRIST: {
+
+                    break;
+                } case Slot.FEET: {
+
+                    break;
+                } case Slot.WAIST: {
+
+                    break;
+                } default: {
+
+                    return false;
+                }
+            }
         }
 
-        if(!(i instanceof Equipable)) return false;
+        if(is == null || !is.isEmpty()) return false;
 
-        boolean equipped = false;
+        if(slot.getMainSlot().getSlot() != is.getSlot().getSlot()) return false;
 
-        if(i instanceof Weapon && i.hasProperty("main hand")) {
-            unequip(mainHand);
-            mainHand = (Weapon) i;
-            ((Weapon)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
-            if(energy) spendEnergy(100);
-            equipped = true;
+
+        /*
+         * Check if the item CAN be equipped
+         */
+        switch (slot.getMainSlot().getSlot()) {
+            case Slot.HELD: {
+                break;
+            } case Slot.RANGED: {
+                break;
+            } case Slot.QUIVER: {
+                if(!rangedWeapon.isEmpty() && rangedWeapon.getI().isRangedWeapon() &&
+                        !rangedWeapon.getI().getRangedComponent().canShoot(i)) return false;
+                break;
+            } case Slot.FACE: {
+
+                break;
+            } case Slot.HEAD: {
+
+                break;
+            } case Slot.BODY: {
+                break;
+            } case Slot.FINGERS: {
+
+                break;
+            } case Slot.HANDS: {
+
+                break;
+            } case Slot.KNECK: {
+
+                break;
+            } case Slot.CLOAK: {
+
+                break;
+            } case Slot.WRIST: {
+
+                break;
+            } case Slot.FEET: {
+
+                break;
+            } case Slot.WAIST: {
+
+                break;
+            } default: {
+
+                return false;
+            }
         }
 
-        else if(i instanceof RangedWeapon) {
-            unequip(rangedWeapon);
-            rangedWeapon = (RangedWeapon) i;
-            ((RangedWeapon)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
+        /*
+         * For slots with multiple of the same type, which index/indices do we equip at?
+         */
+        int[] held = null;
+        int[] fingers = null;
 
-            if(quiver != null && !quiver.hasProperty(rangedWeapon.getAmmoType()))
-                unequip(quiver);
 
-            if(energy) spendEnergy(80);
-            equipped = true;
+        for(Slot s : slot.getOccupiedSlots()) {
+            if(s == null) continue;
+            switch (s.getSlot()) {
+                case Slot.HELD: {
+                    if(this.held.length - 1 < s.getCount()) return false;
+
+                    int c = 0;
+                    held = new int[s.getCount()];
+
+                    for(int it = 0; it < this.held.length; it++) {
+                        ItemSlot sl = this.held[it];
+                        if(c == held.length) break;
+                        if(sl.equals(is)) continue;
+                        if(sl.isEmpty()) held[c++] = it;
+                    }
+
+                    if(c < held.length) return false;
+
+                    break;
+                } case Slot.RANGED: {
+
+                    break;
+                } case Slot.QUIVER: {
+
+                    break;
+                } case Slot.FACE: {
+
+                    break;
+                } case Slot.HEAD: {
+
+                    break;
+                } case Slot.BODY: {
+
+                    break;
+                } case Slot.FINGERS: {
+
+                    break;
+                } case Slot.HANDS: {
+
+                    break;
+                } case Slot.KNECK: {
+
+                    break;
+                } case Slot.CLOAK: {
+
+                    break;
+                } case Slot.WRIST: {
+
+                    break;
+                } case Slot.FEET: {
+
+                    break;
+                } case Slot.WAIST: {
+
+                    break;
+                } default: {
+
+                    return false;
+                }
+            }
         }
 
-        else if(i instanceof Ammo && (rangedWeapon == null || i.hasProperty(rangedWeapon.getAmmoType()))) {
-            unequip(quiver);
-            quiver = (Ammo) i;
-            ((Ammo)i).setEquipped(true);
-            if(notify) doAction("quiver %s.", i.toString());
+        /*
+         * Actually equip the item
+         */
+        switch (slot.getMainSlot().getSlot()) {
+            case Slot.HELD: {
+                is.equip(i);
+                break;
+            } case Slot.RANGED: {
+                rangedWeapon.equip(i);
 
-            if(energy) spendEnergy(60);
-            equipped = true;
+                if(!quiver.isEmpty() && rangedWeapon.getI().isRangedWeapon() && !rangedWeapon.getI().getRangedComponent().canShoot(quiver.getI()))
+                    unequip(quiver, true, true);
+
+                break;
+            } case Slot.QUIVER: {
+                quiver.equip(i);
+                break;
+            } case Slot.FACE: {
+
+                break;
+            } case Slot.HEAD: {
+
+                break;
+            } case Slot.BODY: {
+                body.equip(i);
+                break;
+            } case Slot.FINGERS: {
+
+                break;
+            } case Slot.HANDS: {
+
+                break;
+            } case Slot.KNECK: {
+
+                break;
+            } case Slot.CLOAK: {
+
+                break;
+            } case Slot.WRIST: {
+
+                break;
+            } case Slot.FEET: {
+
+                break;
+            } case Slot.WAIST: {
+
+                break;
+            } default: {
+
+                return false;
+            }
         }
 
-        else if(i instanceof Armor && i.hasProperty("body")) {
-            unequip(body);
-            body = (Armor)i;
-            ((Armor)i).setEquipped(true);
-            if(notify) doAction("equip %s.", i.toString());
+        for(Slot s : slot.getOccupiedSlots()) {
+            if(s == null) continue;
+            switch (s.getSlot()) {
+                case Slot.HELD: {
+                    if(held != null) {
+                        for(int it = 0; it < held.length; it++) {
+                            this.held[held[it]].obstruct(i);
+                        }
+                    }
+                    break;
+                } case Slot.RANGED: {
+                    rangedWeapon.obstruct(i);
+                    break;
+                } case Slot.QUIVER: {
+                    quiver.obstruct(i);
+                    break;
+                } case Slot.FACE: {
 
-            if(energy) spendEnergy(150);
-            equipped = true;
+                    break;
+                } case Slot.HEAD: {
+
+                    break;
+                } case Slot.BODY: {
+                    body.obstruct(i);
+                    break;
+                } case Slot.FINGERS: {
+
+                    break;
+                } case Slot.HANDS: {
+
+                    break;
+                } case Slot.KNECK: {
+
+                    break;
+                } case Slot.CLOAK: {
+
+                    break;
+                } case Slot.WRIST: {
+
+                    break;
+                } case Slot.FEET: {
+
+                    break;
+                } case Slot.WAIST: {
+
+                    break;
+                } default: {
+
+                    return false;
+                }
+            }
         }
 
-        if(equipped) {
-            applyEffect(((Equipable) i).getOnEquip());
+        if(notify)
+            doAction("equip the %s.", i.toString());
+
+        if(energy) {
+
+            /*
+             * Slots:
+             * HELD
+             * RANGED
+             * QUIVER
+             * FACE
+             * HEAD
+             * BODY
+             * FINGERS
+             * HANDS
+             * KNECK
+             * CLOAK
+             * WRIST
+             * FEET
+             * WAIST
+             */
+            switch (slot.getMainSlot().getSlot()) {
+                case Slot.QUIVER: {
+                    spendEnergy(50);
+                    break;
+                } case Slot.BODY: {
+                    spendEnergy(150);
+                    break;
+                } default: {
+                    spendEnergy(100);
+                    return false;
+                }
+            }
         }
 
-        return equipped;
+        return true;
     }
 
     public boolean unequip(Item i) {
@@ -1833,60 +2210,91 @@ public class Creature extends Entity {
     }
 
     public boolean unequip(Item i, boolean notify, boolean energy) {
-        if(!(i instanceof Equipable) || (!isEquipped(i) && !((Equipable)i).isEquipped())) return true;
+        if(!i.isEquipped()) return false;
 
-        ((Equipable)i).setEquipped(false);
+        if(notify) doAction("unequip %s.", i.getName());
 
-        removeEffect(((Equipable) i).getOnEquip());
+        if(energy) {
 
-        if(mainHand != null && mainHand.equals(i)) {
-            mainHand = null;
-            if(notify) doAction("unequip %s.", i.toString());
-
-            if(energy) spendEnergy(100);
-            return true;
+            /*
+             * Slots:
+             * HELD
+             * RANGED
+             * QUIVER
+             * FACE
+             * HEAD
+             * BODY
+             * FINGERS
+             * HANDS
+             * KNECK
+             * CLOAK
+             * WRIST
+             * FEET
+             * WAIST
+             */
+            switch(i.getEquippedSlot().getSlot().getSlot()) {
+                case Slot.QUIVER: {
+                    spendEnergy(50);
+                    break;
+                } case Slot.BODY: {
+                    spendEnergy(150);
+                    break;
+                } default: {
+                    spendEnergy(100);
+                    break;
+                }
+            }
         }
 
-        else if(rangedWeapon != null && rangedWeapon.equals(i)) {
-            rangedWeapon = null;
-            if(notify) doAction("unequip %s.", i.toString());
+        i.unequip();
 
-            if(energy) spendEnergy(80);
-            return true;
+        return true;
+    }
+
+    public boolean unequip(ItemSlot i, boolean notify, boolean energy) {
+        if(!i.isEquipped()) return false;
+
+        if(notify) doAction("unequip %s.", i.getI().getName());
+
+        if(energy) {
+
+            /*
+             * Slots:
+             * HELD
+             * RANGED
+             * QUIVER
+             * FACE
+             * HEAD
+             * BODY
+             * FINGERS
+             * HANDS
+             * KNECK
+             * CLOAK
+             * WRIST
+             * FEET
+             * WAIST
+             */
+            switch(i.getSlot().getSlot()) {
+                case Slot.QUIVER: {
+                    spendEnergy(50);
+                    break;
+                } case Slot.BODY: {
+                    spendEnergy(150);
+                    break;
+                } default: {
+                    spendEnergy(100);
+                    break;
+                }
+            }
         }
 
-        else if(quiver != null && quiver.equals(i)) {
-            quiver = null;
-            if(notify) doAction("unequip %s.", i.toString());
+        i.getI().unequip();
 
-            if(energy) spendEnergy(60);
-            return true;
-        }
-
-        else if(body != null && body.equals(i)) {
-            body = null;
-            if(notify) doAction("unequip %s.", i.toString());
-
-            if(energy) spendEnergy(150);
-            return true;
-        }
-
-
-        return false;
+        return true;
     }
 
     public boolean isEquipped(Item i) {
-        if(!(i instanceof Equipable)) return false;
-
-        if(mainHand != null && mainHand.equals(i) && ((Equipable)i).isEquipped()) return true;
-
-        if(rangedWeapon != null && rangedWeapon.equals(i) && ((Equipable)i).isEquipped()) return true;
-
-        if(quiver != null && quiver.equals(i) && ((Equipable)i).isEquipped()) return true;
-
-        if(body != null && body.equals(i) && ((Equipable)i).isEquipped()) return true;
-
-        return false;
+        return i.isEquipped();
     }
 
     public void applyEffect(Effect e) {

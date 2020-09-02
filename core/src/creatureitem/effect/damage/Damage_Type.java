@@ -4,7 +4,8 @@ public enum Damage_Type {
     FIRE("Fire"), WATER("Water"), EARTH("Earth"), AIR("Air"),
     ACID("Acid"), LIGHT("Light"), DARK("Dark"), ICE("Ice"),
     ENERGY("Energy"), POISON("Poison"),
-    BLUDGEON("Bludgeon"), PIERCE("Pierce"), SLASH("Slash");
+    BLUDGEON("Bludgeon"), PIERCE("Pierce"), SLASH("Slash"),
+    UNTYPED("Untyped");
 
     private String name;
 

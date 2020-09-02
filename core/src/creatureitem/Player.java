@@ -59,9 +59,9 @@ public class Player extends creatureitem.Creature {
     boolean allowed_to_act;
     //</editor-fold>
 
-    public Player(int maxHP, int hungerMax, int manaMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
-                  Level level, String texturePath, String name, char glyph, int team, Weapon unarmedAttack, int natArmor, float energy_factor, String ... properties) {
-        super(maxHP, hungerMax, manaMax, exp, strength, agility, constitution, perception, intelligence, discipline, charisma,
+    public Player(int maxHP, int hungerMax, int exp, int strength, int agility, int constitution, int perception, int intelligence, int discipline, int charisma,
+                  Level level, String texturePath, String name, char glyph, int team, Item unarmedAttack, int natArmor, float energy_factor, String ... properties) {
+        super(maxHP, hungerMax, exp, strength, agility, constitution, perception, intelligence, discipline, charisma,
         level, texturePath, name, glyph, team, unarmedAttack, natArmor, energy_factor, properties);
 
         isDead = false;
@@ -299,7 +299,7 @@ public class Player extends creatureitem.Creature {
         cursor.setMustSee(false);
         cursor.setConsiderObstacle(true);
         getCursor().setConsiderOneCreature(true);
-        cursor.setRange(rangedWeapon.getRange());
+        cursor.setRange(rangedWeapon.getI().getRangedComponent().getRange());
         cursor.setHasArea(false);
 
         cursor.setPositive(0);
@@ -316,7 +316,7 @@ public class Player extends creatureitem.Creature {
         cursor.setMustSee(false);
         cursor.setConsiderObstacle(true);
         getCursor().setConsiderOneCreature(true);
-        cursor.setRange(mainHand == null? 1 : mainHand.getReach());
+        cursor.setRange(getMainHand() == null? 1 : getMainHand().getMeleeComponent().getRange());
         cursor.setHasArea(false);
 
         cursor.setPositive(0);
@@ -463,13 +463,15 @@ public class Player extends creatureitem.Creature {
     }
 
     @Override
-    public void eat(Food f) {
+    public void eat(Item f) {
+        if(f == null || !f.isComsumable()) return;
+
         String hungerOriginal = hungerToString();
 
         doAction("eat %s.", f.getName());
         f.assignCaster(this);
 
-        modifyHunger(f.getFoodValue());
+        modifyHunger(f.getConsumableComponent().getSatiation());
 
         if(!hungerOriginal.equals(hungerToString()) && !(hungerToString().equals("Starving") || hungerToString().equals("Hungry")))
             doAction("feel %s.", hungerToString());

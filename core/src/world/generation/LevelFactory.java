@@ -790,44 +790,7 @@ public class LevelFactory {
                     //Now, choose a random item from what is left.
 
                     int index = random.nextInt(potentialItems.length);
-
-                    if(potentialItems[index] instanceof Equipable) {
-                        if(potentialItems[index] instanceof Ammo) {
-                            Ammo a = new Ammo((Ammo)potentialItems[index]);
-                            a.setCount(random.nextInt(11) + 1);
-                            l.addAt(i, j, a);
-                        }
-                        else if(potentialItems[index] instanceof Armor) {
-                            Armor a = new Armor((Armor)potentialItems[index]);
-                            l.addAt(i, j, a);
-                        }
-                        else if(potentialItems[index] instanceof Weapon) {
-                            if(potentialItems[index] instanceof RangedWeapon) {
-                                RangedWeapon a = new RangedWeapon((RangedWeapon)potentialItems[index]);
-                                l.addAt(i, j, a);
-                            }
-                            else {
-                                Weapon a = new Weapon((Weapon)potentialItems[index]);
-                                l.addAt(i, j, a);
-                            }
-                        }
-                        else {
-                            Equipable a = new Equipable((Equipable)potentialItems[index]);
-                            l.addAt(i, j, a);
-                        }
-                    }
-                    else if(potentialItems[index] instanceof Potion) {
-                        Potion a = new Potion((Potion)potentialItems[index]);
-                        l.addAt(i, j, a);
-                    }
-                    else if(potentialItems[index] instanceof Food) {
-                        Food a = new Food(potentialItems[index]);
-                        l.addAt(i, j, a);
-                    }
-                    else {
-                        Item a = new Item(potentialItems[index]);
-                        l.addAt(i, j, a);
-                    }
+                    l.addAt(i, j, potentialItems[index]);
 
                 }
 
@@ -1292,51 +1255,9 @@ public class LevelFactory {
 
                                 for(String item : s.keySet()) {
 
-                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
-                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
-                                            Ammo i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
-                                            i.setRarity(s.get(item));
-                                            add(i);
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
-                                            Armor i = new Armor((Armor)CreatureItemFactory.newItem(item));
-                                            i.setRarity(s.get(item));
-                                            add(i);
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
-                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
-                                                RangedWeapon i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
-                                                i.setRarity(s.get(item));
-                                                add(i);
-                                            }
-                                            else {
-                                                Weapon i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
-                                                i.setRarity(s.get(item));
-                                                add(i);
-                                            }
-                                        }
-                                        else {
-                                            Equipable i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
-                                            i.setRarity(s.get(item));
-                                            add(i);
-                                        }
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
-                                        Potion i = new Potion((Potion)CreatureItemFactory.newItem(item));
-                                        i.setRarity(s.get(item));
-                                        add(i);
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
-                                        Food i = new Food((Food)CreatureItemFactory.newItem(item));
-                                        i.setRarity(s.get(item));
-                                        add(i);
-                                    }
-                                    else {
-                                        Item i = new Item(CreatureItemFactory.newItem(item));
-                                        i.setRarity(s.get(item));
-                                        add(i);
-                                    }
-
+                                    Item i = CreatureItemFactory.newItem(item);
+                                    i.setRarity(s.get(item));
+                                    add(i);
 
                                 }
                             }
@@ -1366,39 +1287,11 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i;
 
-                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
-                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
-                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
-                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
-                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
-                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
-                                            }
-                                            else {
-                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
-                                            }
-                                        }
-                                        else {
-                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
-                                        }
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
-                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
-                                        i = new Food((Food)CreatureItemFactory.newItem(item));
-                                    }
-                                    else {
-                                        i = new Item(CreatureItemFactory.newItem(item));
-                                    }
-
+                                    Item i = CreatureItemFactory.newItem(item);
                                     i.setRarity(s.get(item));
                                     add(i);
+
                                 }
                             }
                         },
@@ -1419,39 +1312,11 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i;
 
-                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
-                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
-                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
-                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
-                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
-                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
-                                            }
-                                            else {
-                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
-                                            }
-                                        }
-                                        else {
-                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
-                                        }
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
-                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
-                                        i = new Food((Food)CreatureItemFactory.newItem(item));
-                                    }
-                                    else {
-                                        i = new Item(CreatureItemFactory.newItem(item));
-                                    }
-
+                                    Item i = CreatureItemFactory.newItem(item);
                                     i.setRarity(s.get(item));
                                     add(i);
+
                                 }
                             }
                         }
@@ -1479,39 +1344,11 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i;
 
-                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
-                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
-                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
-                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
-                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
-                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
-                                            }
-                                            else {
-                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
-                                            }
-                                        }
-                                        else {
-                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
-                                        }
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
-                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
-                                        i = new Food((Food)CreatureItemFactory.newItem(item));
-                                    }
-                                    else {
-                                        i = new Item(CreatureItemFactory.newItem(item));
-                                    }
-
+                                    Item i = CreatureItemFactory.newItem(item);
                                     i.setRarity(s.get(item));
                                     add(i);
+
                                 }
                             }
                         },
@@ -1532,39 +1369,11 @@ public class LevelFactory {
                                 };
 
                                 for(String item : s.keySet()) {
-                                    Item i;
 
-                                    if(CreatureItemFactory.newItem(item) instanceof Equipable) {
-                                        if(CreatureItemFactory.newItem(item) instanceof Ammo) {
-                                            i = new Ammo((Ammo)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Armor) {
-                                            i = new Armor((Armor)CreatureItemFactory.newItem(item));
-                                        }
-                                        else if(CreatureItemFactory.newItem(item) instanceof Weapon) {
-                                            if(CreatureItemFactory.newItem(item) instanceof RangedWeapon) {
-                                                i = new RangedWeapon((RangedWeapon)CreatureItemFactory.newItem(item));
-                                            }
-                                            else {
-                                                i = new Weapon((Weapon)CreatureItemFactory.newItem(item));
-                                            }
-                                        }
-                                        else {
-                                            i = new Equipable((Equipable)CreatureItemFactory.newItem(item));
-                                        }
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Potion) {
-                                        i = new Potion((Potion)CreatureItemFactory.newItem(item));
-                                    }
-                                    else if(CreatureItemFactory.newItem(item) instanceof Food) {
-                                        i = new Food((Food)CreatureItemFactory.newItem(item));
-                                    }
-                                    else {
-                                        i = new Item(CreatureItemFactory.newItem(item));
-                                    }
-
+                                    Item i = CreatureItemFactory.newItem(item);
                                     i.setRarity(s.get(item));
                                     add(i);
+
                                 }
                             }
                         }

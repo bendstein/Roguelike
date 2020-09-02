@@ -87,23 +87,21 @@ public class PointSpell extends Spell {
     }
 
     /**
-     * @param s The spell to copy
      * @return A deep copy of the given spell
      */
     @Override
-    public PointSpell copyOf(Spell s) {
+    public PointSpell copy() {
         PointSpell copy = new PointSpell();
         copy.effects = new ArrayList<>();
-        for(Effect e : s.effects)
+        for(Effect e : effects)
             copy.effects.add(e.makeCopy(e));
-        copy.requiresCreatureTarget = s.requiresCreatureTarget;
-        copy.ignoreObstacle = s.ignoreObstacle;
-        copy.ignoreCaster = s.ignoreCaster;
-        copy.name = s.name;
-        copy.notify = s.notify;
-        copy.range = s instanceof PointSpell? ((PointSpell) s).range : 1;
-        copy.ignoreRange = s instanceof PointSpell && ((PointSpell) s).ignoreRange;
-        //copy.cost = s.cost;
+        copy.requiresCreatureTarget = requiresCreatureTarget;
+        copy.ignoreObstacle = ignoreObstacle;
+        copy.ignoreCaster = ignoreCaster;
+        copy.name = name;
+        copy.notify = notify;
+        copy.range = range;
+        copy.ignoreRange = ignoreRange;
 
         return copy;
     }

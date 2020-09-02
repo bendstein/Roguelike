@@ -278,7 +278,7 @@ public class CreatureAi {
 
         if(creature.getLevel() == null) return false;
 
-        ArrayList<Creature> targets = creature.getLevel().getAdjCreatures(creature, creature.getRangedWeapon().getRange(), Point.DISTANCE_EUCLIDEAN);
+        ArrayList<Creature> targets = creature.getLevel().getAdjCreatures(creature, creature.getRangedWeapon().getRangedComponent().getRange(), Point.DISTANCE_EUCLIDEAN);
 
         for(Creature c : targets) {
 
@@ -294,13 +294,15 @@ public class CreatureAi {
 
     public boolean shootPoint(int x, int y) {
 
+        if(creature.getRangedWeapon() == null || creature.getRangedWeapon().getRangedComponent() == null) return false;
+
         Cursor cursor = new Cursor(x, y, true);
         cursor.setPurpose("shoot");
         cursor.setActive(true);
         cursor.clearPath();
         cursor.setHasLine(true);
         cursor.setConsiderObstacle(true);
-        cursor.setRange(creature.getRangedWeapon().getRange());
+        cursor.setRange(creature.getRangedWeapon().getRangedComponent().getRange());
 
         if(creature.canShoot(cursor)) {
             creature.shootRangedWeapon(cursor);
@@ -314,113 +316,11 @@ public class CreatureAi {
         return shootPoint(p.getX(), p.getY());
     }
 
-    public boolean useRandomItem() {
-        for(Item i : creature.getInventory()) {
-            if(creature.isEquipped(i)) continue;
-            if(i instanceof Equipable) {
-                if(i instanceof Weapon) {
-                    if(i instanceof RangedWeapon) {
-                        if(i.hasProperty("ranged")) {
-
-                            /*
-                             * If no ranged weapon or ammo equipped, equip this
-                             */
-                            if(creature.getRangedWeapon() == null) {
-                                if(creature.getQuiver() == null) {
-                                    creature.equip(i);
-                                    return true;
-                                }
-                            }
-
-                            /*
-                             * If no ammo is equipped, or the right type of ammo is equipped, equip if the average damage is greater than that of the equipped
-                             * weapon
-                             */
-                            if((creature.getQuiver() == null || creature.getQuiver().hasProperty(((RangedWeapon) i).getAmmoType())) &&
-                                    ((RangedWeapon) i).getWeaponDamage().getAverage() > creature.getRangedWeapon().getWeaponDamage().getAverage()) {
-                                creature.equip(i);
-                                return true;
-                            }
-
-                            /*
-                             * If there is acceptable ammo for the weapon in the inventory, and the average damage from the weapon and other ammo is
-                             * greater than the average damage from the equipped weapon and ammo (or 0 if no ammo is equipped).
-                             */
-                            Item[] ammo = creature.getInventory().filterProperty(((RangedWeapon) i).getAmmoType());
-                            for(Item it : ammo) {
-                                if(it instanceof Ammo && it.hasProperty(((RangedWeapon) i).getAmmoType())) {
-                                    if(((RangedWeapon) i).getWeaponDamage().getAverage() + ((Ammo) it).getAmmoDamage().getAverage() >
-                                            (creature.getQuiver() == null? 0 :
-                                            creature.getRangedWeapon().getWeaponDamage().getAverage() + creature.getQuiver().getAmmoDamage().getAverage())) {
-                                        creature.equip(i);
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if(i.hasProperty("main hand")) {
-
-                        /*
-                         * If there is no weapon equipped, or the average damage for this is greater than that of the equipped, equip it.
-                         */
-                        if(creature.getMainHand() == null || ((Weapon)i).getWeaponDamage().getAverage() > creature.getMainHand().getWeaponDamage().getAverage()) {
-                            creature.equip(i);
-                            return true;
-                        }
-                    }
-
-                }
-                if(i instanceof Ammo) {
-
-                    /*
-                     * Equip the ammo if it is acceptable for the current weapon, and if the quiver is empty, or if the ammo in the quiver has lower
-                     * average damage than this
-                     */
-                    if(i.hasProperty(creature.getRangedWeapon().getAmmoType())) {
-                        if(creature.getQuiver() == null || ((Ammo)i).getAmmoDamage().getAverage() > creature.getQuiver().getAmmoDamage().getAverage()) {
-                            creature.equip(i);
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            /*
-             * Eat food if hungry
-             */
-            if(i instanceof Food) {
-                if((double)creature.getHunger()/creature.getHungerMax() < 0.5) {
-                    creature.eat((Food)i);
-                    return true;
-                }
-            }
-
-        }
-
-        return false;
-    }
-
     /**
      * @return The creature's message queue (always empty)
      */
     public ArrayList<String> getMessages() {
         return new ArrayList<>();
-    }
-
-    /**
-     * Eat a random food item from inventory
-     */
-    public void eatRandom() {
-        int i;
-        do {
-            i = creature.getLevel().getRandom().nextInt(creature.getInventory().getItems().length);
-        } while(creature.getInventory().getItems()[i] == null && !creature.getInventory().getItems()[i].hasProperty("eat"));
-
-        Food f = (Food)creature.getInventory().getItems()[i];
-        creature.getInventory().removeOne(f);
-        creature.eat(f);
-
     }
 
     /**
